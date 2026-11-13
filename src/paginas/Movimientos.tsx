@@ -1,5 +1,5 @@
 import { Briefcase, History, Search, SlidersHorizontal, Tag, Upload, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Encabezado } from '../componentes/Encabezado'
 import { FilaMovimientoDeslizable } from '../componentes/FilaMovimientoDeslizable'
@@ -34,6 +34,21 @@ export function Movimientos() {
   const db = useDatos()
   const { avisar } = useInterfaz()
   const hacer = useHacer()
+  // Las cabeceras de día se paran debajo de la barra de búsqueda y filtros, no encima
+  const barra = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = barra.current
+    if (!el) return
+    const raiz = document.documentElement
+    const medir = () => raiz.style.setProperty('--alto-fijo', `${el.offsetHeight}px`)
+    medir()
+    const ro = new ResizeObserver(medir)
+    ro.observe(el)
+    return () => {
+      ro.disconnect()
+      raiz.style.removeProperty('--alto-fijo')
+    }
+  }, [])
   const [params, setParams] = useSearchParams()
   const [busqueda, setBusqueda] = useState('')
   const [filtros, setFiltros] = useState<Filtros>(() => ({ ...SIN_FILTROS, categoria: params.get('sin') ? null : undefined }))
@@ -131,7 +146,7 @@ export function Movimientos() {
         }
       />
 
-      <div className="sticky top-0 z-10 -mx-4 mb-3 space-y-2 bg-[#F2F2F7]/90 px-4 pt-1 pb-2 backdrop-blur dark:bg-black/80">
+      <div ref={barra} className="sticky top-[env(safe-area-inset-top)] z-20 -mx-4 mb-3 space-y-2 bg-[#F2F2F7] px-4 pt-1 pb-2 dark:bg-black">
         <div className="flex gap-2">
           <label className="flex flex-1 items-center gap-2 rounded-[10px] bg-zinc-200/70 px-3 py-2 dark:bg-zinc-800">
             <Search className="size-4 text-zinc-500" />

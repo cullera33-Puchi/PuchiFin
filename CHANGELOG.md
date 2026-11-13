@@ -2,6 +2,12 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.8.1. Scroll de Movimientos sin artefactos (13 de noviembre de 2026)
+
+- Movimientos: la barra de búsqueda y filtros y las cabeceras de día eran fijas en la misma posición y se pisaban al hacer scroll. Ahora las cabeceras se paran debajo de la barra (variable `--alto-fijo`, medida con `ResizeObserver`).
+- Cabeceras fijas con fondo sólido, sin `backdrop-filter`, que en iOS parpadea con el scroll por inercia.
+- Franja fija del color del fondo bajo la barra de estado (`body::before`, guía 2.3) y elementos fijos por debajo del área segura superior.
+
 ## v0.8.0. Datos protegidos entre versiones, tarjeta por periodo de liquidación y hoja de ruta (13 de noviembre de 2026)
 
 - Versiones nuevas sin romper lo que hay: `src/importacion/pendientes.ts` con `sincronizarReglasApp` (reglas de la app al día sin reactivar las desactivadas ni perder confirmaciones y descartes), `aplicarReglasAPendientes` (solo movimientos Normal sin categoría ni decisión del usuario; categoría por regla o aprendida, traspasos y liquidaciones; las sugerencias siguen pidiendo confirmación) y `actualizarLogica`, que se ejecuta una vez por versión al arrancar, con copia «antes de actualizar» y aviso del número de pendientes categorizados. Botón «Aplicar reglas a lo pendiente» en la bandeja Sin categoría, con Deshacer.

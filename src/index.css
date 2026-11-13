@@ -80,7 +80,10 @@
 
 /* Cabecera de grupo fija al desplazarse, con material translúcido */
 @utility cabecera-grupo {
-  @apply sticky top-0 z-10 -mx-4 mb-1.5 flex items-baseline justify-between bg-[#F2F2F7]/85 px-8 py-1.5 text-[13px] font-medium text-zinc-500 uppercase backdrop-blur-xl backdrop-saturate-150 dark:bg-black/80;
+  /* Fondo sólido: el desenfoque en una cabecera fija parpadea en iOS con el scroll rápido.
+     Se para debajo de la barra de estado y, si la pantalla tiene barra de filtros fija, debajo de ella */
+  @apply sticky z-10 -mx-4 mb-1.5 flex items-baseline justify-between bg-[#F2F2F7] px-8 py-1.5 text-[13px] font-medium text-zinc-500 uppercase dark:bg-black;
+  top: calc(env(safe-area-inset-top) + var(--alto-fijo, 0px));
 }
 
 /* Lista agrupada (inset grouped) */
@@ -128,6 +131,19 @@
 .recharts-wrapper :focus,
 .recharts-surface:focus {
   outline: none;
+}
+
+/* Franja fija bajo la barra de estado del iPhone: el contenido no se ve por detrás de la hora ni de la isla */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto;
+  height: env(safe-area-inset-top);
+  z-index: 30;
+  background: #f2f2f7;
+}
+[data-theme='dark'] body::before {
+  background: #000;
 }
 
 /* Curva única de las animaciones (guía de usabilidad) */

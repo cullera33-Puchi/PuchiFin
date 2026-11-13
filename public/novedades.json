@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.8.1",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Movimientos: al hacer scroll rápido, la fecha de cada día ya no se monta encima de la barra de búsqueda.",
+      "Lo de la lista ya no se ve por detrás de la hora y la batería."
+    ]
+  },
+  {
     "version": "0.8.0",
     "fecha": "2026-11-13",
     "cambios": [
