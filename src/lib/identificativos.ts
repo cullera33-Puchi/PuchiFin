@@ -13,12 +13,13 @@ export interface Hallazgo {
   /** Texto encontrado, ya enmascarado para poder mostrarlo sin exponerlo */
   muestra: string
   posicion: number
+  longitud: number
 }
 
 const LETRAS_DNI = 'TRWAGMYFPDXBNJZSQVHLCKE'
 
 const RE_IBAN =
-  /(?<![A-Z0-9])[A-Z]{2}[0-9]{2}(?:[ -]?[A-Z0-9]{4}){2,7}(?:[ -]?[A-Z0-9]{1,4})?(?![A-Z0-9])/g
+  /(?<![A-Z0-9])[A-Z]{2}[0-9]{2}[ -]?[A-Z0-9]{4}(?:[ -]?[0-9][A-Z0-9]{3}){1,6}(?:[ -]?[0-9][A-Z0-9]{0,3})?(?![A-Z0-9])/g
 const RE_DIGITOS = /(?<![0-9])[0-9](?:[ -]?[0-9]){12,23}(?![0-9])/g
 const RE_DNI = /(?<![A-Z0-9])([0-9]{8})[ -]?([A-Z])(?![A-Z0-9])/g
 const RE_NIE = /(?<![A-Z0-9])([XYZ])[ -]?([0-9]{7})[ -]?([A-Z])(?![A-Z0-9])/g
@@ -51,40 +52,55 @@ export function enmascarar(texto: string): string {
 
 export function detectarIdentificativos(texto: string | null | undefined): Hallazgo[] {
   if (!texto) return []
-  const t = texto.toUpperCase()
+  // Mayúsculas solo en ASCII: conserva la longitud y las posiciones del texto original
+  const t = texto.replace(/[a-z]/g, (c) => c.toUpperCase())
+  const original = (m: RegExpMatchArray) => texto.slice(m.index, m.index! + m[0].length)
   const hallazgos: Hallazgo[] = []
 
   for (const m of t.matchAll(RE_IBAN)) {
     const compacto = m[0].replace(/[ -]/g, '')
     const digitosCuerpo = compacto.slice(4).replace(/[^0-9]/g, '')
     if (compacto.length >= 15 && digitosCuerpo.length >= 10) {
-      hallazgos.push({ tipo: 'iban', muestra: enmascarar(m[0]), posicion: m.index })
+      hallazgos.push({ tipo: 'iban', muestra: enmascarar(original(m)), posicion: m.index, longitud: m[0].length })
     }
   }
 
   for (const m of t.matchAll(RE_DIGITOS)) {
     const compacto = m[0].replace(/[ -]/g, '')
     if (compacto.length === 20) {
-      hallazgos.push({ tipo: 'cuenta', muestra: enmascarar(compacto), posicion: m.index })
+      hallazgos.push({ tipo: 'cuenta', muestra: enmascarar(compacto), posicion: m.index, longitud: m[0].length })
     } else if (compacto.length >= 13 && compacto.length <= 19 && luhnValido(compacto)) {
-      hallazgos.push({ tipo: 'tarjeta', muestra: enmascarar(compacto), posicion: m.index })
+      hallazgos.push({ tipo: 'tarjeta', muestra: enmascarar(compacto), posicion: m.index, longitud: m[0].length })
     }
   }
 
   for (const m of t.matchAll(RE_DNI)) {
     if (letraControl(Number(m[1])) === m[2]) {
-      hallazgos.push({ tipo: 'dni', muestra: enmascarar(m[0]), posicion: m.index })
+      hallazgos.push({ tipo: 'dni', muestra: enmascarar(original(m)), posicion: m.index, longitud: m[0].length })
     }
   }
 
   for (const m of t.matchAll(RE_NIE)) {
     const prefijo = { X: '0', Y: '1', Z: '2' }[m[1] as 'X' | 'Y' | 'Z']
     if (letraControl(Number(prefijo + m[2])) === m[3]) {
-      hallazgos.push({ tipo: 'nie', muestra: enmascarar(m[0]), posicion: m.index })
+      hallazgos.push({ tipo: 'nie', muestra: enmascarar(original(m)), posicion: m.index, longitud: m[0].length })
     }
   }
 
   return hallazgos.sort((a, b) => a.posicion - b.posicion)
+}
+
+/**
+ * Sustituye cada dato identificativo del texto por asteriscos (deja los cuatro últimos caracteres).
+ * Se usa en el registro, que se comparte por chat.
+ */
+export function enmascararIdentificativos(texto: string): string {
+  let resultado = texto
+  const hallazgos = detectarIdentificativos(texto).sort((a, b) => b.posicion - a.posicion)
+  for (const h of hallazgos) {
+    resultado = resultado.slice(0, h.posicion) + h.muestra + resultado.slice(h.posicion + h.longitud)
+  }
+  return resultado
 }
 
 export function contieneIdentificativo(texto: string | null | undefined): boolean {

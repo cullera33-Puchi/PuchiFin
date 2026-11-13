@@ -1,14 +1,18 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { ProveedorActualizacion } from './componentes/Actualizacion'
 import { Estructura } from './componentes/Estructura'
+import { ProveedorInterfaz } from './componentes/Interfaz'
 import { supabaseConfigurado } from './lib/supabase'
 import { Acceso } from './paginas/Acceso'
 import { Ajustes } from './paginas/ajustes/Ajustes'
 import { Categorias } from './paginas/ajustes/Categorias'
 import { Cuentas } from './paginas/ajustes/Cuentas'
 import { General } from './paginas/ajustes/General'
+import { Herramientas } from './paginas/ajustes/Herramientas'
 import { Empleado } from './paginas/Empleado'
 import { Extracto } from './paginas/Extracto'
 import { Movimientos } from './paginas/Movimientos'
+import { Resumenes } from './paginas/Resumenes'
 import { SinConfigurar } from './paginas/SinConfigurar'
 import { ProveedorSesion, useSesion } from './sesion/Sesion'
 
@@ -43,11 +47,13 @@ function Rutas() {
         <Route index element={<Extracto />} />
         <Route path="movimientos" element={<Movimientos />} />
         <Route path="empleado" element={<Empleado />} />
+        <Route path="resumenes" element={<Resumenes />} />
         <Route path="ajustes" element={<Ajustes />}>
           <Route index element={<Navigate to="cuentas" replace />} />
           <Route path="cuentas" element={<Cuentas />} />
           <Route path="categorias" element={<Categorias />} />
           <Route path="general" element={<General />} />
+          <Route path="herramientas" element={<Herramientas />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
@@ -59,9 +65,13 @@ export function App() {
   if (!supabaseConfigurado) return <SinConfigurar />
   return (
     <BrowserRouter>
-      <ProveedorSesion>
-        <Rutas />
-      </ProveedorSesion>
+      <ProveedorInterfaz>
+        <ProveedorActualizacion>
+          <ProveedorSesion>
+            <Rutas />
+          </ProveedorSesion>
+        </ProveedorActualizacion>
+      </ProveedorInterfaz>
     </BrowserRouter>
   )
 }

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { FileText, FlaskConical } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Aviso, Encabezado, Proximamente } from '../componentes/Encabezado'
 import { formatearFecha, formatearImporte } from '../lib/formato'
+import { contarDatosPrueba } from '../lib/datosPruebaSupabase'
 import { mensajeError, supabase } from '../lib/supabase'
 import type { Ajustes, Compromiso } from '../lib/tipos'
 
@@ -10,6 +12,7 @@ interface Resumen {
   categorias: number
   subcategorias: number
   movimientos: number
+  prueba: number
   ajustes: Ajustes | null
   deuda: Compromiso | null
 }
@@ -22,17 +25,18 @@ async function cargarResumen(): Promise<Resumen> {
     if (error) throw error
     return count ?? 0
   }
-  const [cuentas, categorias, subcategorias, movimientos, ajustes, deuda] = await Promise.all([
+  const [cuentas, categorias, subcategorias, movimientos, ajustes, deuda, prueba] = await Promise.all([
     contar('cuentas', (q) => q.eq('activa', true)),
     contar('categorias', (q) => q.is('padre_id', null)),
     contar('categorias', (q) => q.not('padre_id', 'is', null)),
     contar('movimientos'),
     supabase.from('ajustes').select('*').maybeSingle(),
     supabase.from('compromisos').select('*').eq('activo', true).limit(1).maybeSingle(),
+    contarDatosPrueba(),
   ])
   if (ajustes.error) throw ajustes.error
   if (deuda.error) throw deuda.error
-  return { cuentas, categorias, subcategorias, movimientos, ajustes: ajustes.data, deuda: deuda.data }
+  return { cuentas, categorias, subcategorias, movimientos, prueba, ajustes: ajustes.data, deuda: deuda.data }
 }
 
 export function Extracto() {
@@ -45,8 +49,28 @@ export function Extracto() {
 
   return (
     <>
-      <Encabezado titulo="Extracto" subtitulo="Ingresos, gastos y ahorro del mes" />
+      <Encabezado
+        titulo="Extracto"
+        subtitulo="Ingresos, gastos y ahorro del mes"
+        accion={
+          <Link to="/resumenes" className="boton-secundario">
+            <FileText className="size-4" /> Resúmenes
+          </Link>
+        }
+      />
       {error && <Aviso>{error}</Aviso>}
+      {!!resumen?.prueba && (
+        <div className="mb-4">
+          <Aviso tipo="info">
+            <span className="flex flex-wrap items-center gap-2">
+              <FlaskConical className="size-4 text-amber-600" /> Hay {resumen.prueba} movimientos de prueba.
+              <Link to="/ajustes/herramientas" className="font-medium text-marca-700 underline dark:text-marca-500">
+                Gestionarlos
+              </Link>
+            </span>
+          </Aviso>
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         <Proximamente fase={3}>

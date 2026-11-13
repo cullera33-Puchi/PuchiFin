@@ -1,7 +1,8 @@
-import { Briefcase, LogOut, ReceiptText, Rows3, Settings } from 'lucide-react'
+import { Briefcase, FileText, LogOut, ReceiptText, Rows3, Settings } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useSesion } from '../sesion/Sesion'
 
+// Las cuatro pestañas del móvil (apartado 12). Resúmenes se abre desde el Extracto en el móvil
 const SECCIONES = [
   { a: '/', texto: 'Extracto', icono: ReceiptText, fin: true },
   { a: '/movimientos', texto: 'Movimientos', icono: Rows3, fin: false },
@@ -21,7 +22,7 @@ export function Estructura() {
           <span className="text-lg font-semibold tracking-tight">PuchiFin</span>
         </div>
         <nav className="flex flex-col gap-1">
-          {SECCIONES.map(({ a, texto, icono: Icono, fin }) => (
+          {[...SECCIONES.slice(0, 3), { a: '/resumenes', texto: 'Resúmenes', icono: FileText, fin: false }, SECCIONES[3]].map(({ a, texto, icono: Icono, fin }) => (
             <NavLink
               key={a}
               to={a}

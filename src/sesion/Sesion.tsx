@@ -1,5 +1,7 @@
 import type { Session } from '@supabase/supabase-js'
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { copiaDiaria } from '../lib/copias'
+import { registrar } from '../lib/registro'
 import { mensajeError, supabase } from '../lib/supabase'
 
 type Estado = 'cargando' | 'sin_sesion' | 'preparando' | 'lista' | 'error'
@@ -20,7 +22,10 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSesion(data.session))
-    const { data } = supabase.auth.onAuthStateChange((_evento, nueva) => setSesion(nueva))
+    const { data } = supabase.auth.onAuthStateChange((evento, nueva) => {
+      if (evento === 'SIGNED_IN' || evento === 'SIGNED_OUT') registrar('info', evento === 'SIGNED_IN' ? 'Sesión iniciada' : 'Sesión cerrada')
+      setSesion(nueva)
+    })
     return () => data.subscription.unsubscribe()
   }, [])
 
@@ -29,8 +34,13 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
     if (!usuarioId) return
     let cancelado = false
     // Carga idempotente de ajustes, cuentas, catálogo y compromiso en el primer acceso
-    supabase.rpc('inicializar_datos_usuario').then(({ error: e }) => {
-      if (!cancelado) setPreparado({ usuario: usuarioId, error: e ? mensajeError(e) : null })
+    supabase.rpc('inicializar_datos_usuario').then(({ data, error: e }) => {
+      if (cancelado) return
+      if (e) registrar('error', `Carga inicial: ${mensajeError(e)}`)
+      else if (data === true) registrar('info', 'Primer acceso: catálogo, cuentas y ajustes cargados')
+      setPreparado({ usuario: usuarioId, error: e ? mensajeError(e) : null })
+      // Copia diaria en el dispositivo, sin bloquear la pantalla
+      if (!e) copiaDiaria(usuarioId)
     })
     return () => {
       cancelado = true

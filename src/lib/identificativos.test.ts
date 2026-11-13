@@ -4,6 +4,7 @@ import {
   contieneIdentificativo,
   detectarIdentificativos,
   enmascarar,
+  enmascararIdentificativos,
   luhnValido,
   validarAlias,
 } from './identificativos'
@@ -63,5 +64,17 @@ describe('validarAlias', () => {
     expect(validarAlias('ES91 2100 0418 4502 0005 1332')).toMatch(/IBAN/)
     expect(validarAlias('Visa 4111111111111111')).toMatch(/tarjeta/)
     expect(validarAlias('Cuenta 0200051332')).toMatch(/dígitos/)
+  })
+})
+
+describe('enmascararIdentificativos', () => {
+  it('oculta los datos y deja el resto del texto', () => {
+    const r = enmascararIdentificativos('Error con ES91 2100 0418 4502 0005 1332 y DNI 12345678Z, fila 3')
+    expect(r).toBe('Error con ********************1332 y DNI *****678Z, fila 3')
+    expect(contieneIdentificativo(r)).toBe(false)
+  })
+
+  it('no cambia un texto sin datos', () => {
+    expect(enmascararIdentificativos('Importación de 42 movimientos')).toBe('Importación de 42 movimientos')
   })
 })

@@ -1,0 +1,20 @@
+# Registro de cambios
+
+Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
+
+## v0.2.0. Herramientas de PuchiTask y resúmenes en PDF (13 de noviembre de 2026)
+
+- Versiones y novedades: la versión sale de `package.json` (`__APP_VERSION__`). El service worker pasa a `registerType: 'prompt'`: la versión nueva espera hasta que se toca «Actualizar». El aviso abre la hoja «Novedades de la X» con las versiones que faltan, leídas sin caché de `public/novedades.json` (fuera del precache). En Ajustes, Herramientas: versión, Novedades y Buscar actualización. Comprobación al volver a la app.
+- Registro (`src/lib/registro.ts`): `localStorage` `puchifin-registro`, 400 entradas, captura de errores, promesas rechazadas y `console.error`. Enmascara cualquier IBAN, tarjeta o DNI que llegue. Ver, Copiar, Compartir, Guardar como .txt y Borrar con Deshacer.
+- Copias de seguridad (`src/lib/copias.ts`): `exportar_copia()` y `restaurar_copia(copia)` en Supabase (migración `20261113000005_copias.sql`), restauración en una sola transacción y siempre con RLS. Copia diaria en IndexedDB (`puchifin-copias`, 7 diarias y 10 del resto), copia manual, copia automática antes de restaurar, exportar a JSON e importar desde archivo con validación previa de datos identificativos.
+- Datos de prueba (`src/lib/datosPrueba.ts`): generación determinista desde la fecha de inicio hasta hoy, con nómina, recibos, compras con tarjeta, devoluciones, gastos de empleado con reembolso y conciliación, liquidación de tarjeta que cuadra con el mes anterior y traspasos entre cuentas. Origen de importación `datos_prueba` (migración `20261113000004_datos_prueba.sql`): borrar esas importaciones elimina sus movimientos en cascada.
+- Resúmenes (`src/lib/resumen.ts`, `src/lib/pdf.ts`, pantalla `/resumenes`): semana de lunes a domingo y mes natural; indicadores con comparación con el periodo anterior; gasto por categoría con peso y diferencia; mensual con semanas recortadas al mes y mayores gastos; semanal con todos los movimientos (los que no computan, en gris); bloque «Fuera del extracto» con gastos de empleado, reembolsos, pendiente al cierre, traspasos y deuda. Un periodo en curso se compara con los mismos días del anterior (del 1 al 13 de octubre frente al 1 al 13 de noviembre) y lo indica. PDF A4 con jsPDF en el dispositivo (carga diferida), compartir con la hoja del sistema o descargar, opción de quitar los conceptos.
+- Detección de datos identificativos: el patrón de IBAN ya no absorbe la palabra siguiente (bloques posteriores al primero empiezan por dígito). Mismo cambio en Postgres y en el frontal, con casos nuevos de Francia y Países Bajos.
+- Pruebas: 100 tests unitarios y pruebas de base de datos de copias y datos de prueba (`supabase/tests/20_copias.sql`). Flujo de GitHub Actions con las pruebas en cada envío.
+
+## v0.1.0. Fase 1: base (13 de noviembre de 2026)
+
+- Proyecto React, TypeScript, Vite, Tailwind y PWA con navegación móvil y escritorio.
+- Migraciones: nueve tablas más `ajustes`, RLS en todas, acceso solo para el correo autorizado y comprobación de IBAN, tarjeta y DNI en la base de datos.
+- Carga inicial de cuentas por alias, catálogo de categorías, ajustes y deuda familiar.
+- Pantallas de acceso con Google, cuentas, categorías y ajustes generales.

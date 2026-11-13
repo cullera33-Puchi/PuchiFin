@@ -1,0 +1,39 @@
+import { describe, expect, it } from 'vitest'
+import { generarDatosPrueba } from './datosPrueba'
+import { generarPdfResumen, nombreArchivoResumen } from './pdf'
+import { calcularResumen, periodoMes, periodoSemana } from './resumen'
+import type { Categoria, Cuenta } from './tipos'
+
+const cuentas: Cuenta[] = [
+  { id: 'c1', user_id: 'u', alias: 'Cuenta principal', entidad: null, tipo: 'cuenta', activa: true, orden: 1, created_at: '' },
+  { id: 't', user_id: 'u', alias: 'Tarjeta', entidad: null, tipo: 'tarjeta_credito', activa: true, orden: 2, created_at: '' },
+]
+const categorias: Categoria[] = [
+  { id: 'a', user_id: 'u', padre_id: null, nombre: 'Alimentación', icono: null, color: '#43A047', naturaleza: 'gasto', activa: true, orden: 1 },
+  { id: 'a1', user_id: 'u', padre_id: 'a', nombre: 'Supermercado', icono: null, color: '#43A047', naturaleza: 'gasto', activa: true, orden: 1 },
+]
+let n = 0
+const datos = generarDatosPrueba({ cuentas, categorias, desde: '2026-10-01', hasta: '2026-11-30', nuevoId: () => `id${++n}` })
+
+describe('generarPdfResumen', () => {
+  it('genera el PDF mensual y el semanal', () => {
+    for (const periodo of [periodoMes('2026-11-01'), periodoSemana('2026-11-11')]) {
+      const r = calcularResumen(periodo, datos.movimientos, categorias, datos.conciliaciones)
+      const doc = generarPdfResumen(r, { incluirConceptos: true, hayDatosPrueba: true, categorias, generado: '2026-11-13' })
+      const bytes = new Uint8Array(doc.output('arraybuffer'))
+      expect(new TextDecoder().decode(bytes.slice(0, 5))).toBe('%PDF-')
+      expect(doc.getNumberOfPages()).toBeGreaterThanOrEqual(1)
+    }
+  })
+
+  it('funciona sin movimientos y sin conceptos', () => {
+    const r = calcularResumen(periodoMes('2027-03-01'), [], categorias)
+    const doc = generarPdfResumen(r, { incluirConceptos: false, hayDatosPrueba: false, categorias })
+    expect(doc.getNumberOfPages()).toBe(1)
+  })
+
+  it('nombra el archivo según el periodo', () => {
+    expect(nombreArchivoResumen(calcularResumen(periodoMes('2026-11-05'), [], categorias))).toBe('PuchiFin resumen 2026-11.pdf')
+    expect(nombreArchivoResumen(calcularResumen(periodoSemana('2026-11-13'), [], categorias))).toBe('PuchiFin semana 2026-11-09.pdf')
+  })
+})

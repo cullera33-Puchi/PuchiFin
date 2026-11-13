@@ -2,6 +2,7 @@
 # Prueba las migraciones de supabase/migrations en un Postgres local desechable:
 # simula lo mínimo de Supabase, aplica las migraciones y ejecuta supabase/tests.
 set -euo pipefail
+shopt -s nullglob
 
 RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
 PGBIN="${PGBIN:-$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1)}"
@@ -31,8 +32,10 @@ for f in "$RAIZ"/supabase/migrations/*.sql; do
   "${PSQL[@]}" -f "$f"
 done
 
-echo "== Pruebas"
-"${PSQL[@]}" -f "$RAIZ/supabase/tests/10_pruebas.sql" 2>&1 | sed 's/^psql:[^ ]* NOTICE:  /  /'
+for f in "$RAIZ"/supabase/tests/[1-9]*.sql; do
+  echo "== Pruebas $(basename "$f")"
+  "${PSQL[@]}" -f "$f" 2>&1 | sed 's/^psql:[^ ]* NOTICE:  /  /'
+done
 
 echo "== Paridad con src/lib/identificativos.ts"
 node "$RAIZ/scripts/sql-casos-identificativos.mjs" | "${PSQL[@]}" 2>&1 | sed 's/^psql:[^ ]* NOTICE:  /  /'

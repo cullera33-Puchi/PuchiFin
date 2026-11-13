@@ -52,9 +52,10 @@ begin
   end if;
   t := upper(texto);
 
-  -- IBAN: código de país, dígitos de control y al menos 10 dígitos más.
+  -- IBAN: código de país, dígitos de control, un bloque libre (código de banco) y bloques
+  -- que empiezan por dígito; al menos 10 dígitos tras el código de país.
   for m in
-    select regexp_matches(t, '(?<![A-Z0-9])[A-Z]{2}[0-9]{2}(?:[ -]?[A-Z0-9]{4}){2,7}(?:[ -]?[A-Z0-9]{1,4})?(?![A-Z0-9])', 'g')
+    select regexp_matches(t, '(?<![A-Z0-9])[A-Z]{2}[0-9]{2}[ -]?[A-Z0-9]{4}(?:[ -]?[0-9][A-Z0-9]{3}){1,6}(?:[ -]?[0-9][A-Z0-9]{0,3})?(?![A-Z0-9])', 'g')
   loop
     compacto := regexp_replace(m[1], '[ -]', '', 'g');
     if length(compacto) >= 15

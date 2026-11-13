@@ -6,6 +6,7 @@ const PESTANAS = [
   { a: 'cuentas', texto: 'Cuentas' },
   { a: 'categorias', texto: 'Categorías' },
   { a: 'general', texto: 'General' },
+  { a: 'herramientas', texto: 'Herramientas' },
 ]
 
 export function Ajustes() {
@@ -26,7 +27,7 @@ export function Ajustes() {
             key={a}
             to={a}
             className={({ isActive }) =>
-              `flex-1 rounded-lg px-3 py-1.5 text-center text-sm font-medium transition-colors ${
+              `flex-1 rounded-lg px-2 py-1.5 text-center text-sm font-medium transition-colors ${
                 isActive
                   ? 'bg-white text-zinc-900 shadow-xs dark:bg-zinc-950 dark:text-zinc-100'
                   : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'

@@ -64,6 +64,20 @@ Fases 1 a 3 de la hoja de ruta. Las fases 4 a 6 quedan fuera hasta nueva indicac
 - Exportación a Excel de cualquier vista.
 - Se cierra cuando octubre y noviembre están cerrados con los reembolsos conciliados.
 
+### Herramientas comunes (traídas de PuchiTask, v0.2.0)
+
+Se mantienen en todas las fases. Están en Ajustes, Herramientas.
+
+- **Versiones y novedades.** Cada versión publicada sube `version` en `package.json`, añade su entrada técnica a `CHANGELOG.md` y de 3 a 5 líneas para el usuario en `public/novedades.json` (la más reciente arriba, campos `version`, `fecha` y `cambios`). Sin ese cambio, los dispositivos no ven las novedades. Al detectar una versión nueva, la app avisa «Nueva versión disponible» y «Actualizar» muestra las novedades que faltan antes de aplicarla.
+- **Registro.** `registrar()` de `src/lib/registro.ts` anota errores y eventos en el dispositivo (400 entradas) para copiarlo al chat. Toda operación nueva relevante (importación, copia, restauración, PDF, errores de Supabase) se registra. Nunca conceptos, importes ni nombres: solo recuentos e identificadores internos. Si se cuela un IBAN, tarjeta o DNI, se enmascara.
+- **Copias de seguridad.** Copia diaria en el dispositivo (IndexedDB, 7 últimas), copia manual, exportar a archivo JSON y restaurar desde una copia local o un archivo. Restaurar sustituye todo en una sola transacción y antes guarda una copia del estado actual. Si cambia el modelo de datos, subir `esquema` en `exportar_copia()` y en `restaurar_copia()`.
+- **Datos de prueba.** Movimientos inventados desde la fecha de inicio hasta hoy, colgados de importaciones con origen `datos_prueba`: se eliminan de una vez sin tocar lo real. El extracto, los resúmenes y el PDF avisan cuando hay datos de prueba. Si se añaden reglas o tipos nuevos, el generador debe cubrirlos.
+- **Pruebas en GitHub.** `.github/workflows/pruebas.yml` ejecuta tests, build y pruebas de base de datos en cada envío.
+
+### Resúmenes en PDF (adelantado a petición del usuario, v0.2.0)
+
+Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (por ejemplo, con alguien de la familia que no tiene acceso a la app). Especificación en el apartado 8 bis de la segunda parte. El contenido se ajusta con el uso.
+
 ## Cómo trabajar
 
 - Una fase cada vez. Al terminar cada fase, resume qué se ha hecho, qué queda pendiente y cómo probarlo.
@@ -77,6 +91,8 @@ Fases 1 a 3 de la hoja de ruta. Las fases 4 a 6 quedan fuera hasta nueva indicac
 - Ordenante y concepto de la transferencia de reembolso de la empresa.
 - Si la deuda familiar tiene intereses y si el colchón se mide sobre el saldo conjunto de las dos cuentas (afecta a la fase 4).
 - Entidad de cada cuenta y cuenta desde la que se paga la hipoteca.
+- Resúmenes en PDF: si el contenido semanal y mensual es el que se quiere compartir, y si conviene una versión reducida para compartir (solo totales y categorías).
+- El repositorio es público. No contiene datos personales, pero para una app de finanzas conviene hacerlo privado (Vercel funciona igual).
 
 ## Estado
 
@@ -87,6 +103,7 @@ Fases 1 a 3 de la hoja de ruta. Las fases 4 a 6 quedan fuera hasta nueva indicac
   - Pantallas: acceso con Google, alta y edición de cuentas por alias, catálogo de categorías editable y ajustes generales. Extracto, Movimientos y Empleado quedan como marcadores de las fases 2 y 3.
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Pendiente: crear el proyecto Supabase, aplicar las migraciones, configurar el proveedor Google y dar de alta el correo autorizado (pasos en `README.md`).
+- v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
 
 # Parte 2. Especificación funcional
 
@@ -316,6 +333,17 @@ El extracto mensual es la pantalla de inicio y solo cuenta movimientos de tipo N
 | Gastos de empleado | La vista descrita en el apartado 6 |
 
 **Exportación:** cualquier vista se exporta a Excel con los movimientos que la componen.
+
+## 8 bis. Resúmenes semanal y mensual en PDF (v0.2.0)
+
+Pantalla Resúmenes (en el móvil, desde el Extracto; en escritorio, en el menú lateral). Se elige semanal o mensual, se navega por periodos y se genera el PDF para compartir con la hoja de compartir del iPhone o descargarlo. Todo se calcula y se genera en el dispositivo.
+
+- **Periodos:** semana de lunes a domingo y mes natural. La comparativa es siempre con el periodo anterior (semana anterior o mes anterior). Si el periodo está en curso, se compara con los mismos días del anterior y se indica en pantalla y en el PDF.
+- **Cálculo:** solo computan los movimientos de tipo Normal. En una categoría de gasto, una devolución resta gasto; sin categoría, se clasifica por el signo.
+- **Contenido común:** ingresos, gastos, ahorro y tasa de ahorro con su variación; gasto por categoría con peso, importe del periodo anterior y diferencia; bloque «Fuera del extracto» con gastos de empleado, reembolsos, pendiente de reembolso al cierre, traspasos y pagos de deuda.
+- **Semanal:** todos los movimientos de la semana por día, con los que no computan en gris.
+- **Mensual:** subcategorías, ingresos por concepto, tabla semana a semana (semanas recortadas al mes) y los diez mayores gastos.
+- **Privacidad:** opción para quitar los conceptos y dejar solo fechas, categorías e importes. El PDF parte de los datos ya anonimizados y avisa si incluye datos de prueba.
 
 ## 9. Presupuestos por categoría (fase 4)
 

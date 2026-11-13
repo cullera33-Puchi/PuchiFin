@@ -1,0 +1,22 @@
+[
+  {
+    "version": "0.2.0",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Resúmenes semanal y mensual en PDF, con la comparativa con el periodo anterior, listos para compartir por WhatsApp o correo desde el iPhone.",
+      "Copias de seguridad: una diaria en el dispositivo, copia manual, exportar a archivo y restaurar, siempre con una copia previa por si hay que volver atrás.",
+      "Datos de prueba para ver el extracto y los resúmenes antes de importar los Excel de BBVA. Se eliminan de una vez.",
+      "Registro de errores y eventos en Ajustes, Herramientas, para copiarlo y pegarlo en el chat.",
+      "Aviso de nueva versión con estas novedades antes de actualizar."
+    ]
+  },
+  {
+    "version": "0.1.0",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Acceso con Google limitado a tu cuenta.",
+      "Cuentas por alias, sin números de cuenta ni de tarjeta.",
+      "Catálogo de categorías editable: crear, renombrar, cambiar icono y color, desactivar y fusionar."
+    ]
+  }
+]

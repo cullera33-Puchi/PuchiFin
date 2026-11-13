@@ -6,6 +6,8 @@
     { "texto": "iban es91 2100 0418 4502 0005 1332", "tipo": "iban" },
     { "texto": "PAGO DE DE89370400440532013000", "tipo": "iban" },
     { "texto": "REMESA GB29 NWBK 6016 1331 9268 19", "tipo": "iban" },
+    { "texto": "PAGO FR14 2004 1010 0505 0001 3M02 606 ALQUILER", "tipo": "iban" },
+    { "texto": "NL91 ABNA 0417 1643 00", "tipo": "iban" },
     { "texto": "CUENTA 2100 0418 45 0200051332", "tipo": "cuenta" },
     { "texto": "COMPRA TARJ 4111 1111 1111 1111 AMAZON", "tipo": "tarjeta" },
     { "texto": "COMPRA TARJ 4111-1111-1111-1111", "tipo": "tarjeta" },
