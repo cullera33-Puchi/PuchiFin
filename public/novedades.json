@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.19.0",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Tu posición, arriba del Extracto: tu capital de un vistazo (lo que hay en las cuentas según el banco menos lo gastado con la tarjeta que aún no se ha cargado).",
+      "Con el saldo de cada cuenta, lo pendiente de la tarjeta, cuánto han subido o bajado las cuentas desde el cierre del mes anterior y su evolución mes a mes.",
+      "El ojo de la tarjeta oculta las cifras, por si alguien mira la pantalla."
+    ]
+  },
+  {
     "version": "0.18.0",
     "fecha": "2026-11-13",
     "cambios": [

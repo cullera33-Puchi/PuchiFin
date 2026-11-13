@@ -2,6 +2,12 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.19.0. Tu posición: capital de un vistazo (13 de noviembre de 2026)
+
+- `calcularPosicion` (`src/lib/posicion.ts`): saldo de cada cuenta bancaria activa según el banco (`cuadrarCuenta`, último Disponible), pendiente de cada tarjeta (`pendienteTarjeta` en `src/lib/tarjeta.ts`: lo posterior al último tramo liquidado; sin liquidaciones, el mes de la última compra, marcado como aproximado), capital (cuentas más pendiente), saldo de las cuentas a final de los últimos 12 meses y variación frente al cierre del mes anterior.
+- `TarjetaPosicion` (`src/componentes/Posicion.tsx`) arriba del Extracto: capital, variación, línea de evolución (SVG propio, sin cargar Recharts en la pantalla de inicio), cuentas y tarjeta, y ojo para ocultar las cifras (preferencia del dispositivo en `localStorage`).
+- Pruebas: 338 tests.
+
 ## v0.18.0. Tira de periodos, aviso de importación y registro más limpio (13 de noviembre de 2026)
 
 - `TiraPeriodos` (`src/componentes/TiraPeriodos.tsx`, `opcionesMeses`, `opcionesAnios`): botones de 48 px que se deslizan de lado, el elegido resaltado y centrado. Sustituye a las flechas en el Extracto, en Informes y en la categoría de un informe. En el informe anual, tocar la barra de un mes abre ese mes arriba del todo.

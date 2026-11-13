@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Aviso, Encabezado } from '../componentes/Encabezado'
 import { Deslizable } from '../componentes/gestos'
 import { opcionesMeses, TiraPeriodos } from '../componentes/TiraPeriodos'
+import { TarjetaPosicion } from '../componentes/Posicion'
 import { Baldosa } from '../componentes/Icono'
 import { useInterfaz } from '../componentes/Interfaz'
 import { contarDatosPrueba } from '../datos/operaciones'
@@ -135,6 +136,8 @@ export function Extracto() {
           </Aviso>
         )}
       </div>
+
+      <TarjetaPosicion />
 
       <div className="mb-3">
         <TiraPeriodos etiqueta="Mes del extracto" opciones={meses} valor={mes} onElegir={irA} />

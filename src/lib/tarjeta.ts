@@ -99,3 +99,29 @@ export function cuadrarLiquidaciones(db: BaseDatos, extra: Movimiento[] = []): C
     return { movimiento: l, estado, desde: `${mes}-01`, hasta: sumarDias(`${l.fecha_operacion.slice(0, 7)}-01`, -1), compras: compras / 100, diferencia: (objetivo - compras) / 100 }
   })
 }
+
+export interface PendienteTarjeta {
+  /** Compras y devoluciones de la tarjeta aún no cargadas en la cuenta (negativo: lo que se debe) */
+  importe: number
+  /** Desde qué día cuenta (el siguiente al último tramo liquidado) */
+  desde: string | null
+  /** Sin ninguna liquidación importada: solo el mes de la última compra, como aproximación */
+  aproximado: boolean
+}
+
+/**
+ * Lo pendiente de cargar de una tarjeta: lo que pasa por ella después del último tramo liquidado
+ * (el que cuadró con su cargo en la cuenta o, si no cuadró, el mes natural anterior al cargo).
+ */
+export function pendienteTarjeta(db: BaseDatos, tarjetaId: string): PendienteTarjeta {
+  const idAbono = db.reglas.find((r) => r.origen === 'sistema' && r.nombre === 'Abono de la liquidación en la tarjeta')?.id
+  const esPago = (m: Movimiento) => m.importe > 0 && ((!!idAbono && m.regla_id === idAbono) || PAGO_EN_TARJETA.test(m.concepto_normalizado))
+  const movs = db.movimientos.filter((m) => m.cuenta_id === tarjetaId && !esPago(m))
+  if (!movs.length) return { importe: 0, desde: null, aproximado: false }
+  const liquidaciones = cuadrarLiquidaciones(db).filter((l) => l.hasta)
+  const ultima = liquidaciones[liquidaciones.length - 1]
+  const ultimaCompra = movs.reduce((max, m) => (m.fecha_operacion > max ? m.fecha_operacion : max), '')
+  const desde = ultima ? sumarDias(ultima.hasta!, 1) : `${ultimaCompra.slice(0, 7)}-01`
+  const importe = movs.filter((m) => m.fecha_operacion >= desde).reduce((s, m) => s + cent(m.importe), 0) / 100
+  return { importe, desde, aproximado: !ultima }
+}

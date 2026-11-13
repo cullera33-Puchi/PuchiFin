@@ -117,7 +117,7 @@ Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alt
 | v0.13 | Gastos fijos y recurrentes: detección por comercio, periodicidad e importe estable (suscripciones, recibos, seguros, hipoteca); fijo frente a variable, próximos cargos y subidas de precio | F | Alta | Media |
 | v0.14 | Optimizar con Claude: gastos fijos, recurrentes y hormiga con un prompt preparado (comparar tarifas de luz, fibra y seguros, suscripciones duplicadas o sin uso), por enlace a claude.ai o archivo con la hoja de compartir. Sin API ni coste | F | Alta | Media |
 | v0.14 | Avisos de recurrentes: cargo nuevo, subida de importe o cargo esperado que no llega | F | Media | Media |
-| v0.19 | Fase 4: presupuesto por categoría, plan de pagos de la deuda familiar con simulación y «Analizar con Claude» en el resto de vistas | F | Media | Alta |
+| v0.20 | Fase 4: presupuesto por categoría, plan de pagos de la deuda familiar con simulación y «Analizar con Claude» en el resto de vistas | F | Media | Alta |
 | Continua | Hojas con campos: la hoja sube con el teclado (guía 6.4); las acciones en la cabecera ya están (v0.11.0) | CV | Media | Media |
 | Continua | Menú de pulsación larga en las filas (guía 7) y búsqueda con «Cancelar» | CV | Media | Media |
 | Continua | Cambiar de pestaña deslizando y recolocación animada de las listas (guía 4.1 y 5) | CV | Baja | Media |
@@ -135,6 +135,7 @@ Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alt
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.19.0 (13/11/2026): «Tu posición» arriba del Extracto: capital (cuentas según el banco menos lo pendiente de la tarjeta), saldo por cuenta, variación del mes, evolución y ojo para ocultar las cifras (`calcularPosicion`, `pendienteTarjeta`).
 - v0.18.0 (13/11/2026): tira de periodos con botones grandes en el Extracto e Informes (`TiraPeriodos`); aviso de 5 días sin importar por cuenta (`avisoImportacion`); registro saneado (sin comercios, importes ni categorías), con repeticiones agrupadas y «Borrar» a la vista.
 - v0.17.0 (13/11/2026): crear una categoría al momento desde el selector de categoría, con aviso de las parecidas que ya existen (`categoriasParecidas`: igual, parecida o sinónimo) y «Usar esta»; la igual en el mismo nivel no se duplica. También en Ajustes, Categorías.
 - v0.16.1 (13/11/2026): volver deslizando desde cualquier punto de una pantalla apilada (salvo filas, cambio de mes, campos y chips); sin cambio de mes por gesto dentro de una categoría de Informes; la subcategoría elegida es un paso de «atrás».
@@ -381,6 +382,7 @@ El extracto mensual es la pantalla de inicio y solo cuenta movimientos de tipo N
 
 **Extracto mensual**
 
+- Tu posición (v0.19.0), arriba del todo: capital, es decir, saldo de las cuentas según el banco menos lo gastado con la tarjeta pendiente de cargar, con el saldo de cada cuenta, la variación desde el cierre del mes anterior y la evolución mes a mes.
 - Cabecera: ingresos, gastos, ahorro del mes y tasa de ahorro, con la variación frente a la media de los meses anteriores disponibles, hasta un máximo de 12.
 - Desglose por categoría con importe, peso sobre el gasto total y comparativa con la media.
 - Al tocar una categoría se abren sus movimientos del mes.
