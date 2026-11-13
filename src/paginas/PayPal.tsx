@@ -8,6 +8,7 @@ import { Segmentado } from '../componentes/Interfaz'
 import { DetalleMovimiento, SelectorCategoria } from '../componentes/movimientos'
 import { categoriasPasarela, gruposPasarela, type GrupoPasarela } from '../datos/categorizar'
 import { cambiarCategoria } from '../datos/movimientos'
+import { obtenerDatos } from '../datos/almacen'
 import { useDatos } from '../datos/ProveedorDatos'
 import { formatearFecha, formatearImporte, plural } from '../lib/formato'
 import type { BaseDatos } from '../lib/tipos'
@@ -44,7 +45,7 @@ export function PayPal() {
     if (!ids.length) return
     return hacer(
       (d) => cambiarCategoria(d, ids, categoria, { crearRegla: g.movimientos.length > 1 }),
-      `${plural(ids.length, 'cargo', 'cargos')} de ${formatearImporte(g.importe)}: ${nombreCategoria(db, categoria)}`,
+      `${plural(ids.length, 'cargo', 'cargos')} de ${formatearImporte(g.importe)}: ${nombreCategoria(obtenerDatos(), categoria)}`,
     )
   }
 

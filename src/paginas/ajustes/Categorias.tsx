@@ -6,6 +6,8 @@ import { ICONOS, ICONO_POR_DEFECTO } from '../../componentes/iconos'
 import { FilaInterruptor, useInterfaz } from '../../componentes/Interfaz'
 import { actualizarCategoria, crearCategoria, fusionarCategoria } from '../../datos/operaciones'
 import { intentar, useDatos } from '../../datos/ProveedorDatos'
+import { categoriasParecidas } from '../../datos/parecidas'
+import { ListaParecidas } from '../../componentes/CrearCategoria'
 import type { Categoria, Naturaleza } from '../../lib/tipos'
 
 interface Arbol {
@@ -145,9 +147,12 @@ function NuevaCategoria({
   onCrear: (nombre: string, naturaleza: Naturaleza) => Promise<string | null>
   onCancelar: () => void
 }) {
+  const db = useDatos()
   const [nombre, setNombre] = useState('')
   const [naturaleza, setNaturaleza] = useState<Naturaleza>('gasto')
   const [error, setError] = useState<string | null>(null)
+  // Antes de crear, aviso de las parecidas que ya existen
+  const parecidas = useMemo(() => categoriasParecidas(db, nombre), [db, nombre])
 
   const enviar = async (e: FormEvent) => {
     e.preventDefault()
@@ -165,9 +170,10 @@ function NuevaCategoria({
             <option value="ingreso">Ingreso</option>
           </select>
         )}
-        <button type="submit" className="boton-primario">Crear</button>
+        <button type="submit" className="boton-primario">{parecidas.length ? 'Crear igualmente' : 'Crear'}</button>
         <button type="button" className="boton-secundario" onClick={onCancelar}>Cancelar</button>
       </div>
+      <ListaParecidas parecidas={parecidas} />
       {error && <Aviso>{error}</Aviso>}
     </form>
   )

@@ -2,6 +2,14 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.17.0. Crear una categoría al recategorizar, con aviso de parecidas (13 de noviembre de 2026)
+
+- `categoriasParecidas` (`src/datos/parecidas.ts`): igual sin acentos, mayúsculas ni plural; parecida (una dentro de otra, errata o palabra en común); sinónimo (lista corta de grupos habituales). Ordenadas de más a menos parecida. Tests en `parecidas.test.ts`.
+- `SelectorCategoria`: «Nueva categoría» arriba y «Crear «texto»» desde el buscador. `FormCrearCategoria` (`src/componentes/CrearCategoria.tsx`): nombre, dentro de qué categoría (por defecto la del movimiento) y gasto o ingreso si es principal; lista de parecidas con «Usar esta» (reactiva si estaba desactivada); la igual en el mismo nivel bloquea; «Crear igualmente» si hay parecidas. Al crear, se aplica al movimiento como cualquier elección (con su regla y «Deshacer»).
+- Ajustes, Categorías: el alta muestra también las parecidas.
+- Corregido: el aviso tras elegir una categoría recién creada decía «?» (nombre calculado con los datos anteriores).
+- Pruebas: 331 tests.
+
 ## v0.16.1. Volver atrás sin cosas raras en Informes (13 de noviembre de 2026)
 
 - `InformeCategoria` ya no está dentro de `Deslizable`: deslizar a la derecha cambiaba al mes anterior (la pantalla se iba y volvía) en lugar de volver. El periodo se cambia con las flechas.

@@ -1,9 +1,11 @@
 /** Piezas comunes para mostrar y corregir movimientos */
-import { Briefcase, Check, ChevronRight, Search, Tag } from 'lucide-react'
+import { Briefcase, Check, ChevronRight, Plus, Search, Tag } from 'lucide-react'
+import { FormCrearCategoria } from './CrearCategoria'
 import { useEffect, useMemo, useState } from 'react'
 import { similares } from '../datos/categorizar'
 import { cambiarCategoria, cambiarTipo, guardarNota, imputarMesSiguiente } from '../datos/movimientos'
 import { mesSiguiente } from '../lib/imputacion'
+import { obtenerDatos } from '../datos/almacen'
 import { intentar, useDatos } from '../datos/ProveedorDatos'
 import { claveComercio, esPasarela, normalizarConcepto } from '../lib/conceptos'
 import { formatearFecha, formatearImporte, plural } from '../lib/formato'
@@ -70,6 +72,8 @@ export function SelectorCategoria({
 }) {
   const db = useDatos()
   const [busqueda, setBusqueda] = useState('')
+  // Crear una categoría al momento (con aviso de las parecidas que ya existen)
+  const [creando, setCreando] = useState(false)
   const q = normalizarConcepto(busqueda)
   const grupos = useMemo(() => {
     const activas = db.categorias.filter((c) => c.activa)
@@ -87,16 +91,35 @@ export function SelectorCategoria({
 
   const elegir = (id: string | null) => {
     setBusqueda('')
+    setCreando(false)
     onElegir(id)
   }
+  const botonCrear = (
+    <button className="lista fila w-full border border-dashed border-zinc-300 text-marca-700 dark:border-zinc-700 dark:text-marca-500" onClick={() => setCreando(true)}>
+      <Plus className="size-5" strokeWidth={2} />
+      <span className="flex-1 text-[15px]">{busqueda.trim() ? `Crear «${busqueda.trim()}»` : 'Nueva categoría'}</span>
+    </button>
+  )
 
   return (
-    <Hoja abierta={abierta} titulo="Categoría" onCerrar={onCerrar}>
+    <Hoja
+      abierta={abierta}
+      titulo={creando ? 'Nueva categoría' : 'Categoría'}
+      onCerrar={() => {
+        setCreando(false)
+        onCerrar()
+      }}
+    >
+      {creando ? (
+        <FormCrearCategoria nombreInicial={busqueda.trim()} padreInicial={raizDe(db, actual ?? null)?.id ?? null} onListo={(id) => elegir(id)} onCancelar={() => setCreando(false)} />
+      ) : (
+      <>
       <label className="mb-3 flex items-center gap-2 rounded-[10px] bg-zinc-100 px-3 py-2 dark:bg-zinc-800">
         <Search className="size-4 text-zinc-500" />
         <input className="w-full bg-transparent outline-none" placeholder="Buscar" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
       </label>
       <div className="space-y-3">
+        {botonCrear}
         {permitirNinguna && !q && (
           <button className="lista fila w-full border border-zinc-200 dark:border-zinc-800" onClick={() => elegir(null)}>
             <Baldosa glifo={Tag} color="#C7C7CC" tamano="sm" />
@@ -119,7 +142,10 @@ export function SelectorCategoria({
             ))}
           </div>
         ))}
+        {q && !grupos.length && <p className="px-1 text-[15px] text-zinc-500">Ninguna categoría se llama así.</p>}
       </div>
+      </>
+      )}
     </Hoja>
   )
 }
@@ -235,7 +261,7 @@ export function useElegirCategoria(ids: string[], alAbrirCorreccion: (cat: strin
     if (s.mismoComercio.length || s.parecidos.length || s.yaCategorizados.length) return alAbrirCorreccion(cat)
     await hacer(
       (d) => cambiarCategoria(d, ids, cat, { crearRegla: !!cat }),
-      cat ? `${nombreCategoria(db, cat)}${ids.length > 1 ? ` en ${ids.length} movimientos` : ''}. Regla creada para las próximas` : 'Sin categoría',
+      cat ? `${nombreCategoria(obtenerDatos(), cat)}${ids.length > 1 ? ` en ${ids.length} movimientos` : ''}. Regla creada para las próximas` : 'Sin categoría',
     )
   }
 }

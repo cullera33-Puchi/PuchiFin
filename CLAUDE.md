@@ -117,7 +117,7 @@ Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alt
 | v0.13 | Gastos fijos y recurrentes: detección por comercio, periodicidad e importe estable (suscripciones, recibos, seguros, hipoteca); fijo frente a variable, próximos cargos y subidas de precio | F | Alta | Media |
 | v0.14 | Optimizar con Claude: gastos fijos, recurrentes y hormiga con un prompt preparado (comparar tarifas de luz, fibra y seguros, suscripciones duplicadas o sin uso), por enlace a claude.ai o archivo con la hoja de compartir. Sin API ni coste | F | Alta | Media |
 | v0.14 | Avisos de recurrentes: cargo nuevo, subida de importe o cargo esperado que no llega | F | Media | Media |
-| v0.17 | Fase 4: presupuesto por categoría, plan de pagos de la deuda familiar con simulación y «Analizar con Claude» en el resto de vistas | F | Media | Alta |
+| v0.18 | Fase 4: presupuesto por categoría, plan de pagos de la deuda familiar con simulación y «Analizar con Claude» en el resto de vistas | F | Media | Alta |
 | Continua | Hojas con campos: la hoja sube con el teclado (guía 6.4); las acciones en la cabecera ya están (v0.11.0) | CV | Media | Media |
 | Continua | Menú de pulsación larga en las filas (guía 7) y búsqueda con «Cancelar» | CV | Media | Media |
 | Continua | Cambiar de pestaña deslizando y recolocación animada de las listas (guía 4.1 y 5) | CV | Baja | Media |
@@ -135,6 +135,7 @@ Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alt
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.17.0 (13/11/2026): crear una categoría al momento desde el selector de categoría, con aviso de las parecidas que ya existen (`categoriasParecidas`: igual, parecida o sinónimo) y «Usar esta»; la igual en el mismo nivel no se duplica. También en Ajustes, Categorías.
 - v0.16.1 (13/11/2026): volver deslizando desde cualquier punto de una pantalla apilada (salvo filas, cambio de mes, campos y chips); sin cambio de mes por gesto dentro de una categoría de Informes; la subcategoría elegida es un paso de «atrás».
 - v0.16.0 (13/11/2026): barra de pestañas flotante de cristal (toque en toda la pestaña, la activa resaltada, tocarla sube al principio). PayPal se reparte por importe: pantalla Repartir PayPal, aprendizaje y reglas por importe exacto (`esPasarela`, `claveConImporte`); la regla de la app «PayPal» se retira.
 - v0.15.2 (13/11/2026): barra de pestañas a cuatro columnas, sin hueco a la derecha.
@@ -316,6 +317,7 @@ La app trae un catálogo predeterminado de categorías que se puede ampliar, y l
 
 - Catálogo predeterminado de gasto e ingreso (tabla inferior). El histórico entra con los Excel de BBVA y se categoriza con las mismas reglas.
 - Se pueden crear categorías y subcategorías nuevas, con icono y color, y renombrar, fusionar o desactivar las existentes. Los movimientos asociados se reasignan.
+- También al momento, al elegir la categoría de un movimiento. Antes de crearla, la app avisa de las parecidas que ya existen (sin acentos ni plural, erratas o sinónimos) y no deja duplicar una igual en el mismo nivel.
 
 | Categoría | Subcategorías predeterminadas |
 | --- | --- |

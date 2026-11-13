@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.17.0",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Al elegir la categoría de un movimiento puedes crear una nueva al momento: «Nueva categoría», o escribe en el buscador y pulsa «Crear».",
+      "Antes de crearla, la app te avisa de las que ya existen y se parecen (mismo nombre sin acentos ni plural, una errata o un sinónimo, como Gasolina y Combustible) y puedes usar esa con un toque.",
+      "Una igual en el mismo nivel no se puede duplicar. En Ajustes, Categorías, también sale el aviso."
+    ]
+  },
+  {
     "version": "0.16.1",
     "fecha": "2026-11-13",
     "cambios": [
