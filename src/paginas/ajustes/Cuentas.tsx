@@ -10,7 +10,8 @@ import { intentar, useDatos } from '../../datos/ProveedorDatos'
 import { hoyIso } from '../../lib/fechas'
 import { formatearFecha, formatearImporte, leerImporteUsuario } from '../../lib/formato'
 import { cuadrarCuenta, idsDuplicados } from '../../lib/saldos'
-import { cuadrarLiquidaciones } from '../../lib/tarjeta'
+import { cuadrarLiquidaciones, type CuadreLiquidacion } from '../../lib/tarjeta'
+import { confirmarCuadreLiquidacion } from '../../datos/movimientos'
 import { NOMBRE_TIPO_CUENTA, type Cuenta, type TipoCuenta } from '../../lib/tipos'
 
 const ESTILO_TIPO = {
@@ -156,9 +157,20 @@ function Saldos() {
   const conSaldo = bancarias.filter((c) => cuadres.get(c.id)!.conSaldo)
   const liquidaciones = useMemo(() => cuadrarLiquidaciones(db).filter((l) => l.estado !== 'anterior_al_inicio'), [db])
   const [verTarjeta, setVerTarjeta] = useState(false)
+  const hacer = useHacer()
+  const { confirmar } = useInterfaz()
   if (!conSaldo.length && !liquidaciones.length) return null
   const cuenta = conSaldo.find((c) => c.id === abierta)
-  const tarjetaOk = liquidaciones.every((l) => l.estado === 'cuadra')
+  const bien = (l: CuadreLiquidacion) => l.estado === 'cuadra' || l.estado === 'confirmada'
+  const tarjetaOk = liquidaciones.every(bien)
+  const darPorBuena = async (l: CuadreLiquidacion) => {
+    const ok = await confirmar({
+      titulo: 'Dar por buena la liquidación',
+      texto: `El cargo del ${formatearFecha(l.movimiento.fecha_operacion)} (${formatearImporte(l.movimiento.importe)}) deja de salir como pendiente de revisar. Hazlo si sabes por qué no cuadra, por ejemplo una compra fraccionada o financiada.`,
+      aceptar: 'Dar por buena',
+    })
+    if (ok) await hacer((d) => confirmarCuadreLiquidacion(d, l.movimiento.id, true), 'Liquidación dada por buena')
+  }
   return (
     <section>
       <h2 className="px-4 pb-1.5 text-[13px] uppercase text-zinc-500">Saldo frente al banco</h2>
@@ -195,7 +207,7 @@ function Saldos() {
                 <span className="block text-xs text-zinc-500">
                   {tarjetaOk
                     ? `${liquidaciones.length === 1 ? 'Cuadra' : `Las ${liquidaciones.length} cuadran`} con las compras de la tarjeta`
-                    : `${liquidaciones.filter((l) => l.estado !== 'cuadra').length} por revisar`}
+                    : `${liquidaciones.filter((l) => !bien(l)).length} por revisar`}
                 </span>
               </span>
               <ChevronRight className="size-4 text-zinc-400" strokeWidth={2} />
@@ -206,8 +218,8 @@ function Saldos() {
       {cuenta && <HojaSaldo cuenta={cuenta} onCerrar={() => setAbierta(null)} />}
       <Hoja abierta={verTarjeta} titulo="Liquidaciones de la tarjeta" onCerrar={() => setVerTarjeta(false)}>
         <p className="mb-3 text-sm text-zinc-500">
-          Cada cargo de la tarjeta en la cuenta debe sumar lo mismo que las compras de su periodo de liquidación. En los informes cuenta cada compra; el
-          cargo en la cuenta es un traspaso y no suma dos veces.
+          Cada cargo de la tarjeta en la cuenta debe sumar lo mismo que lo que pasó por la tarjeta en su periodo de liquidación (compras, devoluciones y
+          abonos de compras fraccionadas o financiadas). En los informes cuenta cada compra; el cargo en la cuenta es un traspaso y no suma dos veces.
         </p>
         <ul className="lista divide-y divide-zinc-200/70 border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
           {liquidaciones
@@ -217,6 +229,8 @@ function Saldos() {
               <li key={l.movimiento.id} className="flex items-start gap-3 px-4 py-2.5">
                 {l.estado === 'cuadra' ? (
                   <CircleCheck className="mt-0.5 size-5 shrink-0 text-[#34C759]" strokeWidth={2} />
+                ) : l.estado === 'confirmada' ? (
+                  <CircleCheck className="mt-0.5 size-5 shrink-0 text-zinc-400" strokeWidth={2} />
                 ) : (
                   <CircleAlert className="mt-0.5 size-5 shrink-0 text-[#FF9500]" strokeWidth={2} />
                 )}
@@ -225,10 +239,25 @@ function Saldos() {
                   <span className="block text-xs text-zinc-500">
                     {l.estado === 'cuadra'
                       ? `Compras del ${formatearFecha(l.desde!)} al ${formatearFecha(l.hasta!)}`
-                      : l.estado === 'sin_tarjeta'
-                        ? 'Falta importar la tarjeta de ese periodo'
-                        : `No cuadra: diferencia de ${formatearImporte(l.diferencia)} con el mes anterior`}
+                      : l.estado === 'confirmada'
+                        ? 'Dada por buena por ti'
+                        : l.estado === 'sin_tarjeta'
+                          ? 'Falta importar la tarjeta de ese periodo'
+                          : `No cuadra con las compras del mes anterior: diferencia de ${formatearImporte(l.diferencia)}`}
                   </span>
+                  {(l.estado === 'no_cuadra' || l.estado === 'sin_tarjeta') && (
+                    <button className="boton-texto mt-1 min-h-9" onClick={() => darPorBuena(l)}>
+                      Dar por buena
+                    </button>
+                  )}
+                  {l.estado === 'confirmada' && (
+                    <button
+                      className="boton-texto mt-1 min-h-9 text-zinc-500"
+                      onClick={() => hacer((d) => confirmarCuadreLiquidacion(d, l.movimiento.id, false), 'Liquidación vuelve a revisarse')}
+                    >
+                      Volver a revisar
+                    </button>
+                  )}
                 </span>
                 <span className="text-[15px] tabular-nums">{formatearImporte(l.movimiento.importe)}</span>
               </li>

@@ -2,6 +2,12 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.14.1. Cuadre de la tarjeta con compras fraccionadas y «Dar por buena» (13 de noviembre de 2026)
+
+- `cuadrarLiquidaciones`: suma todo lo que pasa por la tarjeta (también los abonos de compras fraccionadas o financiadas, que son traspaso pero hacen que BBVA cobre menos) y excluye solo el pago de la propia liquidación («Rebut mes anterior», abono de la liquidación). Antes excluía todos los traspasos y las liquidaciones con compras fraccionadas salían como «no cuadra».
+- «Dar por buena» y «Volver a revisar» en Ajustes, Cuentas, Liquidaciones de la tarjeta (`confirmarCuadreLiquidacion`, campo opcional `cuadre_confirmado`, esquema 9). Las confirmadas no cuentan en los avisos.
+- Pruebas: 336 tests.
+
 ## v0.14.0. Sin fecha de inicio (13 de noviembre de 2026)
 
 - La importación ya no descarta nada por fecha: entra todo lo que trae el Excel (también el histórico). Fuera la sección Fechas de Ajustes, la validación de la fecha de corte y el contador «Antes del inicio».

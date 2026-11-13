@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.14.1",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Las liquidaciones de la tarjeta con compras fraccionadas o financiadas ya cuadran: la app tiene en cuenta el abono que hace BBVA en la tarjeta.",
+      "Si alguna sigue sin cuadrar y sabes por qué, puedes darla por buena en Ajustes, Cuentas, Liquidaciones de la tarjeta."
+    ]
+  },
+  {
     "version": "0.14.0",
     "fecha": "2026-11-13",
     "cambios": [

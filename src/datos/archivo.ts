@@ -90,6 +90,7 @@ export function migrar(d: Partial<BaseDatos>): BaseDatos {
   }
   // Esquema 4 (v0.7.0): saldo confirmado con el banco en cada cuenta
   // Esquema 6 (v0.10.0): Restaurantes y Ocio por separado, suscripciones por plataforma (mismos identificadores)
+  // Esquema 9 (v0.14.1): cuadre_confirmado opcional en el movimiento (sin dato, no confirmado); nada que adaptar
   // Esquema 8 (v0.14.0): sin fecha de inicio ni corte con Fintonic; entra todo lo que traen los Excel
   if (desde < 8) {
     const { fecha_inicio: _i, fecha_corte_fintonic: _f, ...resto } = datos.ajustes as typeof datos.ajustes & { fecha_inicio?: string; fecha_corte_fintonic?: string }

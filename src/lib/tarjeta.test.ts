@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { datosIniciales } from '../datos/operaciones'
 import { normalizarConcepto } from './conceptos'
+import { confirmarCuadreLiquidacion } from '../datos/movimientos'
 import { cuadrarLiquidaciones } from './tarjeta'
 import type { BaseDatos, Movimiento } from './tipos'
 
@@ -53,4 +54,20 @@ describe('cuadrarLiquidaciones', () => {
     const abono = mov(tarjeta, '2026-10-25', 120, 'ABONO LIQUIDACION TARJETA', { tipo: 'traspaso_interno' })
     expect(cuadrarLiquidaciones({ ...db, movimientos: [...db.movimientos, abono] })[1].estado).toBe('cuadra')
   })
+
+  it('cuadra aunque haya compras fraccionadas o financiadas: su abono en la tarjeta cuenta (el banco cobra menos)', () => {
+    const grande = mov(tarjeta, '2026-10-10', -500, 'TIENDA ZETA')
+    const fraccion = mov(tarjeta, '2026-10-12', 500, 'Abono por fraccionamiento de gastos', { tipo: 'traspaso_interno' })
+    const r2 = cuadrarLiquidaciones({ ...db, movimientos: [...db.movimientos, grande, fraccion] })
+    expect(r2[1]).toMatchObject({ estado: 'cuadra', compras: -150 })
+  })
+
+  it('una liquidación que no cuadra se puede dar por buena', () => {
+    const sin = { ...db, movimientos: db.movimientos.filter((m) => m.fecha_operacion !== '2026-10-15') }
+    const liq = sin.movimientos.find((m) => m.fecha_operacion === '2026-11-05')!
+    const confirmada = confirmarCuadreLiquidacion(sin, liq.id, true)
+    expect(cuadrarLiquidaciones(confirmada)[1].estado).toBe('confirmada')
+    expect(cuadrarLiquidaciones(confirmarCuadreLiquidacion(confirmada, liq.id, false))[1].estado).toBe('no_cuadra')
+  })
 })
+

@@ -95,6 +95,8 @@ export interface Movimiento {
   poblacion: string | null
   /** Revisado en la detección de gastos de empleado y confirmado como personal: no se vuelve a proponer */
   revisado_empleado: boolean
+  /** Liquidación de la tarjeta que no cuadra y el usuario ha dado por buena (esquema 9) */
+  cuadre_confirmado?: boolean
   created_at: string
 }
 
@@ -155,7 +157,7 @@ export interface Ajustes {
   version_logica: string | null
 }
 
-export const VERSION_ESQUEMA = 8
+export const VERSION_ESQUEMA = 9
 
 export interface BaseDatos {
   esquema: number

@@ -8,14 +8,21 @@
  * tarjeta (devoluciones incluidas) que suma exactamente el cargo, en los 45 días anteriores, y que
  * empieza justo después del tramo de la liquidación anterior si la hay. Si ninguno cuadra, se compara
  * con el mes natural anterior y se da la diferencia.
+ *
+ * Cuenta todo lo que pasa por la tarjeta: compras, devoluciones y también los abonos de compras que se
+ * fraccionan o financian (BBVA los devuelve en la tarjeta y cobra menos ese mes). Solo se excluye el
+ * pago de la propia liquidación, si el Excel de la tarjeta lo trae («Rebut mes anterior»).
+ * El usuario puede dar por buena una liquidación que no cuadra (cuadre_confirmado).
  */
 import { sumarDias } from './fechas'
 import type { BaseDatos, Movimiento } from './tipos'
 
 const cent = (n: number) => Math.round(n * 100)
-const PATRON = /\b(liquidacion|liq)\b.*\btarj|\bpago\b.*\btarjeta (de )?credito\b|\bcargo\b.*\btarjeta\b/
+const PATRON = /\b(liquidacion|liq)\b.*\btarj|\bpago\b.*\btarjeta (de )?credito\b|\bcargo\b.*\btarjeta\b|\badeudo mensual de tarjeta\b/
+/** Pago de la liquidación visto desde la tarjeta: no es una compra */
+const PAGO_EN_TARJETA = /\b(rebut|recibo) (del )?mes anterior\b|\babono\b.*\bliquidacion\b|\b(liquidacion|liq)\b.*\btarj/
 
-export type EstadoLiquidacion = 'cuadra' | 'no_cuadra' | 'sin_tarjeta' | 'anterior_al_inicio'
+export type EstadoLiquidacion = 'cuadra' | 'no_cuadra' | 'sin_tarjeta' | 'anterior_al_inicio' | 'confirmada'
 
 export interface CuadreLiquidacion {
   movimiento: Movimiento
@@ -42,10 +49,12 @@ export function cuadrarLiquidaciones(db: BaseDatos, extra: Movimiento[] = []): C
   const idRegla = db.reglas.find((r) => r.origen === 'sistema' && r.nombre === 'Liquidación de tarjeta')?.id
   const liquidaciones = movs.filter((m) => esLiquidacion(m, idRegla, bancarias)).sort((a, b) => a.fecha_operacion.localeCompare(b.fecha_operacion))
 
-  // Compras de la tarjeta por día (sin los abonos de la propia liquidación, si el Excel de la tarjeta los trae)
+  // Todo lo de la tarjeta por día, menos el pago de la propia liquidación
+  const idAbono = db.reglas.find((r) => r.origen === 'sistema' && r.nombre === 'Abono de la liquidación en la tarjeta')?.id
+  const esPago = (m: Movimiento) => m.importe > 0 && ((!!idAbono && m.regla_id === idAbono) || PAGO_EN_TARJETA.test(m.concepto_normalizado))
   const porDia = new Map<string, number>()
   for (const m of movs) {
-    if (!tarjetas.has(m.cuenta_id) || m.tipo === 'traspaso_interno') continue
+    if (!tarjetas.has(m.cuenta_id) || esPago(m)) continue
     porDia.set(m.fecha_operacion, (porDia.get(m.fecha_operacion) ?? 0) + cent(m.importe))
   }
   const dias = [...porDia.keys()].sort()
@@ -80,7 +89,13 @@ export function cuadrarLiquidaciones(db: BaseDatos, extra: Movimiento[] = []): C
     const compras = delMes.reduce((s, d) => s + porDia.get(d)!, 0)
     const hayAntes = dias.some((d) => d < l.fecha_operacion && d >= limite)
     // Un cargo en las primeras semanas de lo importado de la tarjeta liquida compras anteriores, que no están
-    const estado: EstadoLiquidacion = dias.length && l.fecha_operacion < sumarDias(dias[0], 28) ? 'anterior_al_inicio' : hayAntes ? 'no_cuadra' : 'sin_tarjeta'
+    const estado: EstadoLiquidacion = l.cuadre_confirmado
+      ? 'confirmada'
+      : dias.length && l.fecha_operacion < sumarDias(dias[0], 28)
+        ? 'anterior_al_inicio'
+        : hayAntes
+          ? 'no_cuadra'
+          : 'sin_tarjeta'
     return { movimiento: l, estado, desde: `${mes}-01`, hasta: sumarDias(`${l.fecha_operacion.slice(0, 7)}-01`, -1), compras: compras / 100, diferencia: (objetivo - compras) / 100 }
   })
 }

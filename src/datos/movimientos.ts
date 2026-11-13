@@ -87,6 +87,12 @@ export function cambiarTipo(db: BaseDatos, ids: string[], tipo: TipoMovimiento):
   }
 }
 
+/** Da por buena (o deja de dar por buena) una liquidación de la tarjeta que no cuadra con sus compras */
+export function confirmarCuadreLiquidacion(db: BaseDatos, id: string, confirmada: boolean): BaseDatos {
+  exigirMovimientos(db, [id])
+  return { ...db, movimientos: db.movimientos.map((m) => (m.id === id ? { ...m, cuadre_confirmado: confirmada } : m)) }
+}
+
 /** El usuario confirma la categoría que ya tienen: pasan a ser decisión suya y no se vuelve a proponer cambiarla */
 export function fijarCategoria(db: BaseDatos, ids: string[]): BaseDatos {
   const set = exigirMovimientos(db, ids)
