@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Briefcase, CircleCheck, FileSpreadsheet, ShieldAlert, Tag } from 'lucide-react'
+import { ArrowLeftRight, Briefcase, CalendarArrowUp, CircleCheck, ClipboardPaste, FileSpreadsheet, ShieldAlert, Tag } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Aviso, BarraNavegacion } from '../componentes/Encabezado'
@@ -7,9 +7,11 @@ import { Interruptor, useInterfaz } from '../componentes/Interfaz'
 import { ContenidoMovimiento, SelectorCategoria } from '../componentes/movimientos'
 import { intentar, useDatos } from '../datos/ProveedorDatos'
 import { confirmarImportacion, cuentaSugerida, deshacerImportacion, proponer, type MovimientoPropuesto } from '../importacion/importar'
-import { ErrorLectura, leerFichero, type Lectura } from '../importacion/lector'
+import { ErrorLectura, leerFichero, leerPortapapeles, type Lectura } from '../importacion/lector'
 import { hacerCopia } from '../lib/copias'
 import { formatearFecha, formatearImporte } from '../lib/formato'
+import { nombreMes } from '../lib/fechas'
+import { mesSiguiente } from '../lib/imputacion'
 import { registrar } from '../lib/registro'
 import { NOMBRE_TIPO_MOVIMIENTO } from '../lib/tipos'
 
@@ -36,8 +38,11 @@ export function Importar() {
   const [lectura, setLectura] = useState<Lectura | null>(null)
   const [cuentaId, setCuentaId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [rechazadas, setRechazadas] = useState<Set<string>>(new Set())
+  // Sugerencias desactivadas, ligadas a la propuesta a la que pertenecen
+  const [desactivadas, setDesactivadas] = useState<{ para: unknown; ids: Set<string> } | null>(null)
   const [categorias, setCategorias] = useState<Map<string, string | null>>(new Map())
+  const [alMes, setAlMes] = useState<Map<string, boolean>>(new Map())
+  const [pegando, setPegando] = useState(false)
   const [eligiendo, setEligiendo] = useState<MovimientoPropuesto | null>(null)
   const [verTodos, setVerTodos] = useState(false)
   const [hecha, setHecha] = useState<{ id: string; nuevos: number } | null>(null)
@@ -54,12 +59,46 @@ export function Importar() {
     }
   }, [lectura, cuentaId, base])
   const propuesta = calculo.propuesta
+  // Por defecto, las sugerencias seguras (confianza 0,75 o más) vienen aceptadas y las dudosas no
+  const rechazadas =
+    desactivadas && desactivadas.para === propuesta
+      ? desactivadas.ids
+      : new Set((propuesta?.nuevos ?? []).filter((m) => m.sugerencia && m.sugerencia.confianza < 0.75).map((m) => m.id))
+  const setRechazadas = (f: Set<string> | ((s: Set<string>) => Set<string>)) =>
+    setDesactivadas({ para: propuesta, ids: typeof f === 'function' ? f(rechazadas) : f })
 
-  const leer = async (f: File) => {
+  const leer = (f: File) => cargar(async () => leerFichero(new Uint8Array(await f.arrayBuffer())))
+
+  // Pegar: lo copiado en BBVA (fichero, tabla de la web o texto)
+  const pegarDelPortapapeles = async () => {
+    try {
+      if (!navigator.clipboard?.read) throw new Error('sin lectura')
+      const items = await navigator.clipboard.read()
+      for (const item of items) {
+        const tipoArchivo = item.types.find((t) => /sheet|excel|octet-stream|csv/.test(t))
+        if (tipoArchivo) return cargar(async () => leerPortapapeles({ archivo: await item.getType(tipoArchivo) }))
+        if (item.types.includes('text/html')) {
+          const html = await (await item.getType('text/html')).text()
+          if (/<table[\s>]/i.test(html)) return cargar(() => leerPortapapeles({ html }))
+        }
+        if (item.types.includes('text/plain')) {
+          const texto = await (await item.getType('text/plain')).text()
+          return cargar(() => leerPortapapeles({ texto }))
+        }
+      }
+      setError('Lo copiado no es un Excel ni una tabla de movimientos')
+    } catch {
+      // Safari puede no dejar leer el portapapeles desde un botón: se pega en la zona de pegado
+      setPegando(true)
+    }
+  }
+
+  const cargar = async (obtener: () => Promise<Lectura>) => {
     setError(null)
     setHecha(null)
+    setPegando(false)
     try {
-      const l = leerFichero(new Uint8Array(await f.arrayBuffer()))
+      const l = await obtener()
       let ultima: string | undefined
       try {
         ultima = localStorage.getItem(CLAVE_CUENTA + l.plantilla.origen) ?? undefined
@@ -70,11 +109,12 @@ export function Importar() {
       setBase(db)
       setLectura(l)
       setCuentaId(sugerida?.id ?? null)
-      setRechazadas(new Set())
       setCategorias(new Map())
-      registrar('info', 'Excel leído', { origen: l.plantilla.origen, filas: l.filas.length, ilegibles: l.ilegibles.length })
+      setAlMes(new Map())
+      setDesactivadas(null)
+      registrar('info', 'Movimientos leídos', { origen: l.plantilla.origen, filas: l.filas.length, ilegibles: l.ilegibles.length, hoja: l.hoja })
     } catch (e) {
-      const msg = e instanceof ErrorLectura ? e.message : 'No se ha podido leer el fichero'
+      const msg = e instanceof ErrorLectura ? e.message : 'No se ha podido leer lo copiado o el fichero'
       registrar('aviso', `Leer Excel: ${msg}`)
       setError(msg)
       setLectura(null)
@@ -94,7 +134,7 @@ export function Importar() {
       const aceptadas = new Set(sugeridas.filter((m) => !rechazadas.has(m.id)).map((m) => m.id))
       let id = ''
       const e = await intentar((d) => {
-        const r = confirmarImportacion(d, propuesta, { aceptadas, categorias })
+        const r = confirmarImportacion(d, propuesta, { aceptadas, categorias, mesSiguiente: alMes })
         id = r.importaciones[r.importaciones.length - 1].id
         return r
       })
@@ -176,10 +216,36 @@ export function Importar() {
       {!lectura && !hecha && (
         <div className="tarjeta space-y-4 text-center">
           <FileSpreadsheet className="mx-auto size-12 text-[#34C759]" strokeWidth={1.5} />
-          <p className="text-[15px]">Descarga el Excel de movimientos en la app o la web de BBVA, guárdalo en Archivos y elígelo aquí. La app reconoce si es de una cuenta o de la tarjeta.</p>
-          <button className="boton-primario w-full" onClick={() => entrada.current?.click()}>
-            Elegir fichero
-          </button>
+          <p className="text-[15px]">
+            Descarga el Excel de movimientos en BBVA y elígelo desde Archivos, o cópialo y pégalo aquí. La app reconoce si es de una cuenta o de la tarjeta.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <button className="boton-primario" onClick={() => entrada.current?.click()}>
+              <FileSpreadsheet className="size-4" strokeWidth={2} /> Elegir fichero
+            </button>
+            <button className="boton-secundario" onClick={pegarDelPortapapeles}>
+              <ClipboardPaste className="size-4" strokeWidth={2} /> Pegar
+            </button>
+          </div>
+          {pegando && (
+            <div
+              contentEditable
+              suppressContentEditableWarning
+              role="textbox"
+              aria-label="Zona de pegado"
+              className="min-h-24 rounded-[10px] border-2 border-dashed border-marca-600 bg-marca-50/40 p-3 text-left text-sm text-zinc-500 outline-none dark:bg-marca-900/20"
+              onPaste={(e) => {
+                e.preventDefault()
+                const dt = e.clipboardData
+                const archivo = dt.files?.[0] ?? null
+                const html = dt.getData('text/html')
+                const texto = dt.getData('text/plain')
+                cargar(() => leerPortapapeles({ archivo, html, texto }))
+              }}
+            >
+              Mantén pulsado aquí y elige «Pegar».
+            </div>
+          )}
           <p className="text-xs text-zinc-500">
             El fichero se lee en el iPhone y no se guarda: solo los movimientos, ya sin números de cuenta, tarjetas ni nombres. ¿Sin ficheros todavía? Descarga los{' '}
             <Link to="/ajustes/herramientas" className="text-marca-700 underline dark:text-marca-500">
@@ -201,7 +267,7 @@ export function Importar() {
                   {propuesta.fecha_desde ? `Del ${formatearFecha(propuesta.fecha_desde)} al ${formatearFecha(propuesta.fecha_hasta!)}` : 'Sin movimientos nuevos'}
                 </p>
               </div>
-              <button className="boton-texto" onClick={() => entrada.current?.click()}>
+              <button className="boton-texto" onClick={() => { setLectura(null); setPegando(false) }}>
                 Cambiar
               </button>
             </div>
@@ -250,7 +316,7 @@ export function Importar() {
           ))}
 
           {sugeridas.length > 0 && (
-            <Bloque titulo={`Sugerencias (${sugeridas.length})`} icono={Briefcase} color="#5856D6" nota="Gastos de empleado, reembolsos y pagos de deuda que proponen las reglas. Desactiva los que no lo sean.">
+            <Bloque titulo={`Sugerencias (${sugeridas.length})`} icono={Briefcase} color="#5856D6" nota="Gastos de empleado, reembolsos y pagos de deuda que propone la app. Los muy probables vienen activados; revisa el resto. Lo que descartes también enseña a la app.">
               <div className="mb-2 flex gap-3 px-1">
                 <button className="boton-texto" onClick={() => setRechazadas(new Set())}>
                   Aceptar todas
@@ -286,12 +352,41 @@ export function Importar() {
             </Bloque>
           )}
 
-          {propuesta.traspasos.length > 0 && (
+          {propuesta.nuevos.some((m) => m.mes_imputacion || propuesta.alMesSiguiente.includes(m.id)) && (
             <Bloque
-              titulo={`Traspasos entre tus cuentas (${propuesta.traspasos.length})`}
+              titulo="Cuentan en el mes siguiente"
+              icono={CalendarArrowUp}
+              color="#007AFF"
+              nota="Cobros y cargos de fin de mes que son del mes siguiente (nómina, hipoteca o lo que pasaste a mano antes). Cuentan desde el día 1."
+            >
+              <ul className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
+                {propuesta.nuevos
+                  .filter((m) => propuesta.alMesSiguiente.includes(m.id))
+                  .map((m) => (
+                    <li key={m.id} className="flex items-center gap-3 px-4 py-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[15px]">{m.concepto_limpio}</p>
+                        <p className="truncate text-xs text-zinc-500">
+                          {formatearFecha(m.fecha_operacion)}, {formatearImporte(m.importe)}. Cuenta en {nombreMes(`${mesSiguiente(m.fecha_operacion)}-01`)}
+                        </p>
+                      </div>
+                      <Interruptor
+                        etiqueta={`Mes siguiente: ${m.concepto_limpio}`}
+                        activo={alMes.get(m.id) ?? true}
+                        onCambio={(v) => setAlMes((mapa) => new Map(mapa).set(m.id, v))}
+                      />
+                    </li>
+                  ))}
+              </ul>
+            </Bloque>
+          )}
+
+          {propuesta.nuevos.some((m) => m.tipo === 'traspaso_interno') && (
+            <Bloque
+              titulo={`Traspasos entre tus cuentas (${propuesta.nuevos.filter((m) => m.tipo === 'traspaso_interno').length})`}
               icono={ArrowLeftRight}
               color="#8E8E93"
-              nota="Emparejados con el movimiento opuesto de otra cuenta. Se marcan como traspaso interno en los dos lados y no computan."
+              nota={`Traspasos y liquidación de la tarjeta: no computan como gasto ni como ingreso, así que se netean entre las dos cuentas.${propuesta.traspasos.length ? ` ${propuesta.traspasos.length} ya están emparejados con su movimiento en la otra cuenta.` : ' Al importar la otra cuenta se emparejarán.'}`}
             />
           )}
 

@@ -4,12 +4,14 @@
  * solo se guardan los movimientos ya anonimizados.
  */
 import { ErrorDatos, claveMovimiento, exigirSinIdentificativos, nuevoId } from '../datos/operaciones'
-import { normalizarConcepto } from '../lib/conceptos'
+import { claveComercio, normalizarConcepto } from '../lib/conceptos'
 import { formatearFecha, formatearImporte } from '../lib/formato'
 import { sumarDias } from '../lib/fechas'
+import { finDeMes, mesSiguiente } from '../lib/imputacion'
 import { detectarIdentificativos, NOMBRE_TIPO } from '../lib/identificativos'
 import type { BaseDatos, Cuenta, Importacion, Movimiento, TipoMovimiento } from '../lib/tipos'
-import { anonimizarConcepto } from './anonimizar'
+import { anonimizarConcepto, aplicarAlias, conservarDesde } from './anonimizar'
+import { contextoEmpleado, puntuarEmpleado, UMBRAL_EMPLEADO } from './empleado'
 import type { Lectura } from './lector'
 import { categoriasAprendidas, clasificar, type Sugerencia } from './reglas'
 
@@ -33,6 +35,8 @@ export interface Propuesta {
   avisos: string[]
   /** Datos identificativos que siguen en lo que se va a guardar: bloquean la importación */
   problemas: { fila: number; texto: string }[]
+  /** Movimientos de fin de mes que pasan al mes siguiente (nómina, hipoteca o lo aprendido) */
+  alMesSiguiente: string[]
 }
 
 /** Concepto legible: sin números enmascarados ni separadores sueltos, con mayúscula inicial por palabra */
@@ -40,6 +44,7 @@ export function conceptoLimpio(anonimizado: string, alias: string[] = []): strin
   const limpio = anonimizado
     .replace(/(?<![A-Za-z0-9])[*X]{3,}(?:[\s-]*[*X]+)*[\s-]*\d{0,4}(?![A-Za-z0-9])/g, ' ') // números enmascarados (****1234, XXXX)
     .replace(/\b(COMPRA|PAGO)\s+(CON\s+)?(TARJ(ETA)?\.?|TJ\.?)\s+(EN\s+)?/gi, '')
+    .replace(/(^|\s)N\s+(?=[A-Za-zÁÉÍÓÚÑ])/g, '$1') // «N» de la referencia de adeudo («N 2026…»), ya enmascarada
     .replace(/\s+-\s*$|^\s*-\s+/g, '')
     .replace(/\s+-\s+-\s+/g, ' - ')
     .replace(/\s{2,}/g, ' ')
@@ -84,13 +89,25 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
   let duplicados = 0
   const nuevos: MovimientoPropuesto[] = []
   const filasOrdenadas = [...lectura.filas].sort((a, b) => a.fecha_operacion.localeCompare(b.fecha_operacion) || b.numero - a.numero)
+  // El nombre de una persona (titular u ordenante) solo se conserva como alias
+  // (con lo que sigue desde una palabra clave: «ACME CONSULTING SL GASTOS» queda «Empresa GASTOS»)
+  const terceroComoAlias = (t: string | null) => {
+    if (!t) return null
+    const con = aplicarAlias(t, alias)
+    const a = nombresAlias.find((x) => con.includes(x))
+    const resto = conservarDesde(con.slice(a ? con.indexOf(a) + a.length : 0))
+    return [a, resto].filter(Boolean).join(' ') || null
+  }
   for (const f of filasOrdenadas) {
     if (f.fecha_operacion < db.ajustes.fecha_inicio) {
       anteriores++
       continue
     }
-    const original = anonimizarConcepto(f.concepto, alias)
-    const limpio = conceptoLimpio(original, nombresAlias) || original
+    const tercero = terceroComoAlias(f.tercero)
+    const completo = [f.poblacion ? `${f.concepto} ${f.poblacion}` : f.concepto, f.detalle, tercero, f.operacion, f.extra].filter(Boolean).join(' - ')
+    const original = anonimizarConcepto(completo, alias)
+    const base = f.generico && f.detalle ? f.detalle : [f.concepto, f.detalle].filter(Boolean).join(' ')
+    const limpio = conceptoLimpio(anonimizarConcepto([base, tercero].filter(Boolean).join(' '), alias), nombresAlias) || original
     const normalizado = normalizarConcepto(limpio)
     const k = `${f.fecha_operacion}|${f.importe}|${normalizado}`
     const ocurrencia = (enFichero.get(k) ?? 0) + 1
@@ -99,7 +116,7 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
       duplicados++
       continue
     }
-    const c = clasificar({ concepto_normalizado: normalizado, cuenta_id, importe: f.importe }, db.reglas, aprendidas)
+    const c = clasificar({ texto: normalizarConcepto(original), clave: claveComercio(limpio), cuenta_id, importe: f.importe }, db.reglas, aprendidas)
     nuevos.push({
       id: nuevoId(),
       fila: f.numero,
@@ -119,19 +136,29 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
       origen_categoria: c.origen_categoria,
       nota: null,
       reembolso_cerrado: false,
+      mes_imputacion: c.mes_siguiente && finDeMes(f.fecha_operacion, db.ajustes.dias_fin_de_mes) ? mesSiguiente(f.fecha_operacion) : null,
+      poblacion: f.poblacion,
+      revisado_empleado: false,
       created_at: creado,
       sugerencia: c.sugerencia,
     })
   }
 
-  // Restaurante en día laborable el mismo día que un viaje de trabajo: también se sugiere como gasto de empleado
-  const diasViaje = new Set(nuevos.filter((m) => m.sugerencia?.tipo === 'gasto_empleado').map((m) => m.fecha_operacion))
-  const restaurantes = new Set(db.categorias.filter((c) => c.nombre === 'Restaurantes' || c.nombre === 'Cafeterías').map((c) => c.id))
+  // Gastos de empleado: puntuación por tipo de gasto, tarjeta, día, lugar e historial del comercio
+  const ctx = contextoEmpleado(db, nuevos)
+  for (const m of nuevos) if (m.sugerencia?.tipo === 'gasto_empleado') ctx.diasViaje.add(m.fecha_operacion)
   for (const m of nuevos) {
-    const dia = new Date(`${m.fecha_operacion}T00:00:00Z`).getUTCDay()
-    if (!m.sugerencia && m.tipo === 'normal' && m.importe < 0 && dia >= 1 && dia <= 5 && m.categoria_id && restaurantes.has(m.categoria_id) && diasViaje.has(m.fecha_operacion)) {
-      m.sugerencia = { tipo: 'gasto_empleado', motivo: 'Restaurante en un día de viaje de trabajo', regla_id: null }
-    }
+    if (m.tipo !== 'normal' || m.importe >= 0 || (m.sugerencia && m.sugerencia.tipo !== 'gasto_empleado')) continue
+    const p = puntuarEmpleado(m, ctx)
+    if (p.puntuacion >= UMBRAL_EMPLEADO) {
+      const motivo = p.motivos.join(', ')
+      m.sugerencia = {
+        tipo: 'gasto_empleado',
+        motivo: m.sugerencia ? `${m.sugerencia.motivo}: ${motivo}` : motivo.charAt(0).toUpperCase() + motivo.slice(1),
+        regla_id: m.sugerencia?.regla_id ?? null,
+        confianza: Math.max(p.puntuacion, m.sugerencia?.confianza ?? 0),
+      }
+    } else if (m.sugerencia?.tipo === 'gasto_empleado' && !m.sugerencia.regla_id) m.sugerencia = null
   }
 
   // Traspasos entre cuentas propias: importe opuesto en otra cuenta bancaria, hasta 3 días de diferencia
@@ -140,7 +167,7 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
   const bancarias = new Set(db.cuentas.filter((c) => c.tipo === 'cuenta').map((c) => c.id))
   if (bancarias.has(cuenta_id)) {
     for (const m of nuevos) {
-      if (m.tipo !== 'normal' || !ES_TRASPASO.test(m.concepto_normalizado)) continue
+      if ((m.tipo !== 'normal' && m.tipo !== 'traspaso_interno') || !ES_TRASPASO.test(m.concepto_normalizado)) continue
       const par = db.movimientos.find(
         (x) =>
           !usados.has(x.id) &&
@@ -208,6 +235,7 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
     traspasos,
     avisos,
     problemas,
+    alMesSiguiente: nuevos.filter((m) => m.mes_imputacion).map((m) => m.id),
   }
 }
 
@@ -216,6 +244,8 @@ export interface Decisiones {
   aceptadas: Set<string>
   /** Categorías cambiadas en la revisión */
   categorias?: Map<string, string | null>
+  /** Paso al mes siguiente cambiado en la revisión (true: cuenta en el mes siguiente) */
+  mesSiguiente?: Map<string, boolean>
 }
 
 /** Confirma la importación: guarda los movimientos y la registra. Lanza ErrorDatos si algo no es válido */
@@ -243,10 +273,16 @@ export function confirmarImportacion(db: BaseDatos, p: Propuesta, decisiones: De
     exigirSinIdentificativos(`Fila ${fila}`, m.concepto_original)
     exigirSinIdentificativos(`Fila ${fila}`, m.concepto_limpio)
     const mov: Movimiento = { ...m, importacion_id: importacion.id }
+    const imputar = decisiones.mesSiguiente?.get(m.id)
+    if (imputar !== undefined) mov.mes_imputacion = imputar ? mesSiguiente(m.fecha_operacion) : null
     if (sugerencia) {
       const aceptada = decisiones.aceptadas.has(m.id)
+      // Solo es un descarte lo que venía aceptado (confianza alta) y se desactivó. Lo dudoso que no se
+      // aceptó queda sin revisar: aparece después en «Posibles gastos de empleado»
+      const descartada = !aceptada && sugerencia.confianza >= 0.75
       if (aceptada) mov.tipo = sugerencia.tipo
-      if (sugerencia.regla_id) {
+      else if (descartada && sugerencia.tipo === 'gasto_empleado') mov.revisado_empleado = true // enseña al comercio
+      if (sugerencia.regla_id && (aceptada || descartada)) {
         const mapa = aceptada ? confirmaciones : descartes
         mapa.set(sugerencia.regla_id, (mapa.get(sugerencia.regla_id) ?? 0) + 1)
       }

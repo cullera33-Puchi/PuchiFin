@@ -81,6 +81,13 @@ export function migrar(d: Partial<BaseDatos>): BaseDatos {
     datos.importaciones = datos.importaciones.map((i) => ({ ...i, modificados: i.modificados ?? [] }))
     if (!datos.reglas.some((r) => r.origen === 'sistema')) datos.reglas = [...datos.reglas, ...reglasPredeterminadas(datos.categorias)]
   }
+  // Esquema 3 (v0.6.0): mes de imputación, población y revisión de empleado en los movimientos;
+  // reglas con «mes siguiente» (nómina e hipoteca); días de fin de mes en los ajustes
+  if (desde < 3) {
+    datos.movimientos = datos.movimientos.map((m) => ({ ...m, mes_imputacion: m.mes_imputacion ?? null, poblacion: m.poblacion ?? null, revisado_empleado: m.revisado_empleado ?? false }))
+    datos.reglas = datos.reglas.map((r) => ({ ...r, mes_siguiente: r.mes_siguiente ?? (r.origen === 'sistema' && (r.nombre === 'Nómina' || r.nombre === 'Hipoteca')) }))
+    datos.ajustes = { ...datos.ajustes, dias_fin_de_mes: datos.ajustes.dias_fin_de_mes ?? 5 }
+  }
   return datos
 }
 

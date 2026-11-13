@@ -93,7 +93,8 @@ Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (po
 
 ## Pendiente de confirmar
 
-- Columnas exactas de los Excel de BBVA, de cuenta y de tarjeta. El lector funciona con las plantillas de `src/importacion/plantillas/` y los Excel de prueba; con los reales se ajustan esas plantillas (columnas, signo de la tarjeta) y los patrones de nombres de `terceros.json`.
+- Formato del Excel de la tarjeta de crédito. El de cuenta está confirmado con un Excel real del 13/11/2026 («Informe BBVA»: Fecha valor, Fecha, Concepto, Movimiento, Importe, Divisa, Disponible, Divisa, Observaciones). Para la tarjeta se supone el mismo sin Disponible; falta un Excel real (columnas y signo de las compras).
+- Bizum: la columna Movimiento trae el mensaje («Recibido: …», «ENVIADO: …», «COMPRA: …»), que se conserva aplicando los alias. Confirmar si en algún caso trae el nombre de la persona y debe quitarse.
 - Ordenante y concepto de la transferencia de reembolso de la empresa. Hoy: se sugiere como reembolso cualquier ingreso con el alias Empresa que no sea nómina; el usuario añade el nombre de la empresa al alias Empresa en Ajustes, General.
 - Si la deuda familiar tiene intereses y si el colchón se mide sobre el saldo conjunto de las dos cuentas (afecta a la fase 4).
 - Entidad de cada cuenta y cuenta desde la que se paga la hipoteca.
@@ -109,6 +110,14 @@ Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (po
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.6.0 (13/11/2026): ajustes con el Excel real y peticiones del usuario.
+  - Lector con el formato real «Informe BBVA» (cabecera en la fila 5, concepto de ancho fijo con comercio, población y país, columna Movimiento con el tipo, un detalle o el nombre del titular u ordenante, fecha de la compra en los cargos del lunes). El Excel real del usuario nunca se guarda en el repositorio: los tests usan filas inventadas con la misma estructura.
+  - Categorías aprendidas por comercio (`claveComercio`: sin números de tienda, población ni formas jurídicas) en cualquier cuenta, con propuesta por la primera palabra si no hay duda; corrección «mismo comercio» y reglas por comercio. Más comercios y palabras en catalán en las reglas de la app.
+  - Gastos de empleado: puntuación en `src/importacion/empleado.ts` (cafeterías, restaurantes, taxis y viajes; tarjeta de crédito; laborable; fuera de la zona de casa, deducida de las poblaciones habituales si no se configura; día de viaje; historial del comercio al 70 %). En la importación, las seguras (0,75 o más) vienen aceptadas y las dudosas no; lo dudoso no aceptado queda en «Posibles gastos de empleado» (Empleado), con revisión rápida deslizando y «Marcar los muy probables». Lo revisado como personal enseña al comercio (`revisado_empleado`). El nombre de la empresa se pide en Empleado y se guarda como alias Empresa (no va en el código).
+  - Traspasos: regla de la app para los «Traspaso a/de cuenta» de BBVA (traspaso interno, se netean entre las dos cuentas) y emparejamiento con la otra cuenta.
+  - Fin de mes: `mes_imputacion` en el movimiento y `fechaEfectiva` en todos los cálculos. La nómina y la hipoteca de los últimos días del mes (5, configurable) cuentan desde el día 1 del mes siguiente; también lo que se haya pasado a mano antes en el mismo comercio. Interruptor en el detalle y bloque en la revisión.
+  - Importar pegando: botón «Pegar» (portapapeles) y zona de pegado; acepta el fichero, una tabla HTML o texto tabulado.
+  - Esquema 3 con migración.
 - v0.5.0 (13/11/2026): fases 2 y 3 construidas, pendientes de validar con los Excel reales de BBVA.
   - Fase 2: importador en `src/importacion/` (plantillas por origen en `src/importacion/plantillas/*.json`, lectura con SheetJS 0.20.3 desde cdn.sheetjs.com, anonimización, deduplicación con repeticiones, reglas, sugerencias, traspasos entre cuentas propias, comprobación de la liquidación de la tarjeta, verificación final y deshacer). Pantallas Importar e Importaciones. Reglas de la app y sugerencias en `src/importacion/reglas.ts`; esquema 2 del modelo.
   - Fase 3: Extracto mensual con media de hasta 12 meses (mes en curso, con los mismos días), movimientos de una categoría, Movimientos con búsqueda, filtros, bandeja sin categoría, corrección individual y en bloque con regla, Empleado con indicadores y conciliación propuesta, exportación a Excel de cada vista, Análisis (evolución, categoría con media móvil, anual) y Reglas en Ajustes.
@@ -453,7 +462,8 @@ La v1 trabaja solo con BBVA desde octubre de 2026 y queda completa al cerrar la 
 
 ## 14. Decisiones abiertas
 
-- [ ] Compartir los Excel de octubre de las dos cuentas y de la tarjeta de BBVA para fijar las plantillas de lectura.
+- [x] Excel de cuenta de BBVA para fijar la plantilla (recibido el 13/11/2026).
+- [ ] Excel de la tarjeta de crédito de BBVA para fijar su plantilla.
 - [ ] Confirmar el ordenante y el concepto con los que llega la transferencia de reembolso.
 - [ ] Confirmar si la deuda familiar tiene intereses y si el colchón se mide sobre el saldo conjunto.
 - [ ] Recuperar el Excel de Fintonic antes de la fase 5.

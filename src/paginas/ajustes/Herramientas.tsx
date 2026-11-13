@@ -51,7 +51,7 @@ const NOMBRE_TIPO: Record<MetaCopia['tipo'], string> = {
 }
 
 /** Nombres inventados de los Excel de prueba (los mismos que importacion/excelPrueba.ts) */
-const NOMBRES_PRUEBA = { empresa: 'ACME CONSULTING SL', familia: 'MARIA GARCIA LOPEZ' }
+const NOMBRES_PRUEBA = { empresa: 'ACME CONSULTING SL', familia: 'MARIA GARCIA LOPEZ', titular: 'TITULAR DE PRUEBA' }
 
 export function Herramientas() {
   const db = useDatos()

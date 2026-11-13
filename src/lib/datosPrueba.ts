@@ -7,7 +7,8 @@
  * así que los mismos días dan los mismos movimientos.
  */
 import { normalizarConcepto } from './conceptos'
-import { sumarDias } from './fechas'
+import { sumarDias, ultimoDeMes } from './fechas'
+import { mesSiguiente } from './imputacion'
 import type { Categoria, Conciliacion, Cuenta, Importacion, Movimiento, TipoMovimiento } from './tipos'
 
 export interface DatosPrueba {
@@ -41,6 +42,13 @@ function conceptoLegible(concepto: string): string {
     .map((p) => (/[a-z]/.test(p) ? p : p.charAt(0) + p.slice(1).toLowerCase()))
     .join(' ')
     .replace(/ (De|A|Y|Del|La|El) /g, (m) => m.toLowerCase())
+}
+
+/** Último día laborable (lunes a viernes) del mes de la fecha */
+function ultimoLaborable(fecha: string): string {
+  let d = ultimoDeMes(fecha)
+  while ([0, 6].includes(new Date(`${d}T00:00:00Z`).getUTCDay())) d = sumarDias(d, -1)
+  return d
 }
 
 const SUPERMERCADOS = ['MERCADONA', 'CONSUM', 'LIDL', 'CARREFOUR MARKET']
@@ -92,7 +100,7 @@ export function generarDatosPrueba(opciones: {
   const conciliaciones: Conciliacion[] = []
   const repeticiones = new Map<string, number>()
 
-  const anadir = (cuenta: Cuenta, fecha: string, concepto: string, importe: number, ruta: string | null, tipo: TipoMovimiento = 'normal') => {
+  const anadir = (cuenta: Cuenta, fecha: string, concepto: string, importe: number, ruta: string | null, tipo: TipoMovimiento = 'normal', alMesSiguiente = false) => {
     if (fecha < desde || fecha > hasta) return null
     const imp = importacionDe(cuenta.id)
     const normalizado = normalizarConcepto(concepto)
@@ -118,6 +126,9 @@ export function generarDatosPrueba(opciones: {
       origen_categoria: categoria_id ? 'regla' : null,
       nota: null,
       reembolso_cerrado: false,
+      mes_imputacion: alMesSiguiente ? mesSiguiente(fecha) : null,
+      poblacion: null,
+      revisado_empleado: false,
       created_at: creado,
     }
     movimientos.push(m)
@@ -134,7 +145,6 @@ export function generarDatosPrueba(opciones: {
     const mes = dia.slice(0, 7)
     const diaSemana = new Date(`${dia}T00:00:00Z`).getUTCDay() // 0 domingo
     const laborable = diaSemana >= 1 && diaSemana <= 5
-    const mesNombre = new Date(`${dia}T00:00:00Z`).toLocaleString('es-ES', { month: 'long', timeZone: 'UTC' }).toUpperCase()
 
     const tarj = (concepto: string, importe: number, ruta: string | null, tipo: TipoMovimiento = 'normal') => {
       const m = anadir(tarjeta, dia, concepto, importe, ruta, tipo)
@@ -144,7 +154,8 @@ export function generarDatosPrueba(opciones: {
     }
 
     // Cuenta principal: ingresos y recibos fijos
-    if (d === 1) anadir(principal, dia, 'RECIBO PRESTAMO HIPOTECARIO', -1148.32, 'Vivienda > Hipoteca')
+    // La cuota de la hipoteca se carga el último día del mes y es del mes siguiente
+    if (dia === ultimoDeMes(dia)) anadir(principal, dia, 'RECIBO PRESTAMO HIPOTECARIO', -1148.32, 'Vivienda > Hipoteca', 'normal', true)
     if (d === 2) anadir(principal, dia, 'RECIBO COMUNIDAD DE PROPIETARIOS', -85, 'Vivienda > Comunidad')
     if (d === 3) {
       // Liquidación de la tarjeta del mes anterior: traspaso interno, no computa
@@ -175,7 +186,11 @@ export function generarDatosPrueba(opciones: {
         if (reembolso) for (const g of gastos) conciliaciones.push({ id: nuevoId(), reembolso_id: reembolso.id, gasto_id: g.id, importe_aplicado: -g.importe, created_at: creado })
       }
     }
-    if (d === 27) anadir(principal, dia, `TRANSFERENCIA DE Empresa NOMINA ${mesNombre}`, 4862.37, 'Ingresos > Nómina')
+    if (dia === ultimoLaborable(dia)) {
+      // La nómina llega el último día laborable y es la del mes siguiente
+      const mesNomina = new Date(`${mesSiguiente(dia)}-01T00:00:00Z`).toLocaleString('es-ES', { month: 'long', timeZone: 'UTC' }).toUpperCase()
+      anadir(principal, dia, `TRANSFERENCIA DE Empresa NOMINA ${mesNomina}`, 4862.37, 'Ingresos > Nómina', 'normal', true)
+    }
 
     // Cuenta 2: gastos anuales
     if (dia.slice(5) === '10-21') anadir(segunda, dia, 'RECIBO IBI URBANA', -418.6, 'Vivienda > IBI y tasas')

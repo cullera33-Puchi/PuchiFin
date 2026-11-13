@@ -76,6 +76,13 @@ export function aplicarAlias(texto: string, alias: AliasTercero[]): string {
 const PATRONES = terceros.patrones.map((p) => new RegExp(p, 'i'))
 const CONSERVAR = terceros.conservar_desde.map((p) => plano(p))
 
+/** El texto a partir de la primera palabra clave de concepto (NOMINA, GASTOS…), o null si no hay ninguna */
+export function conservarDesde(texto: string): string | null {
+  const palabras = texto.split(/\s+/)
+  const k = palabras.findIndex((w) => CONSERVAR.includes(plano(w)))
+  return k >= 0 ? palabras.slice(k).join(' ') : null
+}
+
 /**
  * En transferencias y Bizum, quita el nombre del ordenante o beneficiario si no se ha sustituido
  * por un alias. Lo que sigue al nombre se conserva desde una palabra clave (NOMINA, GASTOS…).

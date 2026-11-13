@@ -1,41 +1,26 @@
 {
-  "_nota": "Plantilla de lectura del Excel de movimientos de cuenta de bbva.es. Columnas pendientes de confirmar con los Excel reales de el usuario: se ajustan aquí, sin tocar el código. Los nombres de cabecera se comparan sin mayúsculas, acentos ni signos. La columna Movimiento (tipo de operación) no se usa en el concepto.",
+  "_nota": "Excel «Informe BBVA» de movimientos de cuenta (formato confirmado con un Excel real del usuario del 13/11/2026): título «Movimientos», fecha de generación y cabeceras Fecha valor, Fecha, Concepto, Movimiento, Importe, Divisa, Disponible, Divisa, Observaciones. Los nombres de cabecera se comparan sin mayúsculas, acentos ni signos.",
   "origen": "bbva_cuenta",
   "nombre": "BBVA cuenta",
   "tipo_cuenta": "cuenta",
   "columnas": {
-    "fecha_operacion": [
-      "fecha",
-      "f operacion",
-      "fecha operacion",
-      "fecha de operacion"
-    ],
-    "fecha_valor": [
-      "f valor",
-      "fecha valor",
-      "fecha de valor"
-    ],
-    "concepto": [
-      "concepto"
-    ],
-    "concepto_extra": [
-      "observaciones"
-    ],
-    "importe": [
-      "importe"
-    ],
-    "saldo": [
-      "disponible",
-      "saldo"
-    ]
+    "fecha_operacion": ["fecha", "f operacion", "fecha operacion", "fecha de operacion"],
+    "fecha_valor": ["fecha valor", "f valor", "fecha de valor"],
+    "concepto": ["concepto"],
+    "detalle": ["movimiento"],
+    "concepto_extra": ["observaciones"],
+    "importe": ["importe"],
+    "saldo": ["disponible", "saldo"]
   },
-  "obligatorias": [
-    "fecha_operacion",
-    "concepto",
-    "importe"
-  ],
-  "firma": [
-    "saldo"
-  ],
-  "signo": "tal_cual"
+  "obligatorias": ["fecha_operacion", "concepto", "importe"],
+  "firma": ["saldo"],
+  "signo": "tal_cual",
+  "_nota_fecha": "En los pagos con tarjeta del fin de semana, Fecha valor es el día de la compra y Fecha el del cargo: se toma la anterior de las dos.",
+  "fecha": "la_anterior",
+  "_nota_ancho_fijo": "Los pagos con tarjeta traen el concepto en campos de ancho fijo: comercio (25), población (13) y país (2).",
+  "concepto_ancho_fijo": [25, 13, 2],
+  "_nota_detalle": "La columna Movimiento es el tipo de operación (se usa para las reglas pero no en el concepto), un detalle (Bizum, adeudos) o, en traspasos y transferencias, el nombre del titular o del ordenante (se sustituye por su alias o se quita).",
+  "operaciones": ["pago con tarjeta", "pago con tarjeta contactless", "pago con movil", "ingreso por nomina o pension", "recibo", "cargo", "devolucion"],
+  "tercero_si_concepto": ["^traspaso", "^transferencia", "^transf", "^trf"],
+  "concepto_generico": ["adeudo a su cargo", "adeudo", "recibo domiciliado", "cargo en cuenta"]
 }

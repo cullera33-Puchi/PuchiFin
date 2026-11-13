@@ -2,6 +2,17 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.6.0. Formato real de BBVA, empleado, fin de mes y pegar (13 de noviembre de 2026)
+
+- Lector: plantilla de cuenta con el formato real «Informe BBVA» (columnas confirmadas), concepto de ancho fijo [25, 13, 2] (`partirAnchoFijo`), columna Movimiento clasificada en operación, detalle o tercero (`operaciones`, `tercero_si_concepto`, `concepto_generico` en la plantilla), fecha «la anterior» entre Fecha y Fecha valor. Tarjeta con el mismo formato supuesto.
+- Concepto: original completo anonimizado (comercio, población, detalle, alias del tercero, operación, observaciones); limpio con el comercio o el detalle; el nombre del titular u ordenante se sustituye por su alias (conservando desde palabras clave como GASTOS) o se quita; se quita la «N» de las referencias de adeudo.
+- Reglas: se comparan con el texto completo; lo aprendido va por clave de comercio y por primera palabra sin ambigüedad (`categoriasAprendidas` devuelve `porClave`, `porPalabra` y `mesSiguiente`); las reglas de la app que cambian el tipo (traspasos, liquidación) mandan sobre lo aprendido; regla «Traspaso entre cuentas»; nómina e hipoteca con `mes_siguiente`; más supermercados, ropa, cafeterías, restaurantes, ocio y librerías (también en catalán). Las sugerencias llevan `confianza`.
+- Empleado: puntuación (`puntuarEmpleado`), zona de casa deducida (`zonaCasa`), historial por comercio, `candidatosEmpleado`, `marcarPersonal`. Pantalla `/empleado/revisar`, aviso en Extracto y Empleado, petición del nombre de la empresa. En la importación solo cuenta como descarte lo seguro desactivado; lo dudoso queda para revisar.
+- Fin de mes: `mes_imputacion`, `fechaEfectiva` y `mesEfectivo` en extracto, resúmenes, análisis, filtros y exportación (columna «Cuenta en»); `imputarMesSiguiente`; ajuste `dias_fin_de_mes` y zona de casa en Ajustes, General.
+- Pegar: `leerTexto` (tabuladores, punto y coma, comas o HTML) y `leerPortapapeles`; botón Pegar con `navigator.clipboard.read()` y zona de pegado con el evento paste.
+- Esquema 3 con migración. Datos y Excel de prueba con la nómina el último día laborable y la hipoteca el último día, imputadas al mes siguiente, y el formato real.
+- Pruebas: 199 tests, entre ellos el formato real con filas inventadas, el pegado, la puntuación y el aprendizaje. El Excel real se probó en local sin guardarlo: 28 movimientos, sin datos identificativos, nombre del titular quitado y traspasos marcados.
+
 ## v0.5.0. Fases 2 y 3, gestos y Excel de prueba (13 de noviembre de 2026)
 
 - SheetJS 0.20.3 desde cdn.sheetjs.com (la versión de npm es antigua y tiene vulnerabilidades al leer ficheros). Entorno de trabajo «PuchiFin» con ese servidor permitido.
