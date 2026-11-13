@@ -142,6 +142,14 @@ describe('importación completa con los Excel de prueba', () => {
     expect(p.avisos.some((a) => a.includes('parece de Cuenta principal'))).toBe(true)
   })
 
+  it('la primera vez que se pega la segunda cuenta no se propone la principal, aunque fuera la última usada', () => {
+    let base = { ...datosIniciales(), ajustes: db.ajustes }
+    base = importar(base, 'cuenta principal').db
+    const lectura = leerFichero(fichero('cuenta 2'))
+    expect(cuentaSugerida(base, lectura, base.cuentas[0].id)!.id).toBe(base.cuentas[1].id)
+    expect(proponer(base, lectura, base.cuentas[0].id).avisos.some((a) => a.includes('no encajan'))).toBe(true)
+  })
+
   it('reconoce la cuenta cuando el fichero sigue donde acabó la importación anterior', () => {
     const lectura = leerFichero(fichero('cuenta 2'))
     const base = { ...datosIniciales(), ajustes: db.ajustes }
@@ -167,6 +175,17 @@ describe('importación completa con los Excel de prueba', () => {
     expect(liq.length).toBeGreaterThan(0)
     expect(liq.every((m) => m.tipo === 'traspaso_interno')).toBe(true)
     expect(principal.p.avisos.filter((a) => a.includes('no cuadra'))).toEqual([])
+    expect(principal.p.avisos.some((a) => a.includes('cuadra con las compras de la tarjeta'))).toBe(true)
+  })
+
+  it('importando primero las cuentas y después la tarjeta, la liquidación se comprueba al importar la tarjeta', () => {
+    let base = { ...datosIniciales(), ajustes: db.ajustes }
+    base = importar(base, 'cuenta principal').db
+    const sinTarjeta = proponer(base, leerFichero(fichero('cuenta principal')), base.cuentas[0].id)
+    expect(sinTarjeta.nuevos).toHaveLength(0)
+    const t = proponer(base, leerFichero(fichero('tarjeta')), base.cuentas[2].id)
+    expect(t.avisos.some((a) => a.includes('cuadra con las compras de la tarjeta'))).toBe(true)
+    expect(t.avisos.filter((a) => a.includes('no cuadra'))).toEqual([])
   })
 
   it('empareja los traspasos entre cuentas propias en los dos lados', () => {

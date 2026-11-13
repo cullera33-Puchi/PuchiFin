@@ -8,7 +8,9 @@ import { useHacer } from '../componentes/acciones'
 import { Flotante, Hoja, useInterfaz } from '../componentes/Interfaz'
 import { ContenidoMovimiento, DetalleMovimiento, HojaCorreccion, SelectorCategoria } from '../componentes/movimientos'
 import { cambiarTipo } from '../datos/movimientos'
+import { obtenerDatos } from '../datos/almacen'
 import { useDatos } from '../datos/ProveedorDatos'
+import { aplicarReglasAPendientes } from '../importacion/pendientes'
 import { normalizarConcepto } from '../lib/conceptos'
 import { diaLargo, mesLargo } from '../lib/fechas'
 import { formatearImporte, leerImporteUsuario, plural } from '../lib/formato'
@@ -157,8 +159,21 @@ export function Movimientos() {
               </button>
             ))}
         </div>
+        {filtros.categoria === null && sinCategoria > 0 && (
+          <button
+            className="boton-texto px-1"
+            onClick={async () => {
+              const r = aplicarReglasAPendientes(obtenerDatos())
+              const n = r.categorizados + r.traspasos
+              if (!n) return avisar('Ninguna regla ni categoría aprendida encaja con lo pendiente')
+              await hacer((d) => aplicarReglasAPendientes(d).db, `${plural(n, 'movimiento categorizado', 'movimientos categorizados')} con las reglas`)
+            }}
+          >
+            Aplicar reglas a lo pendiente
+          </button>
+        )}
         <p className="px-1 text-xs text-zinc-500">
-          {lista.length} movimientos. Suma de los de tipo Normal: {formatearImporte(total)}
+          {plural(lista.length, 'movimiento', 'movimientos')}. Suma de los de tipo Normal: {formatearImporte(total)}
           {!seleccion && lista.length > 0 && (
             <button className="ml-2 font-medium text-marca-700 dark:text-marca-500" onClick={exportar}>
               Exportar a Excel

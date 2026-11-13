@@ -25,6 +25,7 @@ interface ReglaBase {
 
 const REGLAS_BASE: ReglaBase[] = [
   { nombre: 'Liquidación de tarjeta', patron: '\\b(liquidacion|liq)\\b.*\\btarj|\\bpago\\b.*\\btarjeta (de )?credito\\b|\\bcargo\\b.*\\btarjeta\\b', tipo: 'traspaso_interno', signo: 'gasto', prioridad: 10 },
+  { nombre: 'Abono de la liquidación en la tarjeta', patron: '\\b(liquidacion|liq)\\b.*\\btarj|\\babono\\b.*\\bliquidacion\\b', tipo: 'traspaso_interno', signo: 'ingreso', prioridad: 10 },
   { nombre: 'Traspaso entre cuentas', patron: '^traspaso\\b|\\btraspaso (a|de|desde) (cuenta|cta)\\b', tipo: 'traspaso_interno', prioridad: 15 },
   { nombre: 'Nómina', patron: '\\b(nomina|pension)\\b', ruta: 'Ingresos > Nómina', signo: 'ingreso', prioridad: 20, mesSiguiente: true },
   { nombre: 'Reembolso de la empresa', patron: '^(?!.*\\bnomina\\b).*\\bempresa\\b', tipo: 'reembolso_empresa', sugerencia: true, signo: 'ingreso', prioridad: 30 },

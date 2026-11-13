@@ -48,6 +48,7 @@ const NOMBRE_TIPO: Record<MetaCopia['tipo'], string> = {
   manual: 'Copia manual',
   'antes de restaurar': 'Antes de restaurar',
   'antes de importar': 'Antes de importar',
+  'antes de actualizar': 'Antes de actualizar',
 }
 
 /** Nombres inventados de los Excel de prueba (los mismos que importacion/excelPrueba.ts) */

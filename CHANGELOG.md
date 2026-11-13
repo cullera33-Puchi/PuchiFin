@@ -2,6 +2,16 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.8.0. Datos protegidos entre versiones, tarjeta por periodo de liquidación y hoja de ruta (13 de noviembre de 2026)
+
+- Versiones nuevas sin romper lo que hay: `src/importacion/pendientes.ts` con `sincronizarReglasApp` (reglas de la app al día sin reactivar las desactivadas ni perder confirmaciones y descartes), `aplicarReglasAPendientes` (solo movimientos Normal sin categoría ni decisión del usuario; categoría por regla o aprendida, traspasos y liquidaciones; las sugerencias siguen pidiendo confirmación) y `actualizarLogica`, que se ejecuta una vez por versión al arrancar, con copia «antes de actualizar» y aviso del número de pendientes categorizados. Botón «Aplicar reglas a lo pendiente» en la bandeja Sin categoría, con Deshacer.
+- Traspasos: no se emparejan con un movimiento categorizado a mano; las importaciones guardan la categoría anterior de lo que modifican y deshacer la devuelve.
+- Esquema 5: `version_logica` en los ajustes y `modificados` con categoría. Prueba de compatibilidad con un archivo de la v0.6.0 (`src/datos/versiones.test.ts`).
+- Liquidación de la tarjeta (`src/lib/tarjeta.ts`, `cuadrarLiquidaciones`): busca en los 45 días anteriores el tramo de días seguidos de compras de la tarjeta que suma exactamente el cargo, empezando después del tramo anterior; estados cuadra, no cuadra (con la diferencia frente al mes anterior), falta la tarjeta y anterior al inicio. Avisos al importar la cuenta o la tarjeta, fila y hoja en Ajustes, Cuentas, y aviso en el Extracto. Regla «Abono de la liquidación en la tarjeta».
+- Cuenta propuesta al pegar: `descartadaPorSaldo` descarta la cuenta con saldos en esas fechas que no encajan; aviso si se elige igualmente.
+- Hoja de ruta de mejoras en CLAUDE.md (gastos hormiga, gastos fijos y recurrentes, optimizar con Claude, cierre de mes guiado, pruebas de navegador en GitHub y calidad de vida).
+- Pruebas: 231 tests. Prueba en navegador pegando las dos cuentas y la tarjeta, en ese orden.
+
 ## v0.7.0. Informes, cuadre con el banco, privacidad y guía de usabilidad (13 de noviembre de 2026)
 
 - Privacidad: el repositorio deja de llevar el nombre del usuario y los importes personales de la deuda familiar (la deuda y el colchón empiezan a 0 y se introducen en la app). Revisados código, pruebas, plantillas, migraciones de Supabase en pausa, ficheros de prueba y paquete publicado: sin IBAN, tarjetas, DNI, correos ni nombres reales.

@@ -60,6 +60,7 @@ export const AJUSTES_POR_DEFECTO: Ajustes = {
   umbral_aviso_presupuesto: 80,
   zona_casa: [],
   dias_fin_de_mes: 5,
+  version_logica: null,
 }
 
 /** Primer arranque: ajustes, las cuatro cuentas por alias, el catálogo y la deuda familiar */

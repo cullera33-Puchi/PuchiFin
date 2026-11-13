@@ -89,7 +89,8 @@ Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (po
 - Tests unitarios para el lector de Excel, la anonimización, la deduplicación y las reglas de categorización. Es donde un error no se ve en pantalla. `src/importacion/importar.test.ts` importa los Excel de prueba de punta a punta: cualquier cambio del importador debe mantenerlo en verde.
 - Gestos: toda lista de movimientos usa `FilaMovimientoDeslizable`; toda pantalla secundaria, `BarraNavegacion` (vuelve también desde el borde); las hojas se cierran arrastrando.
 - Usabilidad: `docs/guia-usabilidad-iphone.md` es la guía de comportamiento y aspecto (aportada por el usuario, v0.7.0). Se aplica salvo donde choca con esta especificación: el stack sigue siendo React con Vite, los nombres del código siguen en español y los menús de pulsación larga quedan pendientes. En la práctica: hojas con `Hoja` (portal, guardia de 450 ms) y confirmaciones con `confirmar()`; cambios de datos que el usuario hace a mano con `useHacer()` (aviso con «Deshacer»); barras flotantes con `Flotante`; cabeceras de grupo con la clase `cabecera-grupo`; recuentos con `plural()`; gestos con `crearVelocidad` y `esLanzamiento`.
-- Cuadre con el banco: toda importación de cuenta debe dejar `cuadrarCuenta` en verde. La deduplicación empareja primero por saldo del banco y después por concepto; `src/importacion/importar.test.ts` lo cubre.
+- Datos del usuario entre versiones: nada de lo categorizado, tipificado o conciliado cambia al publicar una versión. Las mejoras de categorización llegan solo a lo pendiente (`esPendiente`) mediante `actualizarLogica`. Si cambia el modelo, subir `VERSION_ESQUEMA`, añadir el paso en `migrar()` y mantener en verde `src/datos/versiones.test.ts`.
+- Cuadre con el banco: toda importación de cuenta debe dejar `cuadrarCuenta` en verde, y la liquidación de la tarjeta, `cuadrarLiquidaciones`. La deduplicación empareja primero por saldo del banco y después por concepto; `src/importacion/importar.test.ts` lo cubre.
 - Si una decisión no está en la especificación, pregunta antes de asumir.
 - Mantén actualizado el apartado de estado de este fichero.
 
@@ -102,6 +103,27 @@ Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (po
 - Entidad de cada cuenta y cuenta desde la que se paga la hipoteca.
 - El repositorio es público. No contiene datos personales. El usuario lo deja pendiente. Ojo: GitHub Pages en un repositorio privado exige un plan de pago de GitHub; si se hace privado, habría que publicar en otro servicio gratuito (por ejemplo, Vercel).
 
+## Hoja de ruta de mejoras (desde la v0.8.0)
+
+Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alta (varias y con decisiones). Tipo: F (funcionalidad), CV (calidad de vida), T (calidad técnica). Cada versión se valida con datos reales antes de pasar a la siguiente.
+
+| Versión | Mejora | Tipo | Prioridad | Complejidad |
+| --- | --- | --- | --- | --- |
+| v0.9 | Ajustes con los primeros datos reales pegados: formato de la tarjeta, Bizum, reembolso de la empresa y periodo de liquidación | F | Muy alta | Baja |
+| v0.9 | Cierre de mes guiado: lista de pasos (pegar cuenta principal, cuenta 2 y tarjeta; cuadre en verde; sin categoría a cero; empleado revisado) | CV | Muy alta | Baja |
+| v0.9 | Pruebas de navegador (Playwright) en GitHub antes de publicar, con archivos de cada esquema anterior | T | Alta | Media |
+| v0.10 | Gastos hormiga: compras pequeñas y frecuentes (cafés, snacks, apps) por comercio y categoría, total del mes y proyección anual, en Informes | F | Alta | Baja |
+| v0.10 | Gastos fijos y recurrentes: detección por comercio, periodicidad e importe estable (suscripciones, recibos, seguros, hipoteca); fijo frente a variable, próximos cargos y subidas de precio | F | Alta | Media |
+| v0.11 | Optimizar con Claude: gastos fijos, recurrentes y hormiga con un prompt preparado (comparar tarifas de luz, fibra y seguros, suscripciones duplicadas o sin uso), por enlace a claude.ai o archivo con la hoja de compartir. Sin API ni coste | F | Alta | Media |
+| v0.11 | Avisos de recurrentes: cargo nuevo, subida de importe o cargo esperado que no llega | F | Media | Media |
+| v0.12 | Fase 4: presupuesto por categoría, plan de pagos de la deuda familiar con simulación y «Analizar con Claude» en el resto de vistas | F | Media | Alta |
+| Continua | Hojas con campos: acciones en la cabecera y la hoja sube con el teclado (guía 6.3 y 6.4) | CV | Media | Media |
+| Continua | Menú de pulsación larga en las filas (guía 7) y búsqueda con «Cancelar» | CV | Media | Media |
+| Continua | Cambiar de pestaña deslizando y recolocación animada de las listas (guía 4.1 y 5) | CV | Baja | Media |
+| Más adelante | Fase 5: histórico de Fintonic y previsiones (cierre de mes, estacionalidad, gastos atípicos) | F | Baja | Alta |
+| Más adelante | Fase 6: Face ID, notificaciones, importación de PDF, otras entidades | F | Baja | Media |
+| Decisión | Historial de git y descripciones de PR con datos de las primeras versiones; repositorio privado (exige otro alojamiento gratuito) | T | Pendiente del usuario | Baja |
+
 ## Estado
 
 - Fase 0: diseño funcional cerrado. Faltan los Excel reales de BBVA para fijar el mapeo de columnas.
@@ -112,6 +134,10 @@ Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (po
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.8.0 (13/11/2026): datos protegidos entre versiones, tarjeta por periodo de liquidación y hoja de ruta. Pendiente de validar por el usuario.
+  - Lo ya categorizado no se toca nunca. Una vez por versión (`actualizarLogica` en `src/importacion/pendientes.ts`, al arrancar y con copia previa) las reglas de la app se ponen al día y se aplican solo a lo pendiente; también a mano con «Aplicar reglas a lo pendiente» en Movimientos. Los traspasos ya no se emparejan con lo categorizado a mano y deshacer una importación devuelve también la categoría. Prueba de compatibilidad con un archivo de la v0.6.0 (`src/datos/versiones.test.ts`). Esquema 5 (`version_logica`).
+  - Liquidación de la tarjeta (`src/lib/tarjeta.ts`): cada cargo en la cuenta se cuadra con el tramo de compras de la tarjeta que suma lo mismo, sin suponer el mes natural; aviso al importar la cuenta o la tarjeta, estado en Ajustes, Cuentas, y en el Extracto. Regla para el abono de la liquidación si el Excel de la tarjeta lo trae.
+  - Al pegar, la cuenta se propone por los saldos: una cuenta con saldos en esas fechas que no encajan se descarta (la primera vez que se pega la Cuenta 2 no va a la principal).
 - v0.7.0 (13/11/2026): informes, cuadre con el banco, privacidad y guía de usabilidad. Pendiente de validar por el usuario.
   - Privacidad: sin nombre del usuario ni importes personales en el repositorio; la deuda familiar y el colchón empiezan a 0 y se introducen en la app. Siguen en el historial de git y en las descripciones de los PR anteriores (decisión pendiente del usuario).
   - Deduplicación por saldo del banco y por concepto, filas repetidas en el fichero, cuenta reconocida por los saldos y lista de «Ya importados» en la revisión.

@@ -45,7 +45,8 @@ export interface Importacion {
   movimientos_descartados: number
   estado: 'confirmada' | 'deshecha'
   /** Movimientos que ya existían y la importación cambió (traspasos emparejados): su tipo anterior, para deshacer */
-  modificados: { id: string; tipo: TipoMovimiento }[]
+  /** Movimientos ya guardados que cambió la importación (traspasos emparejados), con lo que tenían antes */
+  modificados: { id: string; tipo: TipoMovimiento; categoria_id?: string | null; origen_categoria?: Movimiento['origen_categoria'] }[]
   created_at: string
 }
 
@@ -152,9 +153,11 @@ export interface Ajustes {
   zona_casa: string[]
   /** Últimos días del mes en los que la nómina o la hipoteca cuentan ya en el mes siguiente */
   dias_fin_de_mes: number
+  /** Versión de la app cuyas reglas ya se aplicaron a lo pendiente de categorizar (esquema 5) */
+  version_logica: string | null
 }
 
-export const VERSION_ESQUEMA = 4
+export const VERSION_ESQUEMA = 5
 
 export interface BaseDatos {
   esquema: number

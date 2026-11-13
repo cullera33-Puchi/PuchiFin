@@ -1,5 +1,9 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { copiaDiaria } from '../lib/copias'
+import { useInterfaz } from '../componentes/Interfaz'
+import { actualizarLogica } from '../importacion/pendientes'
+import { copiaDiaria, hacerCopia } from '../lib/copias'
+import { plural } from '../lib/formato'
+import { APP_VERSION } from '../lib/version'
 import { registrar } from '../lib/registro'
 import type { BaseDatos } from '../lib/tipos'
 import { cambiar, iniciarAlmacen, obtenerDatos, suscribirDatos } from './almacen'
@@ -9,12 +13,15 @@ import { ErrorDatos } from './operaciones'
 export function ProveedorDatos({ children }: { children: ReactNode }) {
   const [estado, setEstado] = useState<'cargando' | 'listo' | 'error'>('cargando')
   const [error, setError] = useState<string | null>(null)
+  const { avisar } = useInterfaz()
 
   useEffect(() => {
     iniciarAlmacen().then(
-      () => {
+      async () => {
         setEstado('listo')
-        copiaDiaria()
+        await copiaDiaria()
+        const aviso = await aplicarVersion()
+        if (aviso) avisar(aviso)
       },
       (e) => {
         registrar('error', `No se pudieron cargar los datos: ${(e as Error)?.message ?? e}`)
@@ -22,7 +29,7 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
         setEstado('error')
       },
     )
-  }, [])
+  }, [avisar])
 
   if (estado === 'cargando') return <div className="grid min-h-dvh place-items-center text-sm text-zinc-500">Cargando…</div>
   if (estado === 'error') {
@@ -37,6 +44,31 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
     )
   }
   return <>{children}</>
+}
+
+/**
+ * Una vez por versión: pone al día las reglas de la app y aplica las mejoras a lo pendiente de
+ * categorizar. Lo ya categorizado no se toca. Antes, copia de seguridad si hay movimientos.
+ */
+async function aplicarVersion(): Promise<string | null> {
+  const db = obtenerDatos()
+  if (db.ajustes.version_logica === APP_VERSION) return null
+  try {
+    if (db.movimientos.length) await hacerCopia('antes de actualizar')
+    const r = actualizarLogica(db, APP_VERSION)
+    await cambiar(() => r.db)
+    registrar('info', `Lógica de la v${APP_VERSION} aplicada a lo pendiente`, {
+      reglasNuevas: r.reglasNuevas,
+      reglasActualizadas: r.reglasActualizadas,
+      categorizados: r.categorizados,
+      traspasos: r.traspasos,
+    })
+    const n = r.categorizados + r.traspasos
+    return n ? `Versión ${APP_VERSION}: ${plural(n, 'movimiento pendiente categorizado', 'movimientos pendientes categorizados')} con las reglas nuevas. Lo que ya tenías no se ha tocado.` : null
+  } catch (e) {
+    registrar('error', `No se pudo aplicar la lógica de la v${APP_VERSION}: ${(e as Error)?.message ?? e}`)
+    return null
+  }
 }
 
 /** Datos actuales; la pantalla se actualiza con cada cambio */

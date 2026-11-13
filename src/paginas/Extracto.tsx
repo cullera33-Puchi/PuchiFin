@@ -15,6 +15,7 @@ import { hoyIso, mesLargo, sumarMeses } from '../lib/fechas'
 import { formatearImporte } from '../lib/formato'
 import { porcentaje, textoComparacion, type Tono } from '../lib/resumen'
 import { cuadrarCuenta } from '../lib/saldos'
+import { cuadrarLiquidaciones } from '../lib/tarjeta'
 
 const TONO: Record<Tono, string> = {
   bueno: 'text-[#248A3D] dark:text-[#30D158]',
@@ -32,8 +33,10 @@ export function Extracto() {
   const prueba = contarDatosPrueba(db)
   const porRevisar = useMemo(() => candidatosEmpleado(db).length, [db])
   const descuadradas = useMemo(
-    () => db.cuentas.filter((c) => c.activa && c.tipo === 'cuenta' && !cuadrarCuenta(db.movimientos.filter((x) => x.cuenta_id === c.id)).cuadra).length,
-    [db.cuentas, db.movimientos],
+    () =>
+      db.cuentas.filter((c) => c.activa && c.tipo === 'cuenta' && !cuadrarCuenta(db.movimientos.filter((x) => x.cuenta_id === c.id)).cuadra).length +
+      cuadrarLiquidaciones(db).filter((l) => l.estado === 'no_cuadra' || l.estado === 'sin_tarjeta').length,
+    [db],
   )
   const aviso = avisoExportacion(db)
   const irA = (m: string) => setParams({ mes: m }, { replace: true })
@@ -152,7 +155,8 @@ export function Extracto() {
                 {descuadradas > 0 && (
                   <Link to="/ajustes/cuentas" className="fila">
                     <Baldosa glifo={Landmark} color="#FF9500" tamano="sm" />
-                    <span className="flex-1 text-[15px]">{descuadradas === 1 ? 'Una cuenta no cuadra' : `${descuadradas} cuentas no cuadran`} con el banco</span>
+                    <span className="flex-1 text-[15px]">Revisar el cuadre con el banco</span>
+                    <span className="text-[15px] text-zinc-500">{descuadradas}</span>
                     <ChevronRight className="size-4 text-zinc-400" />
                   </Link>
                 )}

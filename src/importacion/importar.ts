@@ -11,6 +11,7 @@ import { finDeMes, mesSiguiente } from '../lib/imputacion'
 import { detectarIdentificativos, NOMBRE_TIPO } from '../lib/identificativos'
 import type { BaseDatos, Cuenta, Importacion, Movimiento, TipoMovimiento } from '../lib/tipos'
 import { anonimizarConcepto, aplicarAlias, conservarDesde } from './anonimizar'
+import { cuadrarLiquidaciones } from '../lib/tarjeta'
 import { contextoEmpleado, puntuarEmpleado, UMBRAL_EMPLEADO } from './empleado'
 import type { Lectura } from './lector'
 import { categoriasAprendidas, clasificar, type Sugerencia } from './reglas'
@@ -94,7 +95,26 @@ export function cuentaPorSaldo(db: BaseDatos, lectura: Lectura): { cuenta_id: st
 export function cuentaSugerida(db: BaseDatos, lectura: Lectura, ultima?: string): Cuenta | undefined {
   const activas = db.cuentas.filter((c) => c.activa && c.tipo === lectura.plantilla.tipo_cuenta).sort((a, b) => a.orden - b.orden)
   const porSaldo = cuentaPorSaldo(db, lectura)
-  return activas.find((c) => c.id === porSaldo?.cuenta_id) ?? activas.find((c) => c.id === ultima) ?? activas[0]
+  const reconocida = activas.find((c) => c.id === porSaldo?.cuenta_id)
+  if (reconocida) return reconocida
+  // Una cuenta que ya tiene saldos en las fechas del fichero y no encaja con ellos no es la del fichero
+  const posibles = activas.filter((c) => !descartadaPorSaldo(db, lectura, c.id))
+  const lista = posibles.length ? posibles : activas
+  return lista.find((c) => c.id === ultima) ?? lista[0]
+}
+
+/** La cuenta tiene movimientos con saldo en las fechas del fichero, pero ninguno coincide: el fichero es de otra */
+export function descartadaPorSaldo(db: BaseDatos, lectura: Lectura, cuenta_id: string): boolean {
+  const filas = lectura.filas.filter((f) => f.saldo !== null && f.fecha_operacion >= db.ajustes.fecha_inicio)
+  if (!filas.length) return false
+  const fechas = filas.map((f) => f.fecha_operacion).sort()
+  const desde = fechas[0]
+  const hasta = fechas[fechas.length - 1]
+  const guardados = db.movimientos.filter((m) => m.cuenta_id === cuenta_id && m.saldo !== null && m.fecha_operacion >= desde && m.fecha_operacion <= hasta)
+  if (!guardados.length) return false
+  const cent = (n: number) => Math.round(n * 100)
+  const huellas = new Set(filas.map((f) => `${f.fecha_operacion}|${cent(f.importe)}|${cent(f.saldo!)}`))
+  return !guardados.some((m) => huellas.has(`${m.fecha_operacion}|${cent(m.importe)}|${cent(m.saldo!)}`))
 }
 
 export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Propuesta {
@@ -231,7 +251,8 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
           x.cuenta_id !== cuenta_id &&
           bancarias.has(x.cuenta_id) &&
           x.importe === -m.importe &&
-          (x.tipo === 'normal' || x.tipo === 'traspaso_interno') &&
+          // Lo que categorizaste a mano no se toca: no se empareja
+          ((x.tipo === 'normal' && x.origen_categoria !== 'manual') || x.tipo === 'traspaso_interno') &&
           ES_TRASPASO.test(x.concepto_normalizado) &&
           x.fecha_operacion >= sumarDias(m.fecha_operacion, -3) &&
           x.fecha_operacion <= sumarDias(m.fecha_operacion, 3),
@@ -247,27 +268,28 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
     }
   }
 
-  // Liquidación de la tarjeta: debe cuadrar con los movimientos de la tarjeta del mes anterior
+  // Liquidación de la tarjeta: cada cargo en la cuenta debe cuadrar con las compras de su periodo de
+  // liquidación. Se comprueban los cargos que trae este fichero y, al importar la tarjeta, los de su periodo
   const avisos: string[] = []
-  const tarjetas = new Set(db.cuentas.filter((c) => c.tipo === 'tarjeta_credito').map((c) => c.id))
-  const reglaLiquidacion = db.reglas.find((r) => r.origen === 'sistema' && r.nombre === 'Liquidación de tarjeta')
-  for (const m of nuevos) {
-    if (!reglaLiquidacion || m.regla_id !== reglaLiquidacion.id) continue
-    const mesAnterior = sumarDias(`${m.fecha_operacion.slice(0, 7)}-01`, -1).slice(0, 7)
-    const deTarjeta = db.movimientos.filter((x) => tarjetas.has(x.cuenta_id) && x.fecha_operacion.startsWith(mesAnterior))
-    if (!deTarjeta.length) continue
-    const total = Math.round(deTarjeta.reduce((s, x) => s + x.importe, 0) * 100) / 100
-    const dif = Math.round((m.importe - total) * 100) / 100
-    if (Math.abs(dif) >= 0.01) {
-      avisos.push(
-        `La liquidación de la tarjeta del ${formatearFecha(m.fecha_operacion)} (${formatearImporte(m.importe)}) no cuadra con los movimientos de la tarjeta del mes anterior (${formatearImporte(total)}): diferencia de ${formatearImporte(dif)}.`,
-      )
-    }
+  const esTarjeta = cuenta.tipo === 'tarjeta_credito'
+  const nuevosIds = new Set(nuevos.map((m) => m.id))
+  const desdeTarjeta = esTarjeta && nuevos.length ? nuevos.reduce((min, m) => (m.fecha_operacion < min ? m.fecha_operacion : min), nuevos[0].fecha_operacion) : null
+  for (const c of cuadrarLiquidaciones(db, nuevos)) {
+    const propia = nuevosIds.has(c.movimiento.id)
+    const afectada = desdeTarjeta !== null && c.movimiento.fecha_operacion > desdeTarjeta
+    if (!propia && !afectada) continue
+    const cargo = `La liquidación de la tarjeta del ${formatearFecha(c.movimiento.fecha_operacion)} (${formatearImporte(c.movimiento.importe)})`
+    if (c.estado === 'cuadra') avisos.push(`${cargo} cuadra con las compras de la tarjeta del ${formatearFecha(c.desde!)} al ${formatearFecha(c.hasta!)}.`)
+    else if (c.estado === 'no_cuadra')
+      avisos.push(`${cargo} no cuadra con las compras de la tarjeta: con las del mes anterior hay una diferencia de ${formatearImporte(c.diferencia)}. Revisa si falta importar algún tramo de la tarjeta.`)
+    else if (c.estado === 'sin_tarjeta' && propia) avisos.push(`${cargo}: importa la tarjeta para comprobar que cuadra con sus compras.`)
   }
   const otra = cuentaPorSaldo(db, lectura)
   if (otra && otra.cuenta_id !== cuenta_id) {
     const nombre = db.cuentas.find((c) => c.id === otra.cuenta_id)?.alias
     avisos.push(`Por los saldos, este fichero parece de ${nombre}, no de ${cuenta.alias}. Revisa la cuenta antes de importar.`)
+  } else if (descartadaPorSaldo(db, lectura, cuenta_id)) {
+    avisos.push(`Los saldos de este fichero no encajan con lo ya guardado en ${cuenta.alias} en esas fechas. ¿Es de otra cuenta?`)
   }
   if (lectura.ilegibles.length) avisos.push(`${lectura.ilegibles.length} filas no se han podido leer (fecha o importe no válidos): ${lectura.ilegibles.slice(0, 5).join(', ')}.`)
 
@@ -364,7 +386,7 @@ export function confirmarImportacion(db: BaseDatos, p: Propuesta, decisiones: De
   const pares = new Map(p.traspasos.map((t) => [t.existente, t.nuevo]))
   const movimientos = db.movimientos.map((m) => {
     if (!pares.has(m.id) || m.tipo === 'traspaso_interno') return m
-    importacion.modificados.push({ id: m.id, tipo: m.tipo })
+    importacion.modificados.push({ id: m.id, tipo: m.tipo, categoria_id: m.categoria_id, origen_categoria: m.origen_categoria })
     return { ...m, tipo: 'traspaso_interno' as TipoMovimiento, categoria_id: null, origen_categoria: null }
   })
 
@@ -387,11 +409,18 @@ export function deshacerImportacion(db: BaseDatos, id: string): BaseDatos {
   if (!imp) throw new ErrorDatos('Importación no encontrada')
   if (imp.estado === 'deshecha') throw new ErrorDatos('La importación ya está deshecha')
   const quitar = new Set(db.movimientos.filter((m) => m.importacion_id === id).map((m) => m.id))
-  const previos = new Map(imp.modificados.map((x) => [x.id, x.tipo]))
+  const previos = new Map(imp.modificados.map((x) => [x.id, x]))
   return {
     ...db,
     importaciones: db.importaciones.map((i) => (i.id === id ? { ...i, estado: 'deshecha' as const } : i)),
-    movimientos: db.movimientos.filter((m) => !quitar.has(m.id)).map((m) => (previos.has(m.id) ? { ...m, tipo: previos.get(m.id)! } : m)),
+    movimientos: db.movimientos
+      .filter((m) => !quitar.has(m.id))
+      .map((m) => {
+        const p = previos.get(m.id)
+        if (!p) return m
+        // Vuelve a como estaba: tipo y, si se guardó, la categoría que tenía
+        return p.categoria_id === undefined ? { ...m, tipo: p.tipo } : { ...m, tipo: p.tipo, categoria_id: p.categoria_id, origen_categoria: p.origen_categoria ?? null }
+      }),
     conciliaciones: db.conciliaciones.filter((c) => !quitar.has(c.gasto_id) && !quitar.has(c.reembolso_id)),
   }
 }

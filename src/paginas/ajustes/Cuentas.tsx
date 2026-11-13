@@ -10,6 +10,7 @@ import { intentar, useDatos } from '../../datos/ProveedorDatos'
 import { hoyIso } from '../../lib/fechas'
 import { formatearFecha, formatearImporte, leerImporteUsuario } from '../../lib/formato'
 import { cuadrarCuenta, idsDuplicados } from '../../lib/saldos'
+import { cuadrarLiquidaciones } from '../../lib/tarjeta'
 import { NOMBRE_TIPO_CUENTA, type Cuenta, type TipoCuenta } from '../../lib/tipos'
 
 const ESTILO_TIPO = {
@@ -153,8 +154,11 @@ function Saldos() {
     [db.movimientos, bancarias],
   )
   const conSaldo = bancarias.filter((c) => cuadres.get(c.id)!.conSaldo)
-  if (!conSaldo.length) return null
+  const liquidaciones = useMemo(() => cuadrarLiquidaciones(db).filter((l) => l.estado !== 'anterior_al_inicio'), [db])
+  const [verTarjeta, setVerTarjeta] = useState(false)
+  if (!conSaldo.length && !liquidaciones.length) return null
   const cuenta = conSaldo.find((c) => c.id === abierta)
+  const tarjetaOk = liquidaciones.every((l) => l.estado === 'cuadra')
   return (
     <section>
       <h2 className="px-4 pb-1.5 text-[13px] uppercase text-zinc-500">Saldo frente al banco</h2>
@@ -182,8 +186,55 @@ function Saldos() {
             </li>
           )
         })}
+        {liquidaciones.length > 0 && (
+          <li>
+            <button className="fila hover:bg-zinc-50 active:bg-zinc-100 dark:hover:bg-zinc-800/60" onClick={() => setVerTarjeta(true)}>
+              {tarjetaOk ? <CircleCheck className="size-5 text-[#34C759]" strokeWidth={2} /> : <CircleAlert className="size-5 text-[#FF9500]" strokeWidth={2} />}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">Liquidaciones de la tarjeta</span>
+                <span className="block text-xs text-zinc-500">
+                  {tarjetaOk
+                    ? `${liquidaciones.length === 1 ? 'Cuadra' : `Las ${liquidaciones.length} cuadran`} con las compras de la tarjeta`
+                    : `${liquidaciones.filter((l) => l.estado !== 'cuadra').length} por revisar`}
+                </span>
+              </span>
+              <ChevronRight className="size-4 text-zinc-400" strokeWidth={2} />
+            </button>
+          </li>
+        )}
       </ul>
       {cuenta && <HojaSaldo cuenta={cuenta} onCerrar={() => setAbierta(null)} />}
+      <Hoja abierta={verTarjeta} titulo="Liquidaciones de la tarjeta" onCerrar={() => setVerTarjeta(false)}>
+        <p className="mb-3 text-sm text-zinc-500">
+          Cada cargo de la tarjeta en la cuenta debe sumar lo mismo que las compras de su periodo de liquidación. En los informes cuenta cada compra; el
+          cargo en la cuenta es un traspaso y no suma dos veces.
+        </p>
+        <ul className="lista divide-y divide-zinc-200/70 border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+          {liquidaciones
+            .slice()
+            .reverse()
+            .map((l) => (
+              <li key={l.movimiento.id} className="flex items-start gap-3 px-4 py-2.5">
+                {l.estado === 'cuadra' ? (
+                  <CircleCheck className="mt-0.5 size-5 shrink-0 text-[#34C759]" strokeWidth={2} />
+                ) : (
+                  <CircleAlert className="mt-0.5 size-5 shrink-0 text-[#FF9500]" strokeWidth={2} />
+                )}
+                <span className="min-w-0 flex-1 text-[15px]">
+                  Cargo del {formatearFecha(l.movimiento.fecha_operacion)}
+                  <span className="block text-xs text-zinc-500">
+                    {l.estado === 'cuadra'
+                      ? `Compras del ${formatearFecha(l.desde!)} al ${formatearFecha(l.hasta!)}`
+                      : l.estado === 'sin_tarjeta'
+                        ? 'Falta importar la tarjeta de ese periodo'
+                        : `No cuadra: diferencia de ${formatearImporte(l.diferencia)} con el mes anterior`}
+                  </span>
+                </span>
+                <span className="text-[15px] tabular-nums">{formatearImporte(l.movimiento.importe)}</span>
+              </li>
+            ))}
+        </ul>
+      </Hoja>
     </section>
   )
 }

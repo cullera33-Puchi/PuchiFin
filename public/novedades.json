@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.8.0",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Lo que ya tienes categorizado no se toca al actualizar. Las mejoras de cada versión solo se aplican a lo pendiente de categorizar, y antes se guarda una copia.",
+      "En Movimientos, Sin categoría, «Aplicar reglas a lo pendiente» categoriza lo que encaje con las reglas o con lo que ya corregiste.",
+      "La liquidación de la tarjeta se cuadra con las compras de su periodo, aunque no coincida con el mes. Lo ves al importar y en Ajustes, Cuentas.",
+      "Al pegar, la app propone la cuenta correcta por los saldos: la segunda cuenta ya no se confunde con la principal."
+    ]
+  },
+  {
     "version": "0.7.0",
     "fecha": "2026-11-13",
     "cambios": [
