@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.6.0",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "La importación lee el Excel real de BBVA: separa comercio y población, entiende la columna Movimiento y quita tu nombre de los traspasos.",
+      "Ahora puedes pegar: copia el Excel o la tabla en BBVA y pulsa «Pegar» en Importar.",
+      "Aprende por comercio en cualquier cuenta: lo que categorices en un Mercadona se propone en los demás.",
+      "Gastos de empleado: la app busca cafeterías, taxis y restaurantes que parecen de trabajo y los revisas deslizando en Empleado. Dile cómo se llama tu empresa para reconocer los reembolsos.",
+      "La nómina y la hipoteca de fin de mes cuentan en el mes siguiente; cualquier otro movimiento lo pasas con un toque en su detalle. Los traspasos entre tus cuentas se netean."
+    ]
+  },
+  {
     "version": "0.5.0",
     "fecha": "2026-11-13",
     "cambios": [

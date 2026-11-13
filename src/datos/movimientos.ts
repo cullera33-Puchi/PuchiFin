@@ -2,7 +2,8 @@
  * Operaciones de la fase 3 sobre movimientos: corrección de categoría (con regla para los futuros),
  * tipo, notas, gastos de empleado, conciliación de reembolsos e indicadores.
  */
-import { normalizarConcepto } from '../lib/conceptos'
+import { claveComercio, normalizarConcepto } from '../lib/conceptos'
+import { mesSiguiente } from '../lib/imputacion'
 import type { BaseDatos, Conciliacion, Movimiento, Regla, TipoMovimiento } from '../lib/tipos'
 import { ErrorDatos, exigirSinIdentificativos, nuevoId } from './operaciones'
 
@@ -16,11 +17,11 @@ function exigirMovimientos(db: BaseDatos, ids: string[]): Set<string> {
   return set
 }
 
-/** Movimientos con el mismo concepto (normalizado) que los indicados, sin contar los indicados */
+/** Movimientos del mismo comercio que los indicados (en cualquier cuenta), sin contar los indicados */
 export function mismoConcepto(db: BaseDatos, ids: string[]): Movimiento[] {
   const set = new Set(ids)
-  const conceptos = new Set(db.movimientos.filter((m) => set.has(m.id)).map((m) => m.concepto_normalizado))
-  return db.movimientos.filter((m) => !set.has(m.id) && conceptos.has(m.concepto_normalizado))
+  const claves = new Set(db.movimientos.filter((m) => set.has(m.id)).map((m) => claveComercio(m.concepto_limpio)).filter(Boolean))
+  return db.movimientos.filter((m) => !set.has(m.id) && claves.has(claveComercio(m.concepto_limpio)))
 }
 
 /**
@@ -41,7 +42,7 @@ export function cambiarCategoria(
   )
   let reglas = db.reglas
   if (opciones.crearRegla && categoria_id) {
-    const conceptos = [...new Set(db.movimientos.filter((m) => ids.includes(m.id)).map((m) => m.concepto_normalizado))]
+    const conceptos = [...new Set(db.movimientos.filter((m) => ids.includes(m.id)).map((m) => claveComercio(m.concepto_limpio) || m.concepto_normalizado))]
     for (const c of conceptos) {
       exigirSinIdentificativos('Regla', c)
       const existente = reglas.find((r) => r.origen === 'manual' && r.tipo_patron === 'exacto' && normalizarConcepto(r.patron) === c)
@@ -64,6 +65,7 @@ export function cambiarCategoria(
           activa: true,
           confirmaciones: 0,
           descartes: 0,
+          mes_siguiente: false,
           created_at: new Date().toISOString(),
         }
         reglas = [...reglas, nueva]
@@ -83,6 +85,18 @@ export function cambiarTipo(db: BaseDatos, ids: string[], tipo: TipoMovimiento):
       (c) => !((set.has(c.gasto_id) && tipo !== 'gasto_empleado') || (set.has(c.reembolso_id) && tipo !== 'reembolso_empresa')),
     ),
   }
+}
+
+/** Revisado como personal en la detección de gastos de empleado: no se vuelve a proponer y enseña al comercio */
+export function marcarPersonal(db: BaseDatos, ids: string[]): BaseDatos {
+  const set = exigirMovimientos(db, ids)
+  return { ...db, movimientos: db.movimientos.map((m) => (set.has(m.id) ? { ...m, tipo: m.tipo === 'gasto_empleado' ? 'normal' : m.tipo, revisado_empleado: true } : m)) }
+}
+
+/** Imputa el movimiento al mes siguiente al de su fecha (o lo devuelve a su mes) */
+export function imputarMesSiguiente(db: BaseDatos, ids: string[], activo: boolean): BaseDatos {
+  const set = exigirMovimientos(db, ids)
+  return { ...db, movimientos: db.movimientos.map((m) => (set.has(m.id) ? { ...m, mes_imputacion: activo ? mesSiguiente(m.fecha_operacion) : null } : m)) }
 }
 
 /** Marca como gasto de empleado o lo devuelve a normal (deslizar sobre el movimiento) */

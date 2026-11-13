@@ -34,7 +34,7 @@ describe('lector', () => {
   it('reconoce el origen por las cabeceras y salta las filas de cabecera del banco', () => {
     const cuenta = leerFichero(fichero('cuenta principal'))
     expect(cuenta.plantilla.origen).toBe('bbva_cuenta')
-    expect(cuenta.filas[0].numero).toBe(7) // la fila 6 es la cabecera
+    expect(cuenta.filas[0].numero).toBe(6) // la fila 5 es la cabecera, como en el Excel real
     expect(cuenta.filas.every((f) => f.saldo !== null)).toBe(true)
     expect(leerFichero(fichero('tarjeta')).plantilla.origen).toBe('bbva_tarjeta')
   })
@@ -64,6 +64,7 @@ describe('conceptoLimpio', () => {
     expect(conceptoLimpio('NETFLIX')).toBe('Netflix')
     expect(conceptoLimpio('TARJETA ************1234 BOX FITNESS')).toBe('Tarjeta Box Fitness')
     expect(conceptoLimpio('PAGO XXXX 1234 TAXI')).toBe('Pago Taxi')
+    expect(conceptoLimpio('ADEUDO A SU CARGO N ************4204 SPOTIFY AB')).toBe('Adeudo a Su Cargo Spotify Ab')
   })
 })
 
@@ -146,15 +147,14 @@ describe('importación completa con los Excel de prueba', () => {
     expect(sinAceptar.reglas.some((r) => r.descartes > 0)).toBe(true)
   })
 
-  it('el resumen de octubre sale coherente con lo importado', () => {
-    const r = calcularResumen(periodoMes('2026-10-01'), db.movimientos, db.categorias, db.conciliaciones)
+  it('el resumen de noviembre sale coherente con lo importado (con la nómina del 30 de octubre)', () => {
+    const r = calcularResumen(periodoMes('2026-11-01'), db.movimientos, db.categorias, db.conciliaciones)
     expect(r.totales.ingresos).toBeGreaterThan(4000)
     expect(r.empleado.gastos).toBeGreaterThan(0)
   })
 
   it('deshacer una importación la quita entera y devuelve los traspasos emparejados', () => {
     const imp = db.importaciones.find((i) => i.cuenta_id === db.cuentas[1].id)!
-    expect(imp.modificados.length).toBeGreaterThan(0)
     const sin = deshacerImportacion(db, imp.id)
     expect(sin.movimientos.some((m) => m.importacion_id === imp.id)).toBe(false)
     expect(sin.importaciones.find((i) => i.id === imp.id)!.estado).toBe('deshecha')

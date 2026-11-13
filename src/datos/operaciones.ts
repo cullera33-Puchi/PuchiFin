@@ -59,6 +59,7 @@ export const AJUSTES_POR_DEFECTO: Ajustes = {
   dias_aviso_reembolso: 60,
   umbral_aviso_presupuesto: 80,
   zona_casa: [],
+  dias_fin_de_mes: 5,
 }
 
 /** Primer arranque: ajustes, las cuatro cuentas por alias, el catálogo y la deuda familiar */
@@ -239,6 +240,7 @@ export function guardarAjustes(db: BaseDatos, cambios: Partial<Ajustes>): BaseDa
   if (!(a.fecha_corte_fintonic < a.fecha_inicio)) throw new ErrorDatos('La fecha de corte con Fintonic debe ser anterior a la fecha de inicio')
   if (!(a.dias_aviso_reembolso > 0)) throw new ErrorDatos('Los días de aviso deben ser mayores que cero')
   if (!(a.umbral_aviso_presupuesto >= 1 && a.umbral_aviso_presupuesto <= 100)) throw new ErrorDatos('El umbral de presupuesto va de 1 a 100')
+  if (!(a.dias_fin_de_mes >= 0 && a.dias_fin_de_mes <= 10)) throw new ErrorDatos('Los días de fin de mes van de 0 a 10')
   for (const t of a.alias_terceros) {
     exigirSinIdentificativos('Alias de terceros', t.alias)
     t.patrones.forEach((p) => exigirSinIdentificativos('Patrón de alias', p))

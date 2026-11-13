@@ -4,13 +4,14 @@
  */
 import * as XLSX from 'xlsx'
 import { compartirArchivo, type ResultadoCompartir } from './compartir'
+import { mesEfectivo } from './imputacion'
 import { registrar } from './registro'
 import { NOMBRE_TIPO_MOVIMIENTO, type BaseDatos, type Movimiento } from './tipos'
 
 export function filasMovimientos(db: BaseDatos, movs: Movimiento[]): (string | number)[][] {
   const cuentas = new Map(db.cuentas.map((c) => [c.id, c.alias]))
   const cats = new Map(db.categorias.map((c) => [c.id, c]))
-  const cabecera = ['Fecha', 'Cuenta', 'Concepto', 'Categoría', 'Subcategoría', 'Tipo', 'Importe', 'Nota']
+  const cabecera = ['Fecha', 'Cuenta en', 'Cuenta', 'Concepto', 'Categoría', 'Subcategoría', 'Tipo', 'Importe', 'Nota']
   const filas = [...movs]
     .sort((a, b) => a.fecha_operacion.localeCompare(b.fecha_operacion))
     .map((m) => {
@@ -18,6 +19,7 @@ export function filasMovimientos(db: BaseDatos, movs: Movimiento[]): (string | n
       const padre = c?.padre_id ? cats.get(c.padre_id) : undefined
       return [
         m.fecha_operacion,
+        mesEfectivo(m),
         cuentas.get(m.cuenta_id) ?? '',
         m.concepto_limpio,
         padre?.nombre ?? c?.nombre ?? '',

@@ -4,6 +4,7 @@
  */
 import { calcularTotales, type Totales } from './resumen'
 import { sumarMeses } from './fechas'
+import { fechaEfectiva, mesEfectivo } from './imputacion'
 import type { BaseDatos, Categoria, Movimiento } from './tipos'
 
 const redondear = (n: number) => Math.round(n * 100) / 100
@@ -11,7 +12,7 @@ export const mesDe = (fecha: string) => fecha.slice(0, 7)
 
 /** Meses (AAAA-MM) con movimientos, ordenados */
 export function mesesConDatos(movs: Movimiento[]): string[] {
-  return [...new Set(movs.map((m) => mesDe(m.fecha_operacion)))].sort()
+  return [...new Set(movs.map(mesEfectivo))].sort()
 }
 
 function raiz(categorias: Map<string, Categoria>, id: string | null): string | null {
@@ -64,8 +65,8 @@ export interface Extracto {
 export function calcularExtracto(db: BaseDatos, mes: string, hoy?: string): Extracto {
   const enCurso = !!hoy && mesDe(hoy) === mes
   const diaCorte = enCurso ? Number(hoy!.slice(8, 10)) : null
-  const delPeriodo = (p: string) => db.movimientos.filter((m) => mesDe(m.fecha_operacion) === p && (diaCorte === null || Number(m.fecha_operacion.slice(8, 10)) <= diaCorte))
-  const delMes = db.movimientos.filter((m) => mesDe(m.fecha_operacion) === mes)
+  const delPeriodo = (p: string) => db.movimientos.filter((m) => mesEfectivo(m) === p && (diaCorte === null || Number(fechaEfectiva(m).slice(8, 10)) <= diaCorte))
+  const delMes = db.movimientos.filter((m) => mesEfectivo(m) === mes)
   const totales = calcularTotales(delMes, db.categorias)
   const meses = mesesConDatos(db.movimientos)
   const previos = meses.filter((m) => m < mes).slice(-12)
@@ -124,7 +125,7 @@ export function calcularExtracto(db: BaseDatos, mes: string, hoy?: string): Extr
 export function movimientosDeCategoria(db: BaseDatos, mes: string, categoriaId: string | null): Movimiento[] {
   const porId = new Map(db.categorias.map((c) => [c.id, c]))
   return db.movimientos
-    .filter((m) => m.tipo === 'normal' && mesDe(m.fecha_operacion) === mes && raiz(porId, m.categoria_id) === categoriaId)
+    .filter((m) => m.tipo === 'normal' && mesEfectivo(m) === mes && raiz(porId, m.categoria_id) === categoriaId)
     .sort((a, b) => b.fecha_operacion.localeCompare(a.fecha_operacion))
 }
 
@@ -145,7 +146,7 @@ export function evolucionMensual(db: BaseDatos): PuntoEvolucion[] {
   if (!meses.length) return []
   const res: PuntoEvolucion[] = []
   for (let m = meses[0]; m <= meses[meses.length - 1]; m = sumarMeses(`${m}-01`, 1).slice(0, 7)) {
-    const t = calcularTotales(db.movimientos.filter((x) => mesDe(x.fecha_operacion) === m), db.categorias)
+    const t = calcularTotales(db.movimientos.filter((x) => mesEfectivo(x) === m), db.categorias)
     res.push({ mes: m, ingresos: t.ingresos, gastos: t.gastos, ahorro: t.ahorro })
   }
   return res
@@ -154,7 +155,7 @@ export function evolucionMensual(db: BaseDatos): PuntoEvolucion[] {
 /** Gasto mensual de una categoría raíz y su media móvil de 3 meses */
 export function serieCategoria(db: BaseDatos, categoriaId: string | null): { mes: string; importe: number; mediaMovil: number }[] {
   const meses = evolucionMensual(db).map((p) => p.mes)
-  const valores = meses.map((mes) => gastoPorCategoria(db.movimientos.filter((m) => mesDe(m.fecha_operacion) === mes), db.categorias).get(categoriaId) ?? 0)
+  const valores = meses.map((mes) => gastoPorCategoria(db.movimientos.filter((m) => mesEfectivo(m) === mes), db.categorias).get(categoriaId) ?? 0)
   return meses.map((mes, i) => {
     const ventana = valores.slice(Math.max(0, i - 2), i + 1)
     return { mes, importe: valores[i], mediaMovil: redondear(ventana.reduce((s, v) => s + v, 0) / ventana.length) }
@@ -163,9 +164,9 @@ export function serieCategoria(db: BaseDatos, categoriaId: string | null): { mes
 
 /** Cierre por año natural */
 export function cierreAnual(db: BaseDatos): ({ anio: string; meses: number } & Totales)[] {
-  const anios = [...new Set(db.movimientos.map((m) => m.fecha_operacion.slice(0, 4)))].sort()
+  const anios = [...new Set(db.movimientos.map((m) => fechaEfectiva(m).slice(0, 4)))].sort()
   return anios.map((anio) => {
-    const movs = db.movimientos.filter((m) => m.fecha_operacion.startsWith(anio))
+    const movs = db.movimientos.filter((m) => fechaEfectiva(m).startsWith(anio))
     return { anio, meses: mesesConDatos(movs).length, ...calcularTotales(movs, db.categorias) }
   })
 }

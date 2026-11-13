@@ -1,10 +1,12 @@
 /** Piezas comunes para mostrar y corregir movimientos */
 import { Briefcase, Check, ChevronRight, Search, Tag } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { aplicado, cambiarCategoria, cambiarTipo, cerrarReembolso, guardarNota, mismoConcepto } from '../datos/movimientos'
+import { aplicado, cambiarCategoria, cambiarTipo, cerrarReembolso, guardarNota, imputarMesSiguiente, mismoConcepto } from '../datos/movimientos'
+import { mesSiguiente } from '../lib/imputacion'
 import { intentar, useDatos } from '../datos/ProveedorDatos'
 import { normalizarConcepto } from '../lib/conceptos'
 import { formatearFecha, formatearImporte } from '../lib/formato'
+import { nombreMes } from '../lib/fechas'
 import { NOMBRE_TIPO_MOVIMIENTO, type BaseDatos, type Categoria, type Movimiento, type TipoMovimiento } from '../lib/tipos'
 import { COLOR_TIPO, nombreCategoria } from '../lib/vista'
 import { Aviso } from './Encabezado'
@@ -40,6 +42,7 @@ export function ContenidoMovimiento({ m, seleccion, conFecha }: { m: Movimiento;
         <p className={`truncate text-xs ${!m.categoria_id && !fuera ? 'text-[#FF9500]' : 'text-zinc-500'}`}>
           {conFecha && `${formatearFecha(m.fecha_operacion)}, `}
           {fuera ? NOMBRE_TIPO_MOVIMIENTO[m.tipo] : nombreCategoria(db, m.categoria_id)}
+          {m.mes_imputacion ? `. Cuenta en ${nombreMes(`${m.mes_imputacion}-01`)}` : ''}
           {m.nota ? '. Con nota' : ''}
         </p>
       </div>
@@ -250,6 +253,17 @@ export function DetalleMovimiento({ id, onCerrar }: { id: string | null; onCerra
                 ))}
               </div>
               {m.tipo !== 'normal' && <p className="mt-2 text-xs text-zinc-500">No computa en el extracto ni en los totales.</p>}
+            </div>
+            <div className="px-4 py-3">
+              <FilaInterruptor
+                texto={`Cuenta en ${nombreMes(`${mesSiguiente(m.fecha_operacion)}-01`)}`}
+                nota="Para cobros y cargos de fin de mes que son del mes siguiente (nómina, hipoteca). Cuenta desde el día 1."
+                activo={!!m.mes_imputacion}
+                onCambio={async (v) => {
+                  const e = await intentar((d) => imputarMesSiguiente(d, [m.id], v), v ? 'Pasado al mes siguiente' : 'Devuelto a su mes')
+                  if (e) setError(e)
+                }}
+              />
             </div>
             {m.tipo === 'gasto_empleado' && (
               <div className="space-y-2 px-4 py-3">

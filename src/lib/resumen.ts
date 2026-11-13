@@ -9,6 +9,7 @@
  */
 import { diaLargo, lunesDe, mesLargo, nombreMes, primeroDeMes, sumarDias, sumarMeses, ultimoDeMes } from './fechas'
 import { formatearImporte } from './formato'
+import { fechaEfectiva } from './imputacion'
 import type { Categoria, TipoMovimiento } from './tipos'
 
 export type TipoPeriodo = 'semana' | 'mes'
@@ -26,6 +27,8 @@ export interface MovimientoResumen {
   id: string
   cuenta_id: string
   fecha_operacion: string
+  /** Mes al que se imputa, si no es el de la fecha (nómina del 30 que es del mes siguiente) */
+  mes_imputacion?: string | null
   concepto_limpio: string
   importe: number
   tipo: TipoMovimiento
@@ -115,8 +118,11 @@ export function semanasDelMes(mes: Periodo): Periodo[] {
   return semanas
 }
 
-export const enPeriodo = (m: { fecha_operacion: string }, p: { inicio: string; fin: string }) =>
-  m.fecha_operacion >= p.inicio && m.fecha_operacion <= p.fin
+/** Por fecha efectiva: lo imputado al mes siguiente cuenta desde el día 1 de ese mes */
+export const enPeriodo = (m: { fecha_operacion: string; mes_imputacion?: string | null }, p: { inicio: string; fin: string }) => {
+  const f = fechaEfectiva(m)
+  return f >= p.inicio && f <= p.fin
+}
 
 function naturalezaDe(m: MovimientoResumen, porId: Map<string, Categoria>): 'gasto' | 'ingreso' {
   const c = m.categoria_id ? porId.get(m.categoria_id) : undefined
@@ -221,7 +227,7 @@ export function calcularResumen(
   const porId = new Map(categorias.map((c) => [c.id, c]))
   const actuales = movs
     .filter((m) => enPeriodo(m, periodo))
-    .sort((a, b) => a.fecha_operacion.localeCompare(b.fecha_operacion) || a.importe - b.importe)
+    .sort((a, b) => fechaEfectiva(a).localeCompare(fechaEfectiva(b)) || a.importe - b.importe)
   const previos = movs.filter((m) => enPeriodo(m, anterior))
 
   const totales = calcularTotales(actuales, categorias)

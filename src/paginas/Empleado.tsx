@@ -1,4 +1,7 @@
-import { Briefcase, Check, Sheet } from 'lucide-react'
+import { Briefcase, Check, ChevronRight, Search, Sheet } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { candidatosEmpleado } from '../importacion/empleado'
+import { guardarAjustes } from '../datos/operaciones'
 import { useMemo, useState } from 'react'
 import { Aviso, Encabezado } from '../componentes/Encabezado'
 import { FilaMovimientoDeslizable } from '../componentes/FilaMovimientoDeslizable'
@@ -24,6 +27,8 @@ export function Empleado() {
   const [conciliando, setConciliando] = useState<Movimiento | null>(null)
   const [detalle, setDetalle] = useState<string | null>(null)
   const umbral = db.ajustes.dias_aviso_reembolso
+  const porRevisar = useMemo(() => candidatosEmpleado(db).length, [db])
+  const empresa = db.ajustes.alias_terceros.find((a) => a.alias === 'Empresa')
 
   const exportar = async () => {
     const movs = db.movimientos.filter((m) => m.tipo === 'gasto_empleado' || m.tipo === 'reembolso_empresa')
@@ -59,6 +64,41 @@ export function Empleado() {
         }
       />
       <div className="space-y-5">
+        {empresa && !empresa.patrones.length && (
+          <div className="tarjeta space-y-2">
+            <p className="text-sm font-semibold">¿Cómo aparece tu empresa en el banco?</p>
+            <p className="text-xs text-zinc-500">
+              Escribe su nombre tal como sale en las transferencias. Así la app reconoce los reembolsos y la nómina, y lo sustituye por «Empresa». Solo se guarda en el iPhone.
+            </p>
+            <input
+              className="campo"
+              placeholder="Nombre de la empresa"
+              maxLength={60}
+              onKeyDown={async (e) => {
+                if (e.key !== 'Enter') return
+                const v = e.currentTarget.value.trim()
+                if (!v) return
+                const alias = db.ajustes.alias_terceros.map((a) => (a.alias === 'Empresa' ? { ...a, patrones: [v] } : a))
+                avisar((await intentar((d) => guardarAjustes(d, { alias_terceros: alias }), 'Nombre de la empresa guardado')) ?? 'Guardado. Se aplica en las próximas importaciones')
+              }}
+            />
+          </div>
+        )}
+
+        {porRevisar > 0 && (
+          <Link to="/empleado/revisar" className="lista fila">
+            <span className="grid size-8 place-items-center rounded-[9px] bg-[#5856D6] text-white">
+              <Search className="size-[18px]" strokeWidth={2} />
+            </span>
+            <span className="flex-1">
+              <span className="block text-[15px]">Revisar posibles gastos de empleado</span>
+              <span className="block text-xs text-zinc-500">Cafeterías, taxis y restaurantes que parecen de trabajo</span>
+            </span>
+            <span className="rounded-full bg-[#5856D6] px-2 py-0.5 text-[13px] font-semibold text-white">{porRevisar}</span>
+            <ChevronRight className="size-4 text-zinc-400" />
+          </Link>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           {kpis.map((k) => (
             <div key={k.etiqueta} className="tarjeta p-3">

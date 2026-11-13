@@ -13,6 +13,7 @@ import { diaLargo, mesLargo } from '../lib/fechas'
 import { formatearImporte, leerImporteUsuario } from '../lib/formato'
 import { NOMBRE_TIPO_MOVIMIENTO, type Movimiento, type TipoMovimiento } from '../lib/tipos'
 import { nombreCategoria, porDia } from '../lib/vista'
+import { mesEfectivo } from '../lib/imputacion'
 
 interface Filtros {
   cuenta: string | null
@@ -55,7 +56,7 @@ export function Movimientos() {
       if (filtros.categoria === null && (m.categoria_id || m.tipo !== 'normal')) return false
       if (filtros.categoria && !hijas.get(filtros.categoria)?.has(m.categoria_id ?? '')) return false
       if (filtros.tipo && m.tipo !== filtros.tipo) return false
-      if (filtros.mes && !m.fecha_operacion.startsWith(filtros.mes)) return false
+      if (filtros.mes && mesEfectivo(m) !== filtros.mes) return false
       if (filtros.min !== null && Math.abs(m.importe) < filtros.min) return false
       if (filtros.max !== null && Math.abs(m.importe) > filtros.max) return false
       return true
@@ -287,7 +288,7 @@ function HojaFiltros({ abierta, filtros, onCerrar, onAplicar }: { abierta: boole
   const [selector, setSelector] = useState(false)
   const [min, setMin] = useState('')
   const [max, setMax] = useState('')
-  const meses = [...new Set(db.movimientos.map((m) => m.fecha_operacion.slice(0, 7)))].sort().reverse()
+  const meses = [...new Set(db.movimientos.map(mesEfectivo))].sort().reverse()
   const abrir = abierta && !selector
 
   return (

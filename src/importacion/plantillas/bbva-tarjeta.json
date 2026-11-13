@@ -1,16 +1,22 @@
 {
-  "_nota": "Plantilla de lectura del Excel de movimientos de la tarjeta de crédito de bbva.es. Columnas pendientes de confirmar con los Excel reales. Si las compras llegan en positivo, cambiar signo a invertido.",
+  "_nota": "Excel de movimientos de la tarjeta de crédito de bbva.es. Formato pendiente de confirmar con un Excel real: se espera el mismo «Informe BBVA» sin la columna Disponible. Si las compras llegan en positivo, cambiar signo a invertido.",
   "origen": "bbva_tarjeta",
   "nombre": "BBVA tarjeta de crédito",
   "tipo_cuenta": "tarjeta_credito",
   "columnas": {
     "fecha_operacion": ["fecha", "fecha operacion", "fecha de operacion", "f operacion"],
-    "fecha_valor": ["fecha de cargo", "f cargo", "fecha cargo", "f valor"],
+    "fecha_valor": ["fecha valor", "fecha de cargo", "f cargo", "fecha cargo", "f valor"],
     "concepto": ["concepto", "comercio", "descripcion"],
+    "detalle": ["movimiento"],
     "concepto_extra": ["observaciones"],
     "importe": ["importe"]
   },
   "obligatorias": ["fecha_operacion", "concepto", "importe"],
   "sin": ["saldo"],
-  "signo": "tal_cual"
+  "signo": "tal_cual",
+  "fecha": "la_anterior",
+  "concepto_ancho_fijo": [25, 13, 2],
+  "operaciones": ["pago con tarjeta", "pago con tarjeta contactless", "compra", "devolucion"],
+  "tercero_si_concepto": [],
+  "concepto_generico": []
 }

@@ -42,7 +42,7 @@ describe('corrección de categorías', () => {
     const regla = todo.reglas.find((r) => r.origen === 'manual')!
     expect(regla).toMatchObject({ patron: 'mercadona', tipo_patron: 'exacto', categoria_id: regalos.id })
     // La próxima importación usa la regla manual antes que las de la app
-    const c = clasificar({ concepto_normalizado: 'mercadona', cuenta_id: db.cuentas[2].id, importe: -20 }, todo.reglas, categoriasAprendidas(todo))
+    const c = clasificar({ texto: 'mercadona', clave: 'mercadona', cuenta_id: db.cuentas[2].id, importe: -20 }, todo.reglas, categoriasAprendidas(todo))
     expect(c.categoria_id).toBe(regalos.id)
     expect(comprobarBaseDatos(todo)).toEqual([])
   })
@@ -51,7 +51,7 @@ describe('corrección de categorías', () => {
     const db = base()
     const m = db.movimientos.find((x) => x.concepto_normalizado === 'cines abc')!
     const r = cambiarCategoria(db, [m.id], cat(db, 'Cultura').id)
-    expect(categoriasAprendidas(r).get('cines abc')).toBe(cat(db, 'Cultura').id)
+    expect(categoriasAprendidas(r).porClave.get('cines abc')).toBe(cat(db, 'Cultura').id)
   })
 })
 
@@ -140,15 +140,16 @@ describe('extracto y análisis', () => {
     expect(dic.mesesMedia).toBe(2)
     const nov = calcularExtracto(db, '2026-11')
     expect(dic.media!.gastos).toBeCloseTo((oct.totales.gastos + nov.totales.gastos) / 2, 1)
-    expect(dic.haySiguiente).toBe(false)
+    expect(dic.haySiguiente).toBe(true) // la nómina del 31 de diciembre cuenta en enero
   })
 
   it('el mes en curso se compara con los mismos días de los meses anteriores', () => {
     const completa = calcularExtracto(db, '2026-12')
     const enCurso = calcularExtracto(db, '2026-12', '2026-12-13')
     expect([enCurso.enCurso, enCurso.diaCorte]).toEqual([true, 13])
-    expect(enCurso.media!.ingresos).toBe(0) // la nómina llega el 27: en los días 1 a 13 no hay ingresos
-    expect(completa.media!.ingresos).toBeGreaterThan(0)
+    // La nómina cuenta el día 1 (se cobró a fin del mes anterior): está en los días 1 a 13
+    expect(enCurso.media!.ingresos).toBeCloseTo(completa.media!.ingresos)
+    expect(enCurso.media!.gastos).toBeLessThan(completa.media!.gastos)
   })
 
   it('desglosa por categoría con peso y media', () => {
@@ -163,9 +164,10 @@ describe('extracto y análisis', () => {
   })
 
   it('evolución, serie de una categoría y cierre anual', () => {
-    expect(evolucionMensual(db).map((p) => p.mes)).toEqual(['2026-10', '2026-11', '2026-12'])
+    expect(evolucionMensual(db).map((p) => p.mes)).toEqual(['2026-10', '2026-11', '2026-12', '2027-01'])
     const serie = serieCategoria(db, cat(db, 'Vivienda').id)
     expect(serie[2].mediaMovil).toBeCloseTo((serie[0].importe + serie[1].importe + serie[2].importe) / 3, 1)
     expect(cierreAnual(db)[0]).toMatchObject({ anio: '2026', meses: 3 })
+    expect(cierreAnual(db)[1]).toMatchObject({ anio: '2027', meses: 1 })
   })
 })

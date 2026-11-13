@@ -6,9 +6,11 @@ import { Deslizable } from '../componentes/gestos'
 import { Baldosa } from '../componentes/Icono'
 import { useInterfaz } from '../componentes/Interfaz'
 import { contarDatosPrueba } from '../datos/operaciones'
+import { candidatosEmpleado } from '../importacion/empleado'
 import { useDatos } from '../datos/ProveedorDatos'
 import { avisoExportacion } from '../lib/avisos'
 import { calcularExtracto, mesDe } from '../lib/extracto'
+import { mesEfectivo } from '../lib/imputacion'
 import { hoyIso, mesLargo, sumarMeses } from '../lib/fechas'
 import { formatearImporte } from '../lib/formato'
 import { porcentaje, textoComparacion, type Tono } from '../lib/resumen'
@@ -27,6 +29,7 @@ export function Extracto() {
   const mes = params.get('mes') ?? mesDe(hoyIso())
   const e = useMemo(() => calcularExtracto(db, mes, hoyIso()), [db, mes])
   const prueba = contarDatosPrueba(db)
+  const porRevisar = useMemo(() => candidatosEmpleado(db).length, [db])
   const aviso = avisoExportacion(db)
   const irA = (m: string) => setParams({ mes: m }, { replace: true })
   const anterior = sumarMeses(`${mes}-01`, -1).slice(0, 7)
@@ -38,7 +41,7 @@ export function Extracto() {
     m && media !== undefined ? textoComparacion(actual, media, 'la media', subirEsBueno) : null
 
   const exportar = async () => {
-    const movs = db.movimientos.filter((x) => mesDe(x.fecha_operacion) === mes)
+    const movs = db.movimientos.filter((x) => mesEfectivo(x) === mes)
     const r = await (await import('../lib/exportarExcel')).exportarVista(db, `extracto ${mes}`, movs, [
       ['Extracto', mesLargo(`${mes}-01`)],
       ['Ingresos', t.ingresos],
@@ -139,13 +142,21 @@ export function Extracto() {
               ))}
             </div>
 
-            {(e.sinCategoria > 0 || e.pendientesEmpleado > 0) && (
+            {(e.sinCategoria > 0 || e.pendientesEmpleado > 0 || porRevisar > 0) && (
               <div className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
                 {e.sinCategoria > 0 && (
                   <Link to="/movimientos?sin=1" className="fila">
                     <Baldosa glifo={Tag} color="#FF9500" tamano="sm" />
                     <span className="flex-1 text-[15px]">Movimientos sin categoría</span>
                     <span className="text-[15px] text-zinc-500">{e.sinCategoria}</span>
+                    <ChevronRight className="size-4 text-zinc-400" />
+                  </Link>
+                )}
+                {porRevisar > 0 && (
+                  <Link to="/empleado/revisar" className="fila">
+                    <Baldosa glifo={Sheet} color="#5856D6" tamano="sm" />
+                    <span className="flex-1 text-[15px]">Posibles gastos de empleado</span>
+                    <span className="text-[15px] text-zinc-500">{porRevisar}</span>
                     <ChevronRight className="size-4 text-zinc-400" />
                   </Link>
                 )}

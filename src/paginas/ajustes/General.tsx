@@ -5,6 +5,7 @@ import { Aviso } from '../../componentes/Encabezado'
 import { contieneIdentificativo } from '../../lib/identificativos'
 import { formatearImporte } from '../../lib/formato'
 import { guardarAjustes } from '../../datos/operaciones'
+import { zonaCasa } from '../../importacion/empleado'
 import { intentar, useDatos } from '../../datos/ProveedorDatos'
 import type { Ajustes } from '../../lib/tipos'
 
@@ -13,6 +14,7 @@ const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', '
 export function General() {
   const db = useDatos()
   const deuda = db.compromisos.find((c) => c.activo)
+  const zonaDeducida = [...zonaCasa({ ...db, ajustes: { ...db.ajustes, zona_casa: [] } })]
   // Borrador local: se guarda al pulsar «Guardar ajustes»
   const [ajustes, setAjustes] = useState<Ajustes>(() => structuredClone(db.ajustes))
   const [nuevoAlias, setNuevoAlias] = useState('')
@@ -77,7 +79,50 @@ export function General() {
             <span className="etiqueta">Aviso de presupuesto (%)</span>
             <input type="number" min={1} max={100} className="campo" value={ajustes.umbral_aviso_presupuesto} onChange={(e) => cambiar({ umbral_aviso_presupuesto: Number(e.target.value) })} />
           </label>
+          <label>
+            <span className="etiqueta">Fin de mes (días)</span>
+            <input type="number" min={0} max={10} className="campo" value={ajustes.dias_fin_de_mes} onChange={(e) => cambiar({ dias_fin_de_mes: Number(e.target.value) })} />
+            <span className="mt-1 block text-xs text-zinc-500">
+              En los últimos {ajustes.dias_fin_de_mes} días del mes, la nómina y la hipoteca cuentan ya en el mes siguiente. 0 para no hacerlo.
+            </span>
+          </label>
         </div>
+      </section>
+
+      <section className="tarjeta space-y-3">
+        <div>
+          <h2 className="text-sm font-semibold">Zona de casa</h2>
+          <p className="text-xs text-zinc-500">
+            Un gasto fuera de estas poblaciones tiene más probabilidad de ser de empleado.{' '}
+            {ajustes.zona_casa.length
+              ? ''
+              : zonaDeducida.length
+                ? `Vacía: la app usa tus poblaciones habituales (${zonaDeducida.join(', ')}).`
+                : 'Vacía: la app la deducirá de tus compras cuando haya suficientes.'}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {ajustes.zona_casa.map((z) => (
+            <span key={z} className="inline-flex items-center gap-1 rounded-full bg-zinc-100 py-0.5 pr-1 pl-2.5 text-[13px] dark:bg-zinc-800">
+              {z}
+              <button type="button" aria-label={`Quitar ${z}`} className="rounded-full p-0.5 text-zinc-400" onClick={() => cambiar({ zona_casa: ajustes.zona_casa.filter((x) => x !== z) })}>
+                <X className="size-3.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+        <input
+          className="campo"
+          placeholder="Añadir población"
+          maxLength={40}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return
+            e.preventDefault()
+            const v = e.currentTarget.value.trim()
+            if (v && !ajustes.zona_casa.includes(v)) cambiar({ zona_casa: [...ajustes.zona_casa, v] })
+            e.currentTarget.value = ''
+          }}
+        />
       </section>
 
       <section className="tarjeta space-y-3">

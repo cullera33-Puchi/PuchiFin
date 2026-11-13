@@ -63,6 +63,8 @@ export interface Regla {
   activa: boolean
   confirmaciones: number
   descartes: number
+  /** Si cae en los últimos días del mes, cuenta en el mes siguiente (nómina, hipoteca) */
+  mes_siguiente: boolean
   created_at: string
 }
 
@@ -84,6 +86,12 @@ export interface Movimiento {
   origen_categoria: 'regla' | 'aprendida' | 'manual' | null
   nota: string | null
   reembolso_cerrado: boolean
+  /** Mes (AAAA-MM) en el que cuenta, si no es el de la fecha: la nómina del 30 cuenta en el mes siguiente */
+  mes_imputacion: string | null
+  /** Población del comercio, si el banco la da (sirve para detectar gastos fuera de casa) */
+  poblacion: string | null
+  /** Revisado en la detección de gastos de empleado y confirmado como personal: no se vuelve a proponer */
+  revisado_empleado: boolean
   created_at: string
 }
 
@@ -138,10 +146,13 @@ export interface Ajustes {
   alias_terceros: AliasTercero[]
   dias_aviso_reembolso: number
   umbral_aviso_presupuesto: number
+  /** Poblaciones de casa; vacío: se deducen de las más habituales */
   zona_casa: string[]
+  /** Últimos días del mes en los que la nómina o la hipoteca cuentan ya en el mes siguiente */
+  dias_fin_de_mes: number
 }
 
-export const VERSION_ESQUEMA = 2
+export const VERSION_ESQUEMA = 3
 
 export interface BaseDatos {
   esquema: number
