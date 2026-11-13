@@ -4,6 +4,7 @@ import type { BaseDatos, Movimiento } from '../lib/tipos'
 import {
   ErrorDatos,
   actualizarCatalogo,
+  empezarDeCero,
   actualizarCategoria,
   borrarDatosPrueba,
   comprobarBaseDatos,
@@ -185,3 +186,37 @@ describe('actualizarCatalogo (v0.10.0)', () => {
   })
 })
 
+
+describe('empezarDeCero', () => {
+  const base = datosIniciales()
+  const prueba = generarDatosPrueba({ cuentas: base.cuentas, categorias: base.categorias, desde: '2026-10-01', hasta: '2026-11-13' })
+  const manual = { ...base.reglas[0], id: 'manual-1', origen: 'manual' as const, nombre: null, patron: 'comercio zeta', tipo_patron: 'exacto' as const }
+  const db: BaseDatos = {
+    ...base,
+    ...prueba,
+    reglas: [...base.reglas, manual],
+    cuentas: base.cuentas.map((c) => ({ ...c, saldo_confirmado: { importe: 10, fecha: '2026-11-13', cuadra: true } })),
+    ajustes: { ...base.ajustes, dias_fin_de_mes: 3 },
+  }
+
+  it('borra lo cargado y conserva cuentas, categorías, ajustes y reglas', () => {
+    const r = empezarDeCero(db, { conservarReglas: true, configuracionInicial: false })
+    expect(r.movimientos).toEqual([])
+    expect(r.importaciones).toEqual([])
+    expect(r.conciliaciones).toEqual([])
+    expect(r.cuentas.map((c) => c.id)).toEqual(db.cuentas.map((c) => c.id))
+    expect(r.cuentas.every((c) => c.saldo_confirmado === null)).toBe(true)
+    expect(r.categorias).toEqual(db.categorias)
+    expect(r.ajustes.dias_fin_de_mes).toBe(3)
+    expect(r.reglas.some((x) => x.id === 'manual-1')).toBe(true)
+    expect(comprobarBaseDatos(r)).toEqual([])
+  })
+
+  it('sin tus reglas, quedan solo las de la app; con configuración inicial, como el primer día', () => {
+    const r = empezarDeCero(db, { conservarReglas: false, configuracionInicial: false })
+    expect(r.reglas.every((x) => x.origen === 'sistema')).toBe(true)
+    const inicial = empezarDeCero(db, { conservarReglas: true, configuracionInicial: true })
+    expect(inicial.ajustes.dias_fin_de_mes).toBe(5)
+    expect(inicial.movimientos).toEqual([])
+  })
+})

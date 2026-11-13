@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.11.1",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Nuevo en Ajustes, Herramientas: «Empezar de cero». Borra los movimientos para hacer una carga limpia y conserva tus cuentas, categorías, ajustes y reglas.",
+      "Antes de borrar se guarda una copia de seguridad, y puedes deshacerlo."
+    ]
+  },
+  {
     "version": "0.11.0",
     "fecha": "2026-11-13",
     "cambios": [

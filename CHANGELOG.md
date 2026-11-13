@@ -2,6 +2,11 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.11.1. Empezar de cero (13 de noviembre de 2026)
+
+- `empezarDeCero` en operaciones: borra movimientos, importaciones, conciliaciones, presupuestos, eventos previstos y saldos confirmados; conserva cuentas, categorías, ajustes y reglas de la app; reglas propias opcionales; o configuración inicial completa.
+- Sección «Empezar de cero» en Herramientas, con copia «antes de borrar», confirmación y Deshacer. Pruebas: 292 tests.
+
 ## v0.11.0. Hoja de movimiento, interruptores Liquid Glass y categorizar con Claude (13 de noviembre de 2026)
 
 - `Hoja`: prop `listo` para la acción de cabecera y cierre arrastrando desde el contenido (eventos táctiles nativos, solo con el contenido arriba del todo, por distancia o lanzamiento).

@@ -29,6 +29,7 @@ import { formatearFecha } from '../../lib/formato'
 import { borrarRegistro, entradasRegistro, recuperarRegistro, registrar, suscribirRegistro, textoRegistro } from '../../lib/registro'
 import { APP_VERSION } from '../../lib/version'
 import { SeccionClaude } from './ConClaude'
+import { SeccionEmpezarDeCero } from './EmpezarDeCero'
 
 function Seccion({ titulo, nota, children }: { titulo: string; nota?: ReactNode; children: ReactNode }) {
   return (
@@ -50,6 +51,7 @@ const NOMBRE_TIPO: Record<MetaCopia['tipo'], string> = {
   'antes de restaurar': 'Antes de restaurar',
   'antes de importar': 'Antes de importar',
   'antes de actualizar': 'Antes de actualizar',
+  'antes de borrar': 'Antes de borrar',
 }
 
 /** Nombres inventados de los Excel de prueba (los mismos que importacion/excelPrueba.ts) */
@@ -377,6 +379,8 @@ export function Herramientas() {
           empresa ({NOMBRES_PRUEBA.empresa}) y de la familia ({NOMBRES_PRUEBA.familia}) se sustituyen por su alias si los añades.
         </p>
       </Seccion>
+
+      <SeccionEmpezarDeCero />
 
       <Seccion titulo="Registro" nota="Errores y eventos de la app. Cópialo o compártelo para pegarlo en el chat. No incluye conceptos ni importes.">
         <div className="flex flex-wrap items-center gap-2">

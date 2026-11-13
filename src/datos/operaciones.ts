@@ -335,6 +335,28 @@ export function actualizarCatalogo(categorias: Categoria[]): Categoria[] {
   return cats
 }
 
+/**
+ * Empezar de cero para una carga limpia: se borran los movimientos, las importaciones, las
+ * conciliaciones, los presupuestos y eventos previstos, y los saldos confirmados. Por defecto se
+ * conservan las cuentas, las categorías, los ajustes y las reglas (las de la app siempre; las tuyas,
+ * si se pide). Con «configuración inicial», todo vuelve a como el primer día.
+ */
+export function empezarDeCero(db: BaseDatos, opciones: { conservarReglas: boolean; configuracionInicial: boolean }): BaseDatos {
+  if (opciones.configuracionInicial) return datosIniciales()
+  return {
+    ...db,
+    importaciones: [],
+    movimientos: [],
+    conciliaciones: [],
+    presupuestos: [],
+    eventos_previstos: [],
+    cuentas: db.cuentas.map((c) => ({ ...c, saldo_confirmado: null })),
+    reglas: db.reglas
+      .filter((r) => r.origen === 'sistema' || opciones.conservarReglas)
+      .map((r) => (r.origen === 'sistema' ? { ...r, confirmaciones: 0, descartes: 0 } : r)),
+  }
+}
+
 /** Borra importaciones con sus movimientos y las conciliaciones de esos movimientos */
 export function borrarImportaciones(db: BaseDatos, ids: Set<string>): BaseDatos {
   const movs = new Set(db.movimientos.filter((m) => m.importacion_id && ids.has(m.importacion_id)).map((m) => m.id))

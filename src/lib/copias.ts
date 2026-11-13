@@ -12,7 +12,7 @@ import { compartirArchivo, type ResultadoCompartir } from './compartir'
 import { hoyIso } from './fechas'
 import { registrar } from './registro'
 
-export type TipoCopia = 'diaria' | 'manual' | 'antes de restaurar' | 'antes de importar' | 'antes de actualizar'
+export type TipoCopia = 'diaria' | 'manual' | 'antes de restaurar' | 'antes de importar' | 'antes de actualizar' | 'antes de borrar'
 
 export interface MetaCopia {
   clave: string

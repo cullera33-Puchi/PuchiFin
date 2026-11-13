@@ -137,6 +137,7 @@ Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alt
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.11.1 (13/11/2026): «Empezar de cero» en Herramientas para una carga limpia (`empezarDeCero`): borra lo cargado y conserva cuentas, categorías, ajustes y reglas, con copia previa y Deshacer.
 - v0.11.0 (13/11/2026): hoja de movimiento, interruptores Liquid Glass y categorizar con Claude. Pendiente de validar por el usuario.
   - `Hoja` admite `listo` (botón de texto a la derecha de la cabecera, como «Listo» en iOS) y se cierra arrastrando hacia abajo desde el contenido cuando está arriba del todo. `DetalleMovimiento` rediseñado: baldosa e importe grandes, filas agrupadas (Categoría, Tipo como lista con marca y descripción, Cuenta en el mes siguiente), nota que se guarda sola con «Guardando… / Guardada» y cada cambio con Deshacer. `useElegirCategoria`: sin parecidos, la categoría se aplica directamente con su regla, sin hoja intermedia (también al deslizar).
   - `Interruptor` al estilo Liquid Glass: carril de 64 por 28, botón en cápsula y lente de cristal al pulsar, con zona táctil de 44.
