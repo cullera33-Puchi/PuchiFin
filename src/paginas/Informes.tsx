@@ -1,4 +1,4 @@
-import { ChartColumn, Check, ChevronRight, Sheet, X } from 'lucide-react'
+import { ChartColumn, Check, ChevronRight, Repeat, Sheet, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Bar, BarChart, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
@@ -17,6 +17,8 @@ import { calcularPosicion } from '../lib/posicion'
 import { mesEfectivo } from '../lib/imputacion'
 import { porDia } from '../lib/vista'
 import { gastosHormiga, IMPORTE_HORMIGA, rankingComercios } from '../lib/comercios'
+import { avisosRecurrentes, detectarRecurrentes, resumenFijos } from '../lib/recurrentes'
+import { Baldosa } from '../componentes/Icono'
 
 /*
  * Informes: gastos o ingresos de un mes o un año en un gráfico de quesito por categoría, con el
@@ -98,6 +100,7 @@ export function Informes() {
         <div className="space-y-4">
           <Totales informe={informe} onVista={(v) => ir({ vista: v })} />
           <PanelQuesito informe={informe} onAbrir={(id) => navegar(`/informes/categoria/${id ?? 'sin'}?${consulta}`)} />
+          {vista === 'gasto' && <TarjetaFijos />}
           <SeccionComercios informe={informe} movimientos={informe.movimientos} />
           {vista === 'gasto' && <SeccionHormiga informe={informe} hoy={hoy} />}
           <Evolucion db={db} informe={informe} onPeriodo={(p) => (p.length === 7 && escala === 'anio' ? irAlMes(ir, p) : ir({ p }))} />
@@ -250,6 +253,30 @@ function PanelQuesito({
         })}
       </ul>
     </section>
+  )
+}
+
+/** Acceso a los gastos fijos: coste mensual, cuántos y avisos */
+function TarjetaFijos() {
+  const db = useDatos()
+  const datos = useMemo(() => {
+    const rec = detectarRecurrentes(db)
+    return { r: resumenFijos(rec, hoyIso()), avisos: avisosRecurrentes(db, rec).length }
+  }, [db])
+  if (!datos.r.activos.length) return null
+  return (
+    <Link to="/informes/fijos" className="tarjeta flex items-center gap-3 active:opacity-70">
+      <Baldosa glifo={Repeat} color="#5856D6" />
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-semibold">Gastos fijos: {formatearImporte(datos.r.alMes)} al mes</span>
+        <span className="block text-[12px] text-zinc-500">
+          {plural(datos.r.activos.length, 'cargo recurrente', 'cargos recurrentes')}
+          {datos.r.proximos.length ? `, ${datos.r.proximos.length} en los próximos 30 días` : ''}
+          {datos.avisos ? `. ${plural(datos.avisos, 'aviso', 'avisos')}` : ''}
+        </span>
+      </span>
+      <ChevronRight className="size-4 shrink-0 text-zinc-400" />
+    </Link>
   )
 }
 

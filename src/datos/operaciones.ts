@@ -256,6 +256,26 @@ export function fusionarCategoria(db: BaseDatos, origen: string, destino: string
 // Ajustes
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Presupuestos (fase 4)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fija el presupuesto mensual de una categoría de gasto (o lo quita con null o 0). Las excepciones por
+ * mes que tuviera se conservan.
+ */
+export function guardarPresupuesto(db: BaseDatos, categoria_id: string, importe: number | null): BaseDatos {
+  const c = db.categorias.find((x) => x.id === categoria_id)
+  if (!c) throw new ErrorDatos('Categoría no encontrada')
+  if (c.naturaleza !== 'gasto') throw new ErrorDatos('Solo las categorías de gasto llevan presupuesto')
+  const existente = db.presupuestos.find((p) => p.categoria_id === categoria_id)
+  if (importe === null || importe === 0) return existente ? { ...db, presupuestos: db.presupuestos.filter((p) => p.id !== existente.id) } : db
+  if (!Number.isFinite(importe) || importe < 0 || importe > 1_000_000) throw new ErrorDatos('El presupuesto debe ser un importe positivo')
+  const valor = Math.round(importe * 100) / 100
+  if (existente) return { ...db, presupuestos: db.presupuestos.map((p) => (p.id === existente.id ? { ...p, importe_mensual: valor } : p)) }
+  return { ...db, presupuestos: [...db.presupuestos, { id: nuevoId(), categoria_id, importe_mensual: valor, excepciones: {}, created_at: ahora() }] }
+}
+
 export function guardarAjustes(db: BaseDatos, cambios: Partial<Ajustes>): BaseDatos {
   const a = { ...db.ajustes, ...cambios }
   if (!(a.dias_aviso_reembolso > 0)) throw new ErrorDatos('Los días de aviso deben ser mayores que cero')

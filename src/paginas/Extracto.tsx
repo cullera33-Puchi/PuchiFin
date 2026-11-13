@@ -1,5 +1,5 @@
-import { ChartColumn, ChevronRight, ListChecks, FileText, FlaskConical, HardDriveDownload, Landmark, Sheet, Sparkles, Tag, Upload } from 'lucide-react'
-import { useMemo } from 'react'
+import { ChartColumn, ChevronRight, ListChecks, Repeat, Target, FileText, FlaskConical, HardDriveDownload, Landmark, Sheet, Sparkles, Tag, Upload } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Aviso, Encabezado } from '../componentes/Encabezado'
 import { Deslizable } from '../componentes/gestos'
@@ -11,11 +11,14 @@ import { contarDatosPrueba } from '../datos/operaciones'
 import { useDatos } from '../datos/ProveedorDatos'
 import { avisoExportacion, avisoImportacion } from '../lib/avisos'
 import { mesPorCerrar, pasosCierre } from '../lib/cierre'
+import { avisosRecurrentes, detectarRecurrentes } from '../lib/recurrentes'
+import { preverCierre } from '../lib/prevision'
+import { consumoPresupuestos, type LineaPresupuesto } from '../lib/presupuesto'
 import { ultimaExportacion } from '../lib/copias'
 import { calcularExtracto, fraseDelMes, mesDe } from '../lib/extracto'
 import { mesEfectivo } from '../lib/imputacion'
 import { hoyIso, mesLargo, sumarMeses } from '../lib/fechas'
-import { formatearImporte } from '../lib/formato'
+import { formatearFecha, formatearImporte, formatearRedondo, plural } from '../lib/formato'
 import { porcentaje, textoComparacion, type Tono } from '../lib/resumen'
 import { cuadrarCuenta } from '../lib/saldos'
 import { propuestasRecategorizacion } from '../datos/categorizar'
@@ -49,6 +52,11 @@ export function Extracto() {
   const mesCierre = mes < actual ? mes : mesPorCerrar(hoyIso())
   const cierre = useMemo(() => (mesCierre && db.movimientos.length ? pasosCierre(db, mesCierre, ultimaExportacion()) : null), [db, mesCierre])
   const cierreHechos = cierre ? cierre.filter((p) => p.hecho).length : 0
+  const recurrentes = useMemo(() => detectarRecurrentes(db), [db])
+  const avisosFijos = useMemo(() => avisosRecurrentes(db, recurrentes), [db, recurrentes])
+  const prevision = useMemo(() => preverCierre(db, mes, hoyIso(), recurrentes), [db, mes, recurrentes])
+  const [verPendientes, setVerPendientes] = useState(false)
+  const presupuestos = useMemo(() => consumoPresupuestos(db, mes, hoyIso()), [db, mes])
   const irA = (m: string) => setParams({ mes: m }, { replace: true })
   // Meses de la tira: del primero con datos al último (el en curso o uno posterior imputado, como la nómina)
   const meses = useMemo(() => {
@@ -166,6 +174,35 @@ export function Extracto() {
         ) : (
           <div className="space-y-4">
             {frase && <p className="px-1 text-[15px] leading-snug">{frase}</p>}
+            {prevision && prevision.diasRestantes > 0 && (
+              <section className="tarjeta">
+                <h3 className="text-[13px] font-medium text-zinc-500 uppercase">Previsión a final de mes</h3>
+                <p className="mt-0.5 text-[22px] leading-tight font-bold tabular-nums">Unos {formatearRedondo(prevision.total)} de gasto</p>
+                <p className="mt-1 text-[13px] text-zinc-500">
+                  Llevas {formatearRedondo(prevision.gastado)}. Faltan {prevision.pendientes.length ? `recibos por ${formatearRedondo(prevision.recibos)} y ` : ''}unos{' '}
+                  {formatearRedondo(prevision.variable)} de gasto variable en los {prevision.diasRestantes} días que quedan, a tu ritmo habitual.
+                  {prevision.media !== null && ` Tu media mensual: ${formatearRedondo(prevision.media)}.`}
+                </p>
+                {prevision.pendientes.length > 0 && (
+                  <>
+                    <button className="boton-texto mt-1 -ml-1 px-1" onClick={() => setVerPendientes((v) => !v)}>
+                      {verPendientes ? 'Ocultar' : 'Ver'} {plural(prevision.pendientes.length, 'recibo pendiente', 'recibos pendientes')}
+                    </button>
+                    {verPendientes && (
+                      <ul className="mt-1 divide-y divide-zinc-200/70 dark:divide-zinc-800">
+                        {prevision.pendientes.map((r) => (
+                          <li key={r.clave} className="flex min-h-10 items-center gap-3 py-1 text-[15px]">
+                            <span className="min-w-0 flex-1 truncate">{r.nombre}</span>
+                            <span className="text-[12px] text-zinc-500">hacia el {formatearFecha(r.proxima).slice(0, 5)}</span>
+                            <span className="tabular-nums">{formatearImporte(r.importe)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                )}
+              </section>
+            )}
             {m && (
               <p className="px-1 text-xs text-zinc-500">
                 Comparado con la media de {e.mesesMedia} {e.mesesMedia === 1 ? 'mes anterior' : 'meses anteriores'}
@@ -183,8 +220,19 @@ export function Extracto() {
               ))}
             </div>
 
-            {(e.sinCategoria > 0 || descuadradas > 0 || mejoras > 0 || (cierre && cierreHechos < cierre.length)) && (
+            {(e.sinCategoria > 0 || descuadradas > 0 || mejoras > 0 || avisosFijos.length > 0 || (cierre && cierreHechos < cierre.length)) && (
               <div className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
+                {avisosFijos.length > 0 && (
+                  <Link to="/informes/fijos" className="fila">
+                    <Baldosa glifo={Repeat} color="#5856D6" tamano="sm" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[15px]">Recibos y suscripciones</span>
+                      <span className="block truncate text-xs text-zinc-500">{avisosFijos[0].nombre}: {avisosFijos[0].texto.charAt(0).toLowerCase() + avisosFijos[0].texto.slice(1)}</span>
+                    </span>
+                    <span className="text-[15px] text-zinc-500">{avisosFijos.length}</span>
+                    <ChevronRight className="size-4 text-zinc-400" />
+                  </Link>
+                )}
                 {cierre && mesCierre && cierreHechos < cierre.length && (
                   <Link to={`/extracto/cierre?mes=${mesCierre}`} className="fila">
                     <Baldosa glifo={ListChecks} color="#34C759" tamano="sm" />
@@ -221,6 +269,8 @@ export function Extracto() {
                 )}
               </div>
             )}
+
+            <SeccionPresupuesto lineas={presupuestos} />
 
             <section>
               <div className="mb-1.5 flex items-baseline justify-between px-4">
@@ -267,5 +317,55 @@ export function Extracto() {
         )}
       </Deslizable>
     </>
+  )
+}
+
+const COLOR_ESTADO = { dentro: 'var(--serie-3)', cerca: '#FF9500', superado: '#FF3B30' } as const
+
+/** Barras de consumo del presupuesto del mes; sin presupuestos, un acceso para definirlos */
+function SeccionPresupuesto({ lineas }: { lineas: LineaPresupuesto[] }) {
+  if (!lineas.length)
+    return (
+      <Link to="/extracto/presupuesto" className="lista fila">
+        <Baldosa glifo={Target} color="#34C759" tamano="sm" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px]">Definir un presupuesto</span>
+          <span className="block text-xs text-zinc-500">Un importe al mes por categoría, con tu media como punto de partida</span>
+        </span>
+        <ChevronRight className="size-4 text-zinc-400" />
+      </Link>
+    )
+  return (
+    <section>
+      <div className="mb-1.5 flex items-baseline justify-between px-4">
+        <h3 className="text-[13px] font-medium text-zinc-500 uppercase">Presupuesto</h3>
+        <Link to="/extracto/presupuesto" className="text-[15px] text-marca-700 dark:text-marca-500">
+          Editar
+        </Link>
+      </div>
+      <ul className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
+        {lineas.map((l) => {
+          const pct = l.gastado / l.presupuesto
+          const queda = l.presupuesto - l.gastado
+          return (
+            <li key={l.categoria.id} className="px-4 py-2.5">
+              <div className="flex items-baseline gap-2">
+                <span className="min-w-0 flex-1 truncate text-[15px]">{l.categoria.nombre}</span>
+                <span className="text-[15px] tabular-nums">
+                  {formatearRedondo(l.gastado)} <span className="text-zinc-500">de {formatearRedondo(l.presupuesto)}</span>
+                </span>
+              </div>
+              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800" role="progressbar" aria-valuenow={Math.round(pct * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={l.categoria.nombre}>
+                <div className="h-full rounded-full" style={{ width: `${Math.min(100, pct * 100)}%`, background: COLOR_ESTADO[l.estado] }} />
+              </div>
+              <p className={`mt-1 text-[12px] ${l.estado === 'superado' ? 'text-[#D70015] dark:text-[#FF6961]' : 'text-zinc-500'}`}>
+                {l.estado === 'superado' ? `Superado en ${formatearRedondo(-queda)}` : `Quedan ${formatearRedondo(queda)} (${Math.round(pct * 100)} % usado)`}
+                {l.proyeccion !== null && l.estado !== 'superado' && l.proyeccion > l.presupuesto ? `. A este ritmo, ${formatearRedondo(l.proyeccion)} a final de mes` : ''}
+              </p>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
   )
 }
