@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.7.0",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Nueva pestaña Informes: gastos o ingresos del mes o del año en un quesito por categoría. Toca una categoría para ver sus subcategorías y movimientos.",
+      "Al importar, lo que ya estaba guardado no se vuelve a subir aunque lo selecciones otra vez en BBVA, y la app reconoce de qué cuenta es el fichero por los saldos.",
+      "Cuadre con el banco: tras importar ves si el saldo de la app coincide con el del Excel. En Ajustes, Cuentas, puedes escribir el saldo que ves en BBVA para comprobarlo.",
+      "Aspecto más de iPhone: barra de pestañas estándar, avisos con «Deshacer», confirmaciones abajo, gestos que responden a la velocidad del dedo y tema claro u oscuro a elegir en Ajustes, General."
+    ]
+  },
+  {
     "version": "0.6.0",
     "fecha": "2026-11-13",
     "cambios": [

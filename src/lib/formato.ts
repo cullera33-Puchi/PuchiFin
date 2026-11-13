@@ -41,3 +41,8 @@ export function leerImporteUsuario(texto: string): number | null {
   const n = Number(/,/.test(t) ? t.replace(/\./g, '').replace(',', '.') : t)
   return Number.isFinite(n) ? Math.round(Math.abs(n) * 100) / 100 : null
 }
+
+/** «1 movimiento», «3 movimientos» */
+export function plural(n: number, uno: string, varios: string): string {
+  return `${n.toLocaleString('es-ES')} ${n === 1 ? uno : varios}`
+}

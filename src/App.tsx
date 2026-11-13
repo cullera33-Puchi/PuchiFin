@@ -20,6 +20,8 @@ import { Resumenes } from './paginas/Resumenes'
 
 // Pantallas pesadas (gráficos y lectura de Excel): se cargan al abrirlas
 const Analisis = lazy(() => import('./paginas/Analisis').then((m) => ({ default: m.Analisis })))
+const Informes = lazy(() => import('./paginas/Informes').then((m) => ({ default: m.Informes })))
+const InformeCategoria = lazy(() => import('./paginas/Informes').then((m) => ({ default: m.InformeCategoria })))
 const Importar = lazy(() => import('./paginas/Importar').then((m) => ({ default: m.Importar })))
 const cargando = <p className="py-10 text-center text-sm text-zinc-500">Cargando…</p>
 
@@ -34,6 +36,8 @@ export function App() {
                 <Route index element={<Extracto />} />
                 <Route path="extracto/categoria/:id" element={<CategoriaMes />} />
                 <Route path="analisis" element={<Suspense fallback={cargando}><Analisis /></Suspense>} />
+                <Route path="informes" element={<Suspense fallback={cargando}><Informes /></Suspense>} />
+                <Route path="informes/categoria/:id" element={<Suspense fallback={cargando}><InformeCategoria /></Suspense>} />
                 <Route path="movimientos" element={<Movimientos />} />
                 <Route path="movimientos/importar" element={<Suspense fallback={cargando}><Importar /></Suspense>} />
                 <Route path="movimientos/importaciones" element={<Importaciones />} />

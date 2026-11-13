@@ -5,8 +5,8 @@ import { calcularResumen, periodoMes, periodoSemana } from './resumen'
 import type { Categoria, Cuenta } from './tipos'
 
 const cuentas: Cuenta[] = [
-  { id: 'c1', alias: 'Cuenta principal', entidad: null, tipo: 'cuenta', activa: true, orden: 1, created_at: '' },
-  { id: 't', alias: 'Tarjeta', entidad: null, tipo: 'tarjeta_credito', activa: true, orden: 2, created_at: '' },
+  { id: 'c1', alias: 'Cuenta principal', entidad: null, tipo: 'cuenta', activa: true, orden: 1, created_at: '', saldo_confirmado: null },
+  { id: 't', alias: 'Tarjeta', entidad: null, tipo: 'tarjeta_credito', activa: true, orden: 2, created_at: '', saldo_confirmado: null },
 ]
 const categorias: Categoria[] = [
   { id: 'a', padre_id: null, nombre: 'Alimentación', icono: null, color: '#43A047', naturaleza: 'gasto', activa: true, orden: 1 },

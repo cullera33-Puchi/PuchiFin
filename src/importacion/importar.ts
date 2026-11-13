@@ -26,6 +26,8 @@ export interface Propuesta {
   cuenta_id: string
   nuevos: MovimientoPropuesto[]
   duplicados: number
+  /** Filas que ya estaban guardadas (o repetidas en el fichero): no se importan */
+  repetidos: { fila: number; fecha: string; concepto: string; importe: number }[]
   anteriores: number
   ilegibles: number[]
   fecha_desde: string | null
@@ -62,10 +64,37 @@ export function conceptoLimpio(anonimizado: string, alias: string[] = []): strin
 
 const ES_TRASPASO = /\b(traspaso|transferencia|transf|trf|bizum)\b/
 
-/** Cuenta sugerida para el fichero: la tarjeta para un Excel de tarjeta; la primera cuenta activa para el resto */
+/**
+ * Cuenta a la que pertenece el fichero según los saldos del banco: la que ya tiene movimientos con la
+ * misma fecha, importe y saldo, o aquella cuya cadena de saldos enlaza con la del fichero (el saldo
+ * anterior a la primera fila es el último guardado, o al revés). Sin saldos no se puede saber.
+ */
+export function cuentaPorSaldo(db: BaseDatos, lectura: Lectura): { cuenta_id: string; coincidencias: number } | null {
+  const filas = lectura.filas.filter((f) => f.saldo !== null)
+  if (!filas.length) return null
+  const cent = (n: number) => Math.round(n * 100)
+  const huellas = new Set(filas.map((f) => `${f.fecha_operacion}|${cent(f.importe)}|${cent(f.saldo!)}`))
+  const antesFichero = new Set(filas.map((f) => cent(f.saldo!) - cent(f.importe)))
+  const despuesFichero = new Set(filas.map((f) => cent(f.saldo!)))
+  let mejor: { cuenta_id: string; coincidencias: number } | null = null
+  for (const c of db.cuentas.filter((x) => x.activa && x.tipo === lectura.plantilla.tipo_cuenta)) {
+    const movs = db.movimientos.filter((m) => m.cuenta_id === c.id && m.saldo !== null)
+    let n = movs.filter((m) => huellas.has(`${m.fecha_operacion}|${cent(m.importe)}|${cent(m.saldo!)}`)).length
+    // Enlace de cadenas: el fichero empieza donde acaba lo guardado, o acaba donde empieza
+    if (!n && movs.some((m) => antesFichero.has(cent(m.saldo!)) || despuesFichero.has(cent(m.saldo!) - cent(m.importe)))) n = 0.5
+    if (n > (mejor?.coincidencias ?? 0)) mejor = { cuenta_id: c.id, coincidencias: n }
+  }
+  return mejor
+}
+
+/**
+ * Cuenta sugerida para el fichero: la que reconocen los saldos; si no, la última elegida para ese
+ * tipo de fichero; si no, la primera cuenta activa del tipo (la tarjeta para un Excel de tarjeta).
+ */
 export function cuentaSugerida(db: BaseDatos, lectura: Lectura, ultima?: string): Cuenta | undefined {
   const activas = db.cuentas.filter((c) => c.activa && c.tipo === lectura.plantilla.tipo_cuenta).sort((a, b) => a.orden - b.orden)
-  return activas.find((c) => c.id === ultima) ?? activas[0]
+  const porSaldo = cuentaPorSaldo(db, lectura)
+  return activas.find((c) => c.id === porSaldo?.cuenta_id) ?? activas.find((c) => c.id === ultima) ?? activas[0]
 }
 
 export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Propuesta {
@@ -76,17 +105,9 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
   const aprendidas = categoriasAprendidas(db)
   const creado = new Date().toISOString()
 
-  // Cuántas veces está ya cada clave en esta cuenta (deduplicación con repeticiones)
-  const existentes = new Map<string, number>()
-  for (const m of db.movimientos) {
-    if (m.cuenta_id !== cuenta_id) continue
-    const k = `${m.fecha_operacion}|${m.importe}|${m.concepto_normalizado}`
-    existentes.set(k, Math.max(existentes.get(k) ?? 0, m.ocurrencia))
-  }
-  const enFichero = new Map<string, number>()
-
   let anteriores = 0
   let duplicados = 0
+  const repetidos: Propuesta['repetidos'] = []
   const nuevos: MovimientoPropuesto[] = []
   const filasOrdenadas = [...lectura.filas].sort((a, b) => a.fecha_operacion.localeCompare(b.fecha_operacion) || b.numero - a.numero)
   // El nombre de una persona (titular u ordenante) solo se conserva como alias
@@ -98,24 +119,60 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
     const resto = conservarDesde(con.slice(a ? con.indexOf(a) + a.length : 0))
     return [a, resto].filter(Boolean).join(' ') || null
   }
-  for (const f of filasOrdenadas) {
+  const filas = filasOrdenadas.flatMap((f) => {
     if (f.fecha_operacion < db.ajustes.fecha_inicio) {
       anteriores++
-      continue
+      return []
     }
     const tercero = terceroComoAlias(f.tercero)
     const completo = [f.poblacion ? `${f.concepto} ${f.poblacion}` : f.concepto, f.detalle, tercero, f.operacion, f.extra].filter(Boolean).join(' - ')
     const original = anonimizarConcepto(completo, alias)
     const base = f.generico && f.detalle ? f.detalle : [f.concepto, f.detalle].filter(Boolean).join(' ')
     const limpio = conceptoLimpio(anonimizarConcepto([base, tercero].filter(Boolean).join(' '), alias), nombresAlias) || original
-    const normalizado = normalizarConcepto(limpio)
-    const k = `${f.fecha_operacion}|${f.importe}|${normalizado}`
-    const ocurrencia = (enFichero.get(k) ?? 0) + 1
-    enFichero.set(k, ocurrencia)
-    if (ocurrencia <= (existentes.get(k) ?? 0)) {
+    return [{ f, original, limpio, normalizado: normalizarConcepto(limpio) }]
+  })
+
+  // Deduplicación contra lo ya guardado en esta cuenta, emparejando uno a uno (dos cafés iguales el
+  // mismo día son dos movimientos). Primero por el saldo del banco tras el movimiento, que no depende
+  // de cómo se limpie el concepto; después, por concepto, para lo que no trae saldo (tarjeta).
+  const guardados = new Map<string, Movimiento[]>()
+  const ocurrencias = new Map<string, number>()
+  for (const m of db.movimientos) {
+    if (m.cuenta_id !== cuenta_id) continue
+    const k = `${m.fecha_operacion}|${m.importe}`
+    guardados.set(k, [...(guardados.get(k) ?? []), m])
+    const kc = `${k}|${m.concepto_normalizado}`
+    ocurrencias.set(kc, Math.max(ocurrencias.get(kc) ?? 0, m.ocurrencia))
+  }
+  const usadosDedup = new Set<string>()
+  const yaGuardada = new Set<(typeof filas)[number]>()
+  const emparejar = (x: (typeof filas)[number], vale: (m: Movimiento) => boolean) => {
+    const m = (guardados.get(`${x.f.fecha_operacion}|${x.f.importe}`) ?? []).find((m) => !usadosDedup.has(m.id) && vale(m))
+    if (!m) return
+    usadosDedup.add(m.id)
+    yaGuardada.add(x)
+  }
+  for (const x of filas) if (x.f.saldo !== null) emparejar(x, (m) => m.saldo === x.f.saldo)
+  for (const x of filas) if (!yaGuardada.has(x)) emparejar(x, (m) => m.concepto_normalizado === x.normalizado)
+  // Filas repetidas dentro del propio fichero (por ejemplo, al pegar dos veces lo mismo): con el mismo saldo son la misma
+  const vistasFichero = new Set<string>()
+  for (const x of filas) {
+    if (x.f.saldo === null || yaGuardada.has(x)) continue
+    const k = `${x.f.fecha_operacion}|${x.f.importe}|${x.f.saldo}|${x.normalizado}`
+    if (vistasFichero.has(k)) yaGuardada.add(x)
+    vistasFichero.add(k)
+  }
+
+  for (const x of filas) {
+    const { f, original, limpio, normalizado } = x
+    if (yaGuardada.has(x)) {
       duplicados++
+      repetidos.push({ fila: f.numero, fecha: f.fecha_operacion, concepto: limpio, importe: f.importe })
       continue
     }
+    const kc = `${f.fecha_operacion}|${f.importe}|${normalizado}`
+    const ocurrencia = (ocurrencias.get(kc) ?? 0) + 1
+    ocurrencias.set(kc, ocurrencia)
     const c = clasificar({ texto: normalizarConcepto(original), clave: claveComercio(limpio), cuenta_id, importe: f.importe }, db.reglas, aprendidas)
     nuevos.push({
       id: nuevoId(),
@@ -207,6 +264,11 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
       )
     }
   }
+  const otra = cuentaPorSaldo(db, lectura)
+  if (otra && otra.cuenta_id !== cuenta_id) {
+    const nombre = db.cuentas.find((c) => c.id === otra.cuenta_id)?.alias
+    avisos.push(`Por los saldos, este fichero parece de ${nombre}, no de ${cuenta.alias}. Revisa la cuenta antes de importar.`)
+  }
   if (lectura.ilegibles.length) avisos.push(`${lectura.ilegibles.length} filas no se han podido leer (fecha o importe no válidos): ${lectura.ilegibles.slice(0, 5).join(', ')}.`)
 
   // Verificación final (regla 3)
@@ -228,6 +290,7 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
     cuenta_id,
     nuevos,
     duplicados,
+    repetidos,
     anteriores,
     ilegibles: lectura.ilegibles,
     fecha_desde: fechas[0] ?? null,

@@ -57,3 +57,28 @@ export async function intentar(operacion: (db: BaseDatos) => BaseDatos, descripc
     return 'No se ha podido guardar. Mira el registro en Ajustes, Herramientas.'
   }
 }
+
+/**
+ * Como intentar, y además devuelve cómo deshacerlo: vuelve al estado anterior si no ha habido otros
+ * cambios entre medias (si los hay, no toca nada y lo anota en el registro).
+ */
+// oxlint-disable-next-line react/only-export-components
+export async function intentarDeshacible(
+  operacion: (db: BaseDatos) => BaseDatos,
+  descripcion?: string,
+): Promise<{ error: string | null; deshacer: () => Promise<boolean> }> {
+  const antes = obtenerDatos()
+  const error = await intentar(operacion, descripcion)
+  const despues = obtenerDatos()
+  return {
+    error,
+    deshacer: async () => {
+      if (error || obtenerDatos() !== despues) {
+        registrar('aviso', 'Deshacer omitido: hubo cambios posteriores')
+        return false
+      }
+      await cambiar(() => antes, `Deshecho: ${descripcion ?? 'cambio'}`)
+      return true
+    },
+  }
+}

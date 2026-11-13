@@ -5,9 +5,12 @@
  * - Deslizable: deslizar a los lados cambia de mes o de periodo, con la página siguiendo al dedo.
  * - useVolverDesdeBorde: deslizar desde el borde izquierdo vuelve a la pantalla anterior.
  * Usan eventos de puntero con touch-action: pan-y, así el desplazamiento vertical sigue siendo nativo.
+ * Todos aceptan distancia o velocidad: un gesto corto y rápido cuenta como uno largo.
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { vibrar } from '../lib/haptica'
+import { crearVelocidad, esLanzamiento, type Velocidad } from '../lib/velocidad'
 
 export interface AccionFila {
   texto: string
@@ -19,14 +22,6 @@ export interface AccionFila {
 const ANCHO_ACCION = 76
 const UMBRAL_BLOQUEO = 8
 let abierta: (() => void) | null = null
-
-function vibrar() {
-  try {
-    navigator.vibrate?.(8)
-  } catch {
-    // sin vibración
-  }
-}
 
 export function FilaDeslizable({
   derecha = [],
@@ -46,13 +41,15 @@ export function FilaDeslizable({
   const [x, setX] = useState(0)
   const [animar, setAnimar] = useState(false)
   const caja = useRef<HTMLDivElement>(null)
-  const inicio = useRef<{ x: number; y: number; base: number; id: number; horizontal: boolean | null } | null>(null)
+  const inicio = useRef<{ x: number; y: number; base: number; id: number; horizontal: boolean | null; vel: Velocidad } | null>(null)
   const movido = useRef(false)
   const pasoUmbral = useRef(false)
 
+  const [fija, setFija] = useState(false)
   const cerrar = () => {
     setAnimar(true)
     setX(0)
+    setFija(false)
   }
 
   useEffect(() => () => {
@@ -62,11 +59,32 @@ export function FilaDeslizable({
   const fijar = (destino: number) => {
     setAnimar(true)
     setX(destino)
+    setFija(destino !== 0)
     if (destino !== 0) {
       if (abierta && abierta !== cerrar) abierta()
       abierta = cerrar
     }
   }
+
+  // Con los botones a la vista, el primer toque en cualquier otro sitio solo cierra la fila (como en iOS)
+  useEffect(() => {
+    if (!fija) return
+    const fuera = (e: PointerEvent) => {
+      if (caja.current?.contains(e.target as Node)) return
+      e.stopPropagation()
+      setAnimar(true)
+      setX(0)
+      setFija(false)
+      const anular = (c: MouseEvent) => {
+        c.stopPropagation()
+        c.preventDefault()
+      }
+      window.addEventListener('click', anular, { capture: true, once: true })
+      window.setTimeout(() => window.removeEventListener('click', anular, { capture: true }), 600)
+    }
+    window.addEventListener('pointerdown', fuera, { capture: true })
+    return () => window.removeEventListener('pointerdown', fuera, { capture: true })
+  }, [fija])
 
   const ejecutar = (a: AccionFila) => {
     cerrar()
@@ -127,7 +145,7 @@ export function FilaDeslizable({
         }}
         onPointerDown={(e) => {
           if (e.button !== 0) return
-          inicio.current = { x: e.clientX, y: e.clientY, base: x, id: e.pointerId, horizontal: null }
+          inicio.current = { x: e.clientX, y: e.clientY, base: x, id: e.pointerId, horizontal: null, vel: crearVelocidad(e.clientX, e.timeStamp) }
           movido.current = false
           pasoUmbral.current = false
         }}
@@ -143,6 +161,7 @@ export function FilaDeslizable({
           }
           if (!s.horizontal) return
           movido.current = true
+          s.vel.mover(e.clientX, e.timeStamp)
           let nx = s.base + dx
           if (nx < 0 && !derecha.length) nx = nx / 6
           if (nx > 0 && !izquierda.length) nx = nx / 6
@@ -165,10 +184,13 @@ export function FilaDeslizable({
             return
           }
           const w = ancho()
+          const v = s.vel.valor(e.timeStamp)
+          const recorrido = x - s.base
           if (x < -w * 0.55 && derecha[0]) return ejecutar(derecha[0])
           if (x > w * 0.55 && izquierda[0]) return ejecutar(izquierda[0])
-          if (x < -40 && derecha.length) return fijar(-derecha.length * ANCHO_ACCION)
-          if (x > 40 && izquierda.length) return fijar(izquierda.length * ANCHO_ACCION)
+          // Abre los botones con 70 px o con un lanzamiento rápido; un lanzamiento al revés la cierra
+          if (derecha.length && (x < -70 || (x < 0 && esLanzamiento(v, recorrido, -1)))) return fijar(-derecha.length * ANCHO_ACCION)
+          if (izquierda.length && (x > 70 || (x > 0 && esLanzamiento(v, recorrido, 1)))) return fijar(izquierda.length * ANCHO_ACCION)
           cerrar()
         }}
         onPointerCancel={() => {
@@ -202,7 +224,7 @@ export function Deslizable({
 }) {
   const [dx, setDx] = useState(0)
   const [animar, setAnimar] = useState(false)
-  const s = useRef<{ x: number; y: number; id: number; horizontal: boolean | null } | null>(null)
+  const s = useRef<{ x: number; y: number; id: number; horizontal: boolean | null; vel: Velocidad } | null>(null)
 
   const soltar = (destino: number, despues?: () => void) => {
     setAnimar(true)
@@ -225,7 +247,7 @@ export function Deslizable({
       style={{ touchAction: 'pan-y' }}
       onPointerDown={(e) => {
         if (e.pointerType === 'mouse' || e.clientX < 24) return // el borde izquierdo es para volver
-        s.current = { x: e.clientX, y: e.clientY, id: e.pointerId, horizontal: null }
+        s.current = { x: e.clientX, y: e.clientY, id: e.pointerId, horizontal: null, vel: crearVelocidad(e.clientX, e.timeStamp) }
       }}
       onPointerMove={(e) => {
         const t = s.current
@@ -237,16 +259,18 @@ export function Deslizable({
           t.horizontal = Math.abs(mx) > Math.abs(my) * 1.2
         }
         if (!t.horizontal) return
+        t.vel.mover(e.clientX, e.timeStamp)
         const limitado = (mx > 0 && !hayAnterior) || (mx < 0 && !haySiguiente)
         setAnimar(false)
         setDx(limitado ? mx / 5 : mx * 0.9)
       }}
-      onPointerUp={() => {
+      onPointerUp={(e) => {
         const t = s.current
         s.current = null
         if (!t?.horizontal) return
-        if (dx > 70 && hayAnterior) return soltar(window.innerWidth * 0.5, onAnterior)
-        if (dx < -70 && haySiguiente) return soltar(-window.innerWidth * 0.5, onSiguiente)
+        const v = t.vel.valor(e.timeStamp)
+        if (hayAnterior && (dx > window.innerWidth / 3 || esLanzamiento(v, dx, 1))) return soltar(window.innerWidth * 0.5, onAnterior)
+        if (haySiguiente && (dx < -window.innerWidth / 3 || esLanzamiento(v, dx, -1))) return soltar(-window.innerWidth * 0.5, onSiguiente)
         soltar(0)
       }}
       onPointerCancel={() => {
@@ -269,7 +293,7 @@ export function Deslizable({
 }
 
 /** Pantallas raíz de cada pestaña: desde ellas no se vuelve atrás */
-const RAICES = ['/', '/movimientos', '/empleado', '/ajustes', '/ajustes/cuentas', '/ajustes/categorias', '/ajustes/general', '/ajustes/herramientas']
+const RAICES = ['/', '/movimientos', '/informes', '/empleado', '/ajustes', '/ajustes/cuentas', '/ajustes/categorias', '/ajustes/general', '/ajustes/herramientas']
 
 /**
  * Deslizar desde el borde izquierdo vuelve a la pantalla anterior, con la pantalla actual siguiendo
@@ -285,12 +309,13 @@ export function useVolverDesdeBorde(): { dx: number; animar: boolean } {
 
   useEffect(() => {
     if (raiz) return
-    let inicio: { x: number; y: number } | null = null
+    let inicio: { x: number; y: number; vel: Velocidad } | null = null
     let actual = 0
+    let ultimoT = 0
     const alEmpezar = (e: TouchEvent) => {
       const t = e.touches[0]
-      if (e.touches.length !== 1 || t.clientX > 22) return
-      inicio = { x: t.clientX, y: t.clientY }
+      if (e.touches.length !== 1 || t.clientX > 28) return
+      inicio = { x: t.clientX, y: t.clientY, vel: crearVelocidad(t.clientX, e.timeStamp) }
     }
     const alMover = (e: TouchEvent) => {
       if (!inicio) return
@@ -303,21 +328,25 @@ export function useVolverDesdeBorde(): { dx: number; animar: boolean } {
         return
       }
       actual = Math.max(0, mx)
+      inicio.vel.mover(t.clientX, e.timeStamp)
+      ultimoT = e.timeStamp
       setAnimar(false)
       setDx(actual)
     }
-    const alTerminar = () => {
+    const alTerminar = (e: TouchEvent) => {
       if (!inicio) return
+      const v = inicio.vel.valor(e.type === 'touchcancel' ? ultimoT + 1000 : e.timeStamp)
       inicio = null
       setAnimar(true)
-      if (actual > Math.min(110, window.innerWidth * 0.3)) {
+      if (e.type !== 'touchcancel' && (actual > window.innerWidth / 3 || esLanzamiento(v, actual, 1))) {
+        vibrar()
         setDx(window.innerWidth)
         window.setTimeout(() => {
           if (window.history.state?.idx > 0) navegar(-1)
           else navegar('/')
           setAnimar(false)
           setDx(0)
-        }, 180)
+        }, 300)
       } else setDx(0)
       actual = 0
     }

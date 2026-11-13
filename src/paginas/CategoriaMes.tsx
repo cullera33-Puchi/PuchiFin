@@ -30,7 +30,7 @@ export function CategoriaMes() {
         <div className="space-y-4">
           {porDia(movs).map(([dia, lista]) => (
             <section key={dia}>
-              <h3 className="mb-1.5 px-4 text-[13px] font-medium text-zinc-500 uppercase">{diaLargo(dia)}</h3>
+              <h3 className="cabecera-grupo">{diaLargo(dia)}</h3>
               <ul className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
                 {lista.map((m) => (
                   <li key={m.id}>

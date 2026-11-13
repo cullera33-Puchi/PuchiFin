@@ -17,6 +17,9 @@ Stack: React, TypeScript, Vite, Tailwind CSS, jsPDF y Recharts. Todo gratuito.
 | `src/importacion/` | Importación de los Excel de BBVA: plantillas (`plantillas/*.json`), lectura, anonimización, reglas, deduplicación y Excel de prueba |
 | `src/datos/movimientos.ts` | Corrección de categorías, tipos, gastos de empleado y conciliación de reembolsos |
 | `src/lib/extracto.ts` | Extracto mensual y vistas de análisis |
+| `src/lib/informes.ts` | Informes de gastos e ingresos por categoría (pestaña Informes) |
+| `src/lib/saldos.ts` | Cuadre del saldo de cada cuenta con el banco: repetidos y huecos |
+| `docs/guia-usabilidad-iphone.md` | Guía de comportamiento y aspecto para el iPhone |
 | `src/componentes/gestos.tsx` | Gestos con el pulgar: filas deslizables, cambiar de mes, volver desde el borde |
 | `src/lib/identificativos.ts` | Detección de IBAN, cuenta, tarjeta, DNI y NIE |
 | `src/lib/resumen.ts`, `src/lib/pdf.ts` | Resúmenes semanal y mensual y su PDF |

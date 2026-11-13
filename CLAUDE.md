@@ -17,7 +17,7 @@ La especificación funcional completa está en la segunda parte de este document
 ## Stack
 
 - Frontal: React, TypeScript y Vite. PWA instalable en el iPhone, diseñada solo para móvil (en un navegador de ordenador se ve como una columna de móvil).
-- Estilos: Tailwind CSS. Tema claro y oscuro según el sistema.
+- Estilos: Tailwind CSS. Tema claro y oscuro: según el sistema o elegido en Ajustes (atributo `data-theme`).
 - Lectura de Excel: SheetJS, siempre en el navegador.
 - Datos: solo en el iPhone (IndexedDB), sin backend ni base de datos externa (decisión del usuario del 13/11/2026). Exportar un archivo JSON es la copia fuera del móvil; importarlo lo recupera todo exactamente igual (por ejemplo, en un iPhone nuevo). Supabase queda en pausa (`supabase/README.md`).
 - Gráficos: Recharts.
@@ -88,6 +88,8 @@ Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (po
 - Una fase cada vez. Al terminar cada fase, resume qué se ha hecho, qué queda pendiente y cómo probarlo.
 - Tests unitarios para el lector de Excel, la anonimización, la deduplicación y las reglas de categorización. Es donde un error no se ve en pantalla. `src/importacion/importar.test.ts` importa los Excel de prueba de punta a punta: cualquier cambio del importador debe mantenerlo en verde.
 - Gestos: toda lista de movimientos usa `FilaMovimientoDeslizable`; toda pantalla secundaria, `BarraNavegacion` (vuelve también desde el borde); las hojas se cierran arrastrando.
+- Usabilidad: `docs/guia-usabilidad-iphone.md` es la guía de comportamiento y aspecto (aportada por el usuario, v0.7.0). Se aplica salvo donde choca con esta especificación: el stack sigue siendo React con Vite, los nombres del código siguen en español y los menús de pulsación larga quedan pendientes. En la práctica: hojas con `Hoja` (portal, guardia de 450 ms) y confirmaciones con `confirmar()`; cambios de datos que el usuario hace a mano con `useHacer()` (aviso con «Deshacer»); barras flotantes con `Flotante`; cabeceras de grupo con la clase `cabecera-grupo`; recuentos con `plural()`; gestos con `crearVelocidad` y `esLanzamiento`.
+- Cuadre con el banco: toda importación de cuenta debe dejar `cuadrarCuenta` en verde. La deduplicación empareja primero por saldo del banco y después por concepto; `src/importacion/importar.test.ts` lo cubre.
 - Si una decisión no está en la especificación, pregunta antes de asumir.
 - Mantén actualizado el apartado de estado de este fichero.
 
@@ -110,6 +112,12 @@ Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (po
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.7.0 (13/11/2026): informes, cuadre con el banco, privacidad y guía de usabilidad. Pendiente de validar por el usuario.
+  - Privacidad: sin nombre del usuario ni importes personales en el repositorio; la deuda familiar y el colchón empiezan a 0 y se introducen en la app. Siguen en el historial de git y en las descripciones de los PR anteriores (decisión pendiente del usuario).
+  - Deduplicación por saldo del banco y por concepto, filas repetidas en el fichero, cuenta reconocida por los saldos y lista de «Ya importados» en la revisión.
+  - Cuadre de saldo por cuenta (`src/lib/saldos.ts`): repetidos y huecos, en la revisión, tras importar, en Ajustes, Cuentas (quitar repetidos y comprobar el saldo que se ve en BBVA) y como aviso en el Extracto. Esquema 4 (`saldo_confirmado`).
+  - Pestaña Informes: gastos o ingresos por mes o año, quesito por categoría, subcategorías y movimientos, comparativa y barras.
+  - Guía de usabilidad aplicada (ver «Cómo trabajar»).
 - v0.6.0 (13/11/2026): ajustes con el Excel real y peticiones del usuario.
   - Lector con el formato real «Informe BBVA» (cabecera en la fila 5, concepto de ancho fijo con comercio, población y país, columna Movimiento con el tipo, un detalle o el nombre del titular u ordenante, fecha de la compra en los cargos del lunes). El Excel real del usuario nunca se guarda en el repositorio: los tests usan filas inventadas con la misma estructura.
   - Categorías aprendidas por comercio (`claveComercio`: sin números de tienda, población ni formas jurídicas) en cualquier cuenta, con propuesta por la primera palabra si no hay duda; corrección «mismo comercio» y reglas por comercio. Más comercios y palabras en catalán en las reglas de la app.
@@ -442,7 +450,7 @@ El móvil es para consultar y marcar rápido; el escritorio, para importar, revi
 | Revisión de importación | Tarjetas por bloque | Tabla editable |
 | Categorizar | Detalle del movimiento | Edición en línea en la tabla |
 
-Navegación con barra inferior de cuatro pestañas: Extracto, Movimientos, Empleado y Ajustes. Tema claro y oscuro según el sistema.
+Navegación con barra inferior de cinco pestañas: Extracto, Movimientos, Informes, Empleado y Ajustes (Informes desde la v0.7.0). Tema Automático, Claro u Oscuro, a elegir en Ajustes, General.
 
 **Escritorio: en pausa (13/11/2026).** La columna de escritorio de la tabla y el menú lateral se retoman solo cuando el usuario lo indique. Hoy la app es solo para el iPhone.
 

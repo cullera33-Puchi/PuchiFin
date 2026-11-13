@@ -7,6 +7,7 @@ import type { BaseDatos } from '../lib/tipos'
 import { escribirXlsx, generarExcelPrueba, NOMBRES_PRUEBA } from './excelPrueba'
 import { confirmarImportacion, conceptoLimpio, deshacerImportacion, proponer, cuentaSugerida, type Propuesta } from './importar'
 import { extraer, leerFecha, leerFichero, leerImporte } from './lector'
+import { cuadrarCuenta } from '../lib/saldos'
 
 const EXCELS = generarExcelPrueba({ desde: '2026-10-01', hasta: '2026-11-30' })
 const fichero = (parte: string) => escribirXlsx(EXCELS.find((e) => e.nombre.includes(parte))!.filas)
@@ -112,6 +113,53 @@ describe('importación completa con los Excel de prueba', () => {
     const primero = confirmarImportacion(base, proponer(base, leerFichero(parcial), base.cuentas[2].id), { aceptadas: new Set() })
     const completo = proponer(primero, leerFichero(fichero('tarjeta')), primero.cuentas[2].id)
     expect(completo.nuevos.length).toBe(10 - completo.anteriores)
+  })
+
+  it('el saldo de las dos cuentas cuadra con el del banco tras importar', () => {
+    for (const c of db.cuentas.filter((x) => x.tipo === 'cuenta')) {
+      const r = cuadrarCuenta(db.movimientos.filter((m) => m.cuenta_id === c.id))
+      expect(r).toMatchObject({ conSaldo: true, cuadra: true, huecos: [], duplicados: [] })
+    }
+  })
+
+  it('reimportar un tramo solapado de la cuenta no añade nada aunque cambien los alias', () => {
+    const lectura = leerFichero(fichero('cuenta principal'))
+    const tramo = { ...lectura, filas: lectura.filas.filter((f) => f.fecha_operacion >= '2026-10-20') }
+    // Entre una importación y otra se cambia el alias de la empresa: el concepto limpio cambia, el saldo no
+    const otrosAlias = { ...db, ajustes: { ...db.ajustes, alias_terceros: db.ajustes.alias_terceros.map((a) => (a.alias === 'Empresa' ? { ...a, alias: 'Trabajo' } : a)) } }
+    const p = proponer(otrosAlias, tramo, db.cuentas[0].id)
+    expect(p.nuevos).toHaveLength(0)
+    expect(p.duplicados).toBe(tramo.filas.length)
+    expect(p.repetidos).toHaveLength(tramo.filas.length)
+  })
+
+  it('reconoce la cuenta del fichero por los saldos aunque la última elegida sea otra', () => {
+    const lectura = leerFichero(fichero('cuenta principal'))
+    expect(cuentaSugerida(db, lectura, db.cuentas[1].id)!.id).toBe(db.cuentas[0].id)
+    expect(cuentaSugerida(db, leerFichero(fichero('cuenta 2')), db.cuentas[0].id)!.id).toBe(db.cuentas[1].id)
+    // Elegida a mano la cuenta equivocada: aviso en la revisión
+    const p = proponer(db, lectura, db.cuentas[1].id)
+    expect(p.avisos.some((a) => a.includes('parece de Cuenta principal'))).toBe(true)
+  })
+
+  it('reconoce la cuenta cuando el fichero sigue donde acabó la importación anterior', () => {
+    const lectura = leerFichero(fichero('cuenta 2'))
+    const base = { ...datosIniciales(), ajustes: db.ajustes }
+    const primera = { ...lectura, filas: lectura.filas.filter((f) => f.fecha_operacion < '2026-11-01') }
+    const segunda = { ...lectura, filas: lectura.filas.filter((f) => f.fecha_operacion >= '2026-11-01') }
+    const con = confirmarImportacion(base, proponer(base, primera, base.cuentas[1].id), { aceptadas: new Set() })
+    expect(cuentaSugerida(con, segunda, con.cuentas[0].id)!.id).toBe(con.cuentas[1].id)
+  })
+
+  it('las filas pegadas dos veces en el mismo fichero se importan una sola vez', () => {
+    const lectura = leerFichero(fichero('cuenta 2'))
+    const base = { ...datosIniciales(), ajustes: db.ajustes }
+    const doble = { ...lectura, filas: [...lectura.filas, ...lectura.filas.map((f) => ({ ...f, numero: f.numero + 1000 }))] }
+    const p = proponer(base, doble, base.cuentas[1].id)
+    const simple = proponer(base, lectura, base.cuentas[1].id)
+    expect(p.nuevos).toHaveLength(simple.nuevos.length)
+    const r = confirmarImportacion(base, p, { aceptadas: new Set() })
+    expect(cuadrarCuenta(r.movimientos.filter((m) => m.cuenta_id === base.cuentas[1].id)).cuadra).toBe(true)
   })
 
   it('marca la liquidación de la tarjeta como traspaso y cuadra con el mes anterior', () => {

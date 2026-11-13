@@ -1,60 +1,132 @@
-import { Briefcase, ChartPie, List, Settings } from 'lucide-react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { ArrowLeft, Briefcase, ChartPie, ChevronsLeftRight, List, ReceiptText, Settings, Tag } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { registrar } from '../lib/registro'
 import { useVolverDesdeBorde } from './gestos'
+import { Hoja } from './Interfaz'
 
 /**
- * Estructura de la app del iPhone: contenido en una columna y barra de pestañas flotante con las
- * cuatro secciones (apartado 12). Resúmenes se abre desde el Extracto.
- * Solo móvil: el diseño de escritorio queda para más adelante.
+ * Estructura de la app del iPhone: contenido en una columna y barra de pestañas de iOS abajo,
+ * translúcida, con cinco secciones. Solo móvil: el diseño de escritorio queda para más adelante.
  */
 const SECCIONES = [
-  { a: '/', texto: 'Extracto', icono: ChartPie, fin: true },
+  { a: '/', texto: 'Extracto', icono: ReceiptText, fin: true },
   { a: '/movimientos', texto: 'Movimientos', icono: List, fin: false },
+  { a: '/informes', texto: 'Informes', icono: ChartPie, fin: false },
   { a: '/empleado', texto: 'Empleado', icono: Briefcase, fin: false },
   { a: '/ajustes', texto: 'Ajustes', icono: Settings, fin: false },
 ]
 
+const CLAVE_BIENVENIDA = 'puchifin-bienvenida'
+const DOS_HORAS = 2 * 60 * 60 * 1000
+
 export function Estructura() {
   const borde = useVolverDesdeBorde()
   const { pathname } = useLocation()
+  const navegar = useNavigate()
   // Pantallas secundarias del Extracto: su pestaña sigue marcada
   const enExtracto = pathname === '/' || ['/extracto', '/analisis', '/resumenes'].some((p) => pathname.startsWith(p))
+
+  // Al volver tras más de dos horas fuera, la app vuelve a la pantalla principal (salvo con una hoja abierta)
+  useEffect(() => {
+    let oculta = 0
+    const cambio = () => {
+      if (document.visibilityState === 'hidden') oculta = Date.now()
+      else if (oculta && Date.now() - oculta > DOS_HORAS) {
+        if (document.documentElement.classList.contains('con-hoja')) registrar('info', 'Vuelta a la pantalla principal omitida: hoja abierta')
+        else if (window.location.pathname.replace(import.meta.env.BASE_URL, '/') !== '/') {
+          registrar('info', 'Vuelta a la pantalla principal tras dos horas fuera')
+          navegar('/', { replace: true })
+        }
+        oculta = 0
+      }
+    }
+    document.addEventListener('visibilitychange', cambio)
+    return () => document.removeEventListener('visibilitychange', cambio)
+  }, [navegar])
+
   return (
     <div className="min-h-dvh overflow-x-clip">
       <main
-        className="mx-auto max-w-lg px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-32"
+        className="mx-auto max-w-lg px-4 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[calc(env(safe-area-inset-bottom)+5rem)]"
         style={{
           transform: borde.dx ? `translateX(${borde.dx}px)` : undefined,
-          transition: borde.animar ? 'transform 0.18s ease-out' : 'none',
+          transition: borde.animar ? 'transform 0.4s var(--curva)' : 'none',
           boxShadow: borde.dx ? '-8px 0 24px rgba(0,0,0,0.12)' : undefined,
         }}
       >
-        <Outlet />
+        <div id="contenido">
+          <Outlet />
+        </div>
       </main>
 
-      {/* Barra de pestañas flotante, translúcida, con la pestaña activa resaltada */}
-      <nav className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-20 mx-auto grid max-w-md grid-cols-4 rounded-full border border-white/60 bg-white/75 p-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)] backdrop-blur-xl backdrop-saturate-150 dark:border-white/10 dark:bg-zinc-900/75">
-        {SECCIONES.map(({ a, texto, icono: Icono, fin }) => (
-          <NavLink
-            key={a}
-            to={a}
-            end={fin}
- className={({ isActive: activa }) => {
-              const isActive = a === '/' ? enExtracto : activa
-              return `flex flex-col items-center gap-0.5 rounded-full py-1.5 text-[10px] font-medium transition-colors ${
-                isActive ? 'bg-zinc-900/[0.06] text-marca-700 dark:bg-white/10 dark:text-marca-500' : 'text-zinc-600 dark:text-zinc-400'
-              }`
-            }}
-          >
-            {({ isActive: activa }) => (
-              <>
-                <Icono className="size-[22px]" strokeWidth={(a === '/' ? enExtracto : activa) ? 2.25 : 1.75} />
-                {texto}
-              </>
-            )}
-          </NavLink>
-        ))}
+      {/* Barra de pestañas de iOS: abajo, translúcida, icono relleno en la activa */}
+      <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-black/10 bg-[#F9F9F9]/80 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl backdrop-saturate-150 dark:border-white/10 dark:bg-[#161618]/80">
+        <div className="mx-auto grid h-12 max-w-lg grid-cols-5">
+          {SECCIONES.map(({ a, texto, icono: Icono, fin }) => (
+            <NavLink key={a} to={a} end={fin} className="flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium">
+              {({ isActive }) => {
+                const activa = a === '/' ? enExtracto : isActive
+                return (
+                  <span className={`flex flex-col items-center gap-0.5 ${activa ? 'text-marca-700 dark:text-marca-500' : 'text-zinc-500 dark:text-zinc-400'}`}>
+                    <Icono className="size-6" strokeWidth={activa ? 2 : 1.6} fill={activa ? 'currentColor' : 'none'} fillOpacity={activa ? 0.18 : 0} />
+                    {texto}
+                  </span>
+                )
+              }}
+            </NavLink>
+          ))}
+        </div>
       </nav>
+      <Bienvenida />
     </div>
+  )
+}
+
+/** Primera vez que se abre la app: los gestos principales */
+function Bienvenida() {
+  const [abierta, setAbierta] = useState(() => {
+    try {
+      return !localStorage.getItem(CLAVE_BIENVENIDA)
+    } catch {
+      return false
+    }
+  })
+  const cerrar = () => {
+    try {
+      localStorage.setItem(CLAVE_BIENVENIDA, new Date().toISOString())
+    } catch {
+      // sin almacenamiento
+    }
+    setAbierta(false)
+  }
+  const gestos = [
+    { icono: Briefcase, color: '#5856D6', texto: 'Desliza un movimiento a la izquierda para marcarlo como gasto de empleado.' },
+    { icono: Tag, color: '#FF9500', texto: 'Desliza a la derecha para cambiar su categoría.' },
+    { icono: ChevronsLeftRight, color: '#007AFF', texto: 'Desliza a los lados en el Extracto o en Informes para cambiar de mes.' },
+    { icono: ArrowLeft, color: '#8E8E93', texto: 'Desde el borde izquierdo, vuelves a la pantalla anterior. Las hojas se cierran arrastrándolas hacia abajo.' },
+  ]
+  return (
+    <Hoja
+      abierta={abierta}
+      titulo="Bienvenido a PuchiFin"
+      onCerrar={cerrar}
+      acciones={
+        <button className="boton-primario h-12 w-full rounded-xl text-[17px]" onClick={cerrar}>
+          Entendido
+        </button>
+      }
+    >
+      <ul className="space-y-4">
+        {gestos.map(({ icono: Icono, color, texto }) => (
+          <li key={texto} className="flex items-start gap-3">
+            <span className="grid size-9 shrink-0 place-items-center rounded-[9px] text-white" style={{ backgroundColor: color }}>
+              <Icono className="size-5" strokeWidth={2} />
+            </span>
+            <span className="pt-1.5 text-[15px]">{texto}</span>
+          </li>
+        ))}
+      </ul>
+    </Hoja>
   )
 }

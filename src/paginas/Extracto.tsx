@@ -1,4 +1,4 @@
-import { ChartColumn, ChevronLeft, ChevronRight, FileText, FlaskConical, HardDriveDownload, Sheet, Tag, Upload } from 'lucide-react'
+import { ChartColumn, ChevronLeft, ChevronRight, FileText, FlaskConical, HardDriveDownload, Landmark, Sheet, Tag, Upload } from 'lucide-react'
 import { useMemo } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Aviso, Encabezado } from '../componentes/Encabezado'
@@ -14,6 +14,7 @@ import { mesEfectivo } from '../lib/imputacion'
 import { hoyIso, mesLargo, sumarMeses } from '../lib/fechas'
 import { formatearImporte } from '../lib/formato'
 import { porcentaje, textoComparacion, type Tono } from '../lib/resumen'
+import { cuadrarCuenta } from '../lib/saldos'
 
 const TONO: Record<Tono, string> = {
   bueno: 'text-[#248A3D] dark:text-[#30D158]',
@@ -30,6 +31,10 @@ export function Extracto() {
   const e = useMemo(() => calcularExtracto(db, mes, hoyIso()), [db, mes])
   const prueba = contarDatosPrueba(db)
   const porRevisar = useMemo(() => candidatosEmpleado(db).length, [db])
+  const descuadradas = useMemo(
+    () => db.cuentas.filter((c) => c.activa && c.tipo === 'cuenta' && !cuadrarCuenta(db.movimientos.filter((x) => x.cuenta_id === c.id)).cuadra).length,
+    [db.cuentas, db.movimientos],
+  )
   const aviso = avisoExportacion(db)
   const irA = (m: string) => setParams({ mes: m }, { replace: true })
   const anterior = sumarMeses(`${mes}-01`, -1).slice(0, 7)
@@ -142,8 +147,15 @@ export function Extracto() {
               ))}
             </div>
 
-            {(e.sinCategoria > 0 || e.pendientesEmpleado > 0 || porRevisar > 0) && (
+            {(e.sinCategoria > 0 || e.pendientesEmpleado > 0 || porRevisar > 0 || descuadradas > 0) && (
               <div className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
+                {descuadradas > 0 && (
+                  <Link to="/ajustes/cuentas" className="fila">
+                    <Baldosa glifo={Landmark} color="#FF9500" tamano="sm" />
+                    <span className="flex-1 text-[15px]">{descuadradas === 1 ? 'Una cuenta no cuadra' : `${descuadradas} cuentas no cuadran`} con el banco</span>
+                    <ChevronRight className="size-4 text-zinc-400" />
+                  </Link>
+                )}
                 {e.sinCategoria > 0 && (
                   <Link to="/movimientos?sin=1" className="fila">
                     <Baldosa glifo={Tag} color="#FF9500" tamano="sm" />

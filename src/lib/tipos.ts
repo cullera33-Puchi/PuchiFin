@@ -19,6 +19,8 @@ export interface Cuenta {
   activa: boolean
   orden: number
   created_at: string
+  /** Último saldo confirmado a mano con el que muestra el banco (esquema 4) */
+  saldo_confirmado: { importe: number; fecha: string; cuadra: boolean } | null
 }
 
 export interface Categoria {
@@ -152,7 +154,7 @@ export interface Ajustes {
   dias_fin_de_mes: number
 }
 
-export const VERSION_ESQUEMA = 3
+export const VERSION_ESQUEMA = 4
 
 export interface BaseDatos {
   esquema: number

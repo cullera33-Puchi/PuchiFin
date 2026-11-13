@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react'
 import { Aviso, Encabezado } from '../componentes/Encabezado'
 import { FilaMovimientoDeslizable } from '../componentes/FilaMovimientoDeslizable'
 import { Baldosa } from '../componentes/Icono'
+import { useHacer } from '../componentes/acciones'
 import { Hoja, useInterfaz } from '../componentes/Interfaz'
 import { DetalleMovimiento } from '../componentes/movimientos'
 import { aplicado, conciliar, desconciliar, gastosPendientes, indicadoresEmpleado, proponerConciliacion } from '../datos/movimientos'
@@ -19,6 +20,7 @@ const dias = (desde: string, hasta: string) => Math.round((Date.parse(hasta) - D
 export function Empleado() {
   const db = useDatos()
   const { avisar, confirmar } = useInterfaz()
+  const hacer = useHacer()
   const hoy = hoyIso()
   const ind = useMemo(() => indicadoresEmpleado(db, hoy), [db, hoy])
   const pendientes = useMemo(() => gastosPendientes(db), [db])
@@ -137,8 +139,8 @@ export function Empleado() {
                       <button
                         className="boton-texto text-zinc-500"
                         onClick={async () => {
-                          const ok = await confirmar({ titulo: 'Desvincular', texto: 'Los gastos vinculados a este reembolso vuelven a estar pendientes.', aceptar: 'Desvincular' })
-                          if (ok) avisar((await intentar((d) => desconciliar(d, r.id), 'Reembolso desvinculado')) ?? 'Reembolso desvinculado')
+                          const ok = await confirmar({ titulo: 'Desvincular', texto: 'Los gastos vinculados a este reembolso vuelven a estar pendientes. Podrás deshacerlo durante unos segundos.', aceptar: 'Desvincular' })
+                          if (ok) await hacer((d) => desconciliar(d, r.id), 'Reembolso desvinculado')
                         }}
                       >
                         Desvincular

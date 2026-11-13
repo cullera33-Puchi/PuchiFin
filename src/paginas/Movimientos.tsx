@@ -4,13 +4,14 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Encabezado } from '../componentes/Encabezado'
 import { FilaMovimientoDeslizable } from '../componentes/FilaMovimientoDeslizable'
 import { FilaDeslizable } from '../componentes/gestos'
-import { Hoja, useInterfaz } from '../componentes/Interfaz'
+import { useHacer } from '../componentes/acciones'
+import { Flotante, Hoja, useInterfaz } from '../componentes/Interfaz'
 import { ContenidoMovimiento, DetalleMovimiento, HojaCorreccion, SelectorCategoria } from '../componentes/movimientos'
 import { cambiarTipo } from '../datos/movimientos'
-import { intentar, useDatos } from '../datos/ProveedorDatos'
+import { useDatos } from '../datos/ProveedorDatos'
 import { normalizarConcepto } from '../lib/conceptos'
 import { diaLargo, mesLargo } from '../lib/fechas'
-import { formatearImporte, leerImporteUsuario } from '../lib/formato'
+import { formatearImporte, leerImporteUsuario, plural } from '../lib/formato'
 import { NOMBRE_TIPO_MOVIMIENTO, type Movimiento, type TipoMovimiento } from '../lib/tipos'
 import { nombreCategoria, porDia } from '../lib/vista'
 import { mesEfectivo } from '../lib/imputacion'
@@ -30,6 +31,7 @@ const PAGINA = 120
 export function Movimientos() {
   const db = useDatos()
   const { avisar } = useInterfaz()
+  const hacer = useHacer()
   const [params, setParams] = useSearchParams()
   const [busqueda, setBusqueda] = useState('')
   const [filtros, setFiltros] = useState<Filtros>(() => ({ ...SIN_FILTROS, categoria: params.get('sin') ? null : undefined }))
@@ -180,7 +182,10 @@ export function Movimientos() {
           {!seleccion && <p className="px-4 text-xs text-zinc-500">Desliza a la izquierda para marcar gasto de empleado; a la derecha, para cambiar la categoría.</p>}
           {grupos.map(([dia, movs]) => (
             <section key={dia}>
-              <h3 className="mb-1.5 px-4 text-[13px] font-medium text-zinc-500 uppercase">{diaLargo(dia, true)}</h3>
+              <h3 className="cabecera-grupo">
+                <span>{diaLargo(dia, true)}</span>
+                <span className="normal-case tabular-nums">{plural(movs.length, 'movimiento', 'movimientos')}</span>
+              </h3>
               <ul className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
                 {movs.map((m) => (
                   <li key={m.id}>
@@ -206,11 +211,12 @@ export function Movimientos() {
 
       {/* Barra de acciones de la selección múltiple */}
       {seleccion && (
-        <div className="fixed inset-x-3 bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+4.25rem)] z-30 mx-auto flex max-w-md items-center gap-1 rounded-2xl border border-white/60 bg-white/90 p-2 shadow-lg backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/90">
+        <Flotante>
+        <div className="flex items-center gap-1 rounded-2xl border border-white/60 bg-white/90 p-2 shadow-lg backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/90">
           <button className="boton-texto px-2" onClick={() => setSeleccion(seleccion.size === lista.length ? new Set() : new Set(lista.map((m) => m.id)))}>
             {seleccion.size === lista.length ? 'Ninguno' : 'Todos'}
           </button>
-          <span className="flex-1 text-center text-[13px] text-zinc-500">{seleccion.size} seleccionados</span>
+          <span className="flex-1 text-center text-[13px] text-zinc-500">{plural(seleccion.size, 'seleccionado', 'seleccionados')}</span>
           <button className="boton-icono" aria-label="Categoría" disabled={!seleccion.size} onClick={() => setSelectorBloque(true)}>
             <Tag className="size-5" strokeWidth={1.75} />
           </button>
@@ -220,12 +226,7 @@ export function Movimientos() {
             disabled={!seleccion.size}
             onClick={async () => {
               const ids = [...seleccion]
-              const e = await intentar((d) => cambiarTipo(d, ids, 'gasto_empleado'), `${ids.length} gastos de empleado marcados`)
-              if (e) avisar(e)
-              else {
-                avisar(`${ids.length} marcados como gasto de empleado`)
-                setSeleccion(new Set())
-              }
+              if (await hacer((d) => cambiarTipo(d, ids, 'gasto_empleado'), `${plural(ids.length, 'gasto marcado', 'gastos marcados')} como de empleado`)) setSeleccion(new Set())
             }}
           >
             <Briefcase className="size-5" strokeWidth={1.75} />
@@ -234,6 +235,7 @@ export function Movimientos() {
             Tipo
           </button>
         </div>
+        </Flotante>
       )}
 
       <DetalleMovimiento id={detalle} onCerrar={() => setDetalle(null)} />
@@ -252,10 +254,10 @@ export function Movimientos() {
         onHecho={(n) => {
           setCorreccionBloque(undefined)
           setSeleccion(new Set())
-          avisar(`Categoría corregida en ${n} movimientos`)
+          avisar(`Categoría corregida en ${plural(n, 'movimiento', 'movimientos')}`)
         }}
       />
-      <Hoja abierta={tipoBloque} titulo={`Tipo de ${seleccion?.size ?? 0} movimientos`} onCerrar={() => setTipoBloque(false)}>
+      <Hoja abierta={tipoBloque} titulo={`Tipo de ${plural(seleccion?.size ?? 0, 'movimiento', 'movimientos')}`} onCerrar={() => setTipoBloque(false)}>
         <div className="lista divide-y divide-zinc-200/70 border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
           {(Object.keys(NOMBRE_TIPO_MOVIMIENTO) as TipoMovimiento[]).map((t) => (
             <button
@@ -264,12 +266,7 @@ export function Movimientos() {
               onClick={async () => {
                 const ids = [...(seleccion ?? [])]
                 setTipoBloque(false)
-                const e = await intentar((d) => cambiarTipo(d, ids, t), `Tipo cambiado en ${ids.length} movimientos`)
-                if (e) avisar(e)
-                else {
-                  avisar(`${ids.length} movimientos: ${NOMBRE_TIPO_MOVIMIENTO[t]}`)
-                  setSeleccion(new Set())
-                }
+                if (await hacer((d) => cambiarTipo(d, ids, t), `${plural(ids.length, 'movimiento', 'movimientos')}: ${NOMBRE_TIPO_MOVIMIENTO[t]}`)) setSeleccion(new Set())
               }}
             >
               {NOMBRE_TIPO_MOVIMIENTO[t]}

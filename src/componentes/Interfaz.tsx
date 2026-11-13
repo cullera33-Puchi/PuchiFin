@@ -4,6 +4,10 @@
  */
 import { X } from 'lucide-react'
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+import { vibrar } from '../lib/haptica'
+import { registrar } from '../lib/registro'
+import { crearVelocidad, esLanzamiento, type Velocidad } from '../lib/velocidad'
 
 interface AvisoBreve {
   texto: string
@@ -41,7 +45,7 @@ export function ProveedorInterfaz({ children }: { children: ReactNode }) {
     window.clearTimeout(temporizador.current)
     const id = Date.now()
     setAviso({ texto, accion, duracion, id })
-    temporizador.current = window.setTimeout(() => setAviso((a) => (a?.id === id ? null : a)), duracion ?? (accion ? 6000 : 3000))
+    temporizador.current = window.setTimeout(() => setAviso((a) => (a?.id === id ? null : a)), duracion ?? (!accion ? 3000 : accion.texto === 'Deshacer' ? 4000 : 12000))
   }, [])
 
   const confirmar = useCallback(
@@ -58,12 +62,16 @@ export function ProveedorInterfaz({ children }: { children: ReactNode }) {
     <Contexto.Provider value={{ avisar, confirmar }}>
       {children}
       {aviso && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-50 flex justify-center px-4">
-          <div role="status" className="pointer-events-auto flex max-w-md items-center gap-3 rounded-xl bg-zinc-900 px-4 py-3 text-sm text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-900">
+        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+3.75rem)] z-50 flex justify-center px-3">
+          <div
+            role="status"
+            key={aviso.id}
+            className="hoja-velo pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-[14px] bg-zinc-800/90 px-4 py-3 text-[15px] text-white shadow-lg backdrop-blur-xl backdrop-saturate-150 dark:bg-zinc-700/90"
+          >
             <span className="flex-1">{aviso.texto}</span>
             {aviso.accion && (
               <button
-                className="font-semibold text-marca-500 dark:text-marca-700"
+                className="-my-2 min-h-11 px-1 font-semibold text-[#0A84FF]"
                 onClick={() => {
                   aviso.accion?.fn()
                   setAviso(null)
@@ -75,29 +83,51 @@ export function ProveedorInterfaz({ children }: { children: ReactNode }) {
           </div>
         </div>
       )}
-      <Hoja
-        abierta={!!confirmacion}
-        titulo={confirmacion?.titulo ?? ''}
-        onCerrar={() => cerrarConfirmacion(false)}
-        acciones={
-          <>
-            <button className="boton-secundario" onClick={() => cerrarConfirmacion(false)}>
-              Cancelar
-            </button>
-            <button
-              className={confirmacion?.peligro ? 'boton bg-red-600 text-white hover:bg-red-500' : 'boton-primario'}
-              onClick={() => cerrarConfirmacion(true)}
-              autoFocus
-            >
-              {confirmacion?.aceptar}
-            </button>
-          </>
-        }
-      >
-        <div className="text-sm text-zinc-600 dark:text-zinc-400">{confirmacion?.texto}</div>
-      </Hoja>
+      <HojaAcciones c={confirmacion} onResultado={cerrarConfirmacion} />
     </Contexto.Provider>
   )
+}
+
+/** Hojas abiertas a la vez: mientras haya alguna, la pantalla de detrás se encoge */
+let hojasAbiertas = 0
+function marcarHoja(abre: boolean) {
+  hojasAbiertas = Math.max(0, hojasAbiertas + (abre ? 1 : -1))
+  const contenido = document.getElementById('contenido')
+  if (abre && contenido) {
+    // Que se encoja hacia el centro de lo que se ve, no hacia el centro de la página entera
+    const r = contenido.getBoundingClientRect()
+    contenido.style.transformOrigin = `50% ${window.innerHeight / 2 - r.top}px`
+  }
+  document.documentElement.classList.toggle('con-hoja', hojasAbiertas > 0)
+}
+
+/** Ciclo de vida de una hoja: se queda montada mientras sale y aplica la guardia de toques */
+function useCicloHoja(abierta: boolean) {
+  const [montada, setMontada] = useState(abierta)
+  const [saliendo, setSaliendo] = useState(false)
+  const abiertaEn = useRef(0)
+  if (abierta && !montada) {
+    setMontada(true)
+    setSaliendo(false)
+  }
+  if (!abierta && montada && !saliendo) setSaliendo(true)
+  useEffect(() => {
+    if (!abierta) return
+    abiertaEn.current = Date.now()
+    marcarHoja(true)
+    return () => marcarHoja(false)
+  }, [abierta])
+  useEffect(() => {
+    if (!saliendo) return
+    const t = window.setTimeout(() => {
+      setMontada(false)
+      setSaliendo(false)
+    }, 450)
+    return () => window.clearTimeout(t)
+  }, [saliendo])
+  // Toques fantasma: iOS repite a veces el toque que abrió la hoja; se ignoran 450 ms
+  const recien = () => Date.now() - abiertaEn.current < 450
+  return { montada, saliendo, recien }
 }
 
 export function Hoja({
@@ -113,10 +143,15 @@ export function Hoja({
   children: ReactNode
   acciones?: ReactNode
 }) {
-  // Arrastrar la cabecera hacia abajo cierra la hoja, como en iOS
+  const { montada, saliendo, recien } = useCicloHoja(abierta)
+  // Mientras sale, se sigue mostrando lo último que tenía (el padre ya puede haberlo vaciado)
+  const [guardado, setGuardado] = useState({ titulo, children, acciones })
+  if (abierta && (guardado.titulo !== titulo || guardado.children !== children || guardado.acciones !== acciones)) setGuardado({ titulo, children, acciones })
+  const v = abierta ? { titulo, children, acciones } : guardado
+  // Arrastrar la cabecera hacia abajo cierra la hoja: más de 110 px o un lanzamiento rápido
   const [dy, setDy] = useState(0)
   const [arrastrando, setArrastrando] = useState(false)
-  const inicio = useRef<{ y: number; id: number } | null>(null)
+  const inicio = useRef<{ y: number; id: number; vel: Velocidad } | null>(null)
 
   useEffect(() => {
     if (!abierta) return
@@ -125,34 +160,49 @@ export function Hoja({
     return () => window.removeEventListener('keydown', tecla)
   }, [abierta, onCerrar])
 
-  if (!abierta) return null
-  return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40" style={{ opacity: 1 - Math.min(dy / 500, 0.5) }} onClick={onCerrar}>
+  if (!montada) return null
+  const cerrarSiProcede = () => {
+    if (recien()) return registrar('info', 'Toque ignorado en una hoja recién abierta')
+    onCerrar()
+  }
+  return createPortal(
+    <div
+      className={`hoja-velo fixed inset-0 z-40 flex items-end justify-center bg-black/40 ${saliendo ? 'saliendo pointer-events-none' : ''}`}
+      style={{ opacity: 1 - Math.min(dy / 500, 0.5) }}
+      onClick={cerrarSiProcede}
+    >
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={titulo}
-        className="flex max-h-[88dvh] w-full max-w-lg flex-col rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom)] shadow-xl dark:bg-zinc-900"
-        style={{ transform: `translateY(${dy}px)`, transition: arrastrando ? 'none' : 'transform 0.25s ease-out' }}
+        aria-label={v.titulo}
+        className={`hoja-panel flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom)] shadow-xl dark:bg-zinc-900 ${saliendo ? 'saliendo' : ''}`}
+        style={{ transform: `translate3d(0, ${dy}px, 0)`, transition: arrastrando ? 'none' : 'transform 0.5s var(--curva)' }}
         onClick={(e) => e.stopPropagation()}
+        onClickCapture={(e) => {
+          if (!recien()) return
+          e.stopPropagation()
+          e.preventDefault()
+        }}
       >
         <div
           className="cursor-grab border-b border-zinc-200 dark:border-zinc-800"
           style={{ touchAction: 'none' }}
           onPointerDown={(e) => {
             if ((e.target as HTMLElement).closest('button')) return
-            inicio.current = { y: e.clientY, id: e.pointerId }
+            inicio.current = { y: e.clientY, id: e.pointerId, vel: crearVelocidad(e.clientY, e.timeStamp) }
             setArrastrando(true)
             e.currentTarget.setPointerCapture(e.pointerId)
           }}
           onPointerMove={(e) => {
             if (!inicio.current || inicio.current.id !== e.pointerId) return
+            inicio.current.vel.mover(e.clientY, e.timeStamp)
             setDy(Math.max(0, e.clientY - inicio.current.y))
           }}
-          onPointerUp={() => {
+          onPointerUp={(e) => {
+            const s = inicio.current
             inicio.current = null
             setArrastrando(false)
-            if (dy > 110) onCerrar()
+            if (s && (dy > 110 || esLanzamiento(s.vel.valor(e.timeStamp), dy, 1))) onCerrar()
             setDy(0)
           }}
           onPointerCancel={() => {
@@ -161,19 +211,82 @@ export function Hoja({
             setDy(0)
           }}
         >
-          <div className="mx-auto mt-2 h-1.5 w-9 rounded-full bg-zinc-300 dark:bg-zinc-600" aria-hidden="true" />
-          <div className="flex items-center justify-between px-4 pt-1 pb-3">
-            <h2 className="font-semibold">{titulo}</h2>
-            <button aria-label="Cerrar" className="rounded-full bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700" onClick={onCerrar}>
-              <X className="size-4" strokeWidth={2.5} />
+          <div className="mx-auto mt-2 h-[5px] w-9 rounded-full bg-zinc-300 dark:bg-zinc-600" aria-hidden="true" />
+          <div className="flex min-h-11 items-center justify-between px-4 pb-2">
+            <h2 className="text-[17px] font-semibold">{v.titulo}</h2>
+            <button aria-label="Cerrar" className="grid size-11 place-items-center -mr-2" onClick={onCerrar}>
+              <span className="rounded-full bg-zinc-100 p-1 text-zinc-500 dark:bg-zinc-800">
+                <X className="size-4" strokeWidth={2.5} />
+              </span>
             </button>
           </div>
         </div>
-        <div className="overflow-y-auto overscroll-contain px-4 py-4">{children}</div>
-        {acciones && <div className="flex justify-end gap-2 border-t border-zinc-200 px-4 py-3 dark:border-zinc-800">{acciones}</div>}
+        <div className="overflow-y-auto overscroll-contain px-4 py-4">{v.children}</div>
+        {v.acciones && <div className="flex justify-end gap-2 border-t border-zinc-200 px-4 py-3 dark:border-zinc-800">{v.acciones}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
+}
+
+/**
+ * Hoja de acciones para confirmar, al estilo de iOS: un grupo con el texto y la acción (en rojo si
+ * borra algo) y debajo, aparte, «Cancelar».
+ */
+function HojaAcciones({ c, onResultado }: { c: Confirmacion | null; onResultado: (ok: boolean) => void }) {
+  const { montada, saliendo, recien } = useCicloHoja(!!c)
+  const [guardada, setGuardada] = useState(c)
+  if (c && c !== guardada) setGuardada(c)
+  const v = c ?? guardada
+  useEffect(() => {
+    if (!c) return
+    const tecla = (e: KeyboardEvent) => e.key === 'Escape' && onResultado(false)
+    window.addEventListener('keydown', tecla)
+    return () => window.removeEventListener('keydown', tecla)
+  }, [c, onResultado])
+  if (!montada || !v) return null
+  const pulsar = (ok: boolean) => {
+    if (recien()) return registrar('info', 'Toque ignorado en una confirmación recién abierta')
+    onResultado(ok)
+  }
+  return createPortal(
+    <div className={`hoja-velo fixed inset-0 z-50 flex items-end justify-center bg-black/40 ${saliendo ? 'saliendo pointer-events-none' : ''}`} onClick={() => pulsar(false)}>
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-label={v.titulo}
+        className={`hoja-panel w-full max-w-lg space-y-2 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] ${saliendo ? 'saliendo' : ''}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="overflow-hidden rounded-[14px] bg-white/95 text-center backdrop-blur-xl dark:bg-zinc-800/95">
+          <div className="px-4 py-3">
+            <p className="text-[13px] font-semibold text-zinc-500">{v.titulo}</p>
+            <div className="mt-1 text-[13px] text-zinc-500">{v.texto}</div>
+          </div>
+          <button
+            className={`h-14 w-full border-t border-zinc-200 text-[20px] active:bg-zinc-100 dark:border-zinc-700 dark:active:bg-zinc-700 ${
+              v.peligro ? 'text-[#FF3B30] dark:text-[#FF453A]' : 'text-[#007AFF] dark:text-[#0A84FF]'
+            }`}
+            onClick={() => pulsar(true)}
+          >
+            {v.aceptar}
+          </button>
+        </div>
+        <button
+          className="h-14 w-full rounded-[14px] bg-white text-[20px] font-semibold text-[#007AFF] active:bg-zinc-100 dark:bg-zinc-800 dark:text-[#0A84FF] dark:active:bg-zinc-700"
+          onClick={() => pulsar(false)}
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+/** Barra o botón flotante encima de la barra de pestañas (fuera de la pantalla, para que no se encoja con las hojas) */
+export function Flotante({ children }: { children: ReactNode }) {
+  return createPortal(<div className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+3.75rem)] z-30 mx-auto max-w-md">{children}</div>, document.body)
 }
 
 /** Interruptor al estilo de iOS */
@@ -185,7 +298,10 @@ export function Interruptor({ activo, onCambio, etiqueta, disabled }: { activo: 
       aria-checked={activo}
       aria-label={etiqueta}
       disabled={disabled}
-      onClick={() => onCambio(!activo)}
+      onClick={() => {
+        vibrar()
+        onCambio(!activo)
+      }}
       className={`relative h-[31px] w-[51px] shrink-0 rounded-full transition-colors duration-200 disabled:opacity-40 ${activo ? 'bg-[#34C759]' : 'bg-zinc-300 dark:bg-zinc-700'}`}
     >
       <span

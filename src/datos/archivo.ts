@@ -88,6 +88,8 @@ export function migrar(d: Partial<BaseDatos>): BaseDatos {
     datos.reglas = datos.reglas.map((r) => ({ ...r, mes_siguiente: r.mes_siguiente ?? (r.origen === 'sistema' && (r.nombre === 'Nómina' || r.nombre === 'Hipoteca')) }))
     datos.ajustes = { ...datos.ajustes, dias_fin_de_mes: datos.ajustes.dias_fin_de_mes ?? 5 }
   }
+  // Esquema 4 (v0.7.0): saldo confirmado con el banco en cada cuenta
+  if (desde < 4) datos.cuentas = datos.cuentas.map((c) => ({ ...c, saldo_confirmado: c.saldo_confirmado ?? null }))
   return datos
 }
 

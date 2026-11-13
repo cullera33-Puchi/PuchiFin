@@ -223,5 +223,16 @@ export function generarDatosPrueba(opciones: {
     }
   }
 
+  // Saldo tras cada movimiento en las cuentas bancarias, como la columna Disponible de BBVA (saldos de partida inventados)
+  activas
+    .filter((c) => c.tipo === 'cuenta')
+    .forEach((c, i) => {
+      let saldo = i === 0 ? 3000 : 8000
+      for (const m of movimientos.filter((x) => x.cuenta_id === c.id).sort((a, b) => a.fecha_operacion.localeCompare(b.fecha_operacion))) {
+        saldo = Math.round((saldo + m.importe) * 100) / 100
+        m.saldo = saldo
+      }
+    })
+
   return { importaciones: [...importaciones.values()], movimientos, conciliaciones }
 }

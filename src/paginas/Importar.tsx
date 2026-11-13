@@ -1,18 +1,20 @@
-import { ArrowLeftRight, Briefcase, CalendarArrowUp, CircleCheck, ClipboardPaste, FileSpreadsheet, ShieldAlert, Tag } from 'lucide-react'
+import { ArrowLeftRight, Briefcase, CalendarArrowUp, CircleCheck, ClipboardPaste, CopyCheck, FileSpreadsheet, Landmark, ShieldAlert, Tag } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Aviso, BarraNavegacion } from '../componentes/Encabezado'
 import { Baldosa } from '../componentes/Icono'
-import { Interruptor, useInterfaz } from '../componentes/Interfaz'
+import { Flotante, Interruptor, useInterfaz } from '../componentes/Interfaz'
 import { ContenidoMovimiento, SelectorCategoria } from '../componentes/movimientos'
+import { CuadreSaldo } from '../componentes/Saldo'
 import { intentar, useDatos } from '../datos/ProveedorDatos'
 import { confirmarImportacion, cuentaSugerida, deshacerImportacion, proponer, type MovimientoPropuesto } from '../importacion/importar'
 import { ErrorLectura, leerFichero, leerPortapapeles, type Lectura } from '../importacion/lector'
 import { hacerCopia } from '../lib/copias'
-import { formatearFecha, formatearImporte } from '../lib/formato'
+import { formatearFecha, formatearImporte, plural } from '../lib/formato'
 import { nombreMes } from '../lib/fechas'
 import { mesSiguiente } from '../lib/imputacion'
 import { registrar } from '../lib/registro'
+import { cuadrarCuenta } from '../lib/saldos'
 import { NOMBRE_TIPO_MOVIMIENTO } from '../lib/tipos'
 
 const CLAVE_CUENTA = 'puchifin-importar-cuenta-'
@@ -45,7 +47,8 @@ export function Importar() {
   const [pegando, setPegando] = useState(false)
   const [eligiendo, setEligiendo] = useState<MovimientoPropuesto | null>(null)
   const [verTodos, setVerTodos] = useState(false)
-  const [hecha, setHecha] = useState<{ id: string; nuevos: number } | null>(null)
+  const [verRepetidos, setVerRepetidos] = useState(false)
+  const [hecha, setHecha] = useState<{ id: string; nuevos: number; cuenta_id: string } | null>(null)
   const [guardando, setGuardando] = useState(false)
 
   // La propuesta se calcula con los datos del momento de leer el fichero o de cambiar de cuenta
@@ -59,6 +62,12 @@ export function Importar() {
     }
   }, [lectura, cuentaId, base])
   const propuesta = calculo.propuesta
+  // Saldo de la cuenta tal como quedará: lo guardado más lo nuevo
+  const cuadre = useMemo(
+    () => (propuesta ? cuadrarCuenta([...base.movimientos.filter((m) => m.cuenta_id === propuesta.cuenta_id), ...propuesta.nuevos]) : null),
+    [propuesta, base],
+  )
+  const cuadreHecha = useMemo(() => (hecha ? cuadrarCuenta(db.movimientos.filter((m) => m.cuenta_id === hecha.cuenta_id)) : null), [hecha, db])
   // Por defecto, las sugerencias seguras (confianza 0,75 o más) vienen aceptadas y las dudosas no
   const rechazadas =
     desactivadas && desactivadas.para === propuesta
@@ -154,8 +163,9 @@ export function Importar() {
         anteriores: propuesta.anteriores,
         empleado: aceptadas.size,
         traspasos: propuesta.traspasos.length,
+        cuadra: cuadre?.conSaldo ? cuadre.cuadra : null,
       })
-      setHecha({ id, nuevos: propuesta.nuevos.length })
+      setHecha({ id, nuevos: propuesta.nuevos.length, cuenta_id: propuesta.cuenta_id })
       setLectura(null)
     } finally {
       setGuardando(false)
@@ -164,7 +174,7 @@ export function Importar() {
 
   const deshacer = async () => {
     if (!hecha) return
-    const ok = await confirmar({ titulo: 'Deshacer la importación', texto: `Se quitan los ${hecha.nuevos} movimientos importados y todo lo que dependía de ellos.`, aceptar: 'Deshacer', peligro: true })
+    const ok = await confirmar({ titulo: 'Deshacer la importación', texto: `Se quitan ${hecha.nuevos === 1 ? 'el movimiento importado' : `los ${hecha.nuevos} movimientos importados`} y todo lo que dependía de ellos.`, aceptar: 'Deshacer', peligro: true })
     if (!ok) return
     const e = await intentar((d) => deshacerImportacion(d, hecha.id), 'Importación deshecha')
     if (e) setError(e)
@@ -198,7 +208,12 @@ export function Importar() {
       {hecha && (
         <div className="tarjeta space-y-3 text-center">
           <CircleCheck className="mx-auto size-12 text-[#34C759]" strokeWidth={1.5} />
-          <p className="text-[17px] font-semibold">{hecha.nuevos} movimientos importados</p>
+          <p className="text-[17px] font-semibold">{plural(hecha.nuevos, 'movimiento importado', 'movimientos importados')}</p>
+          {cuadreHecha?.conSaldo && (
+            <div className="text-left">
+              <CuadreSaldo cuadre={cuadreHecha} />
+            </div>
+          )}
           <div className="flex flex-wrap justify-center gap-2">
             <button className="boton-primario" onClick={() => navegar('/movimientos')}>
               Ver movimientos
@@ -296,6 +311,43 @@ export function Importar() {
               </div>
             </dl>
           </div>
+
+          {cuadre?.conSaldo && propuesta.nuevos.length > 0 && (
+            <Bloque
+              titulo="Saldo tras importar"
+              icono={Landmark}
+              color="#007AFF"
+              nota="Se comprueba con el saldo que trae el Excel tras cada movimiento. Si no cuadra, falta algún tramo o hay algo repetido."
+            >
+              <div className="tarjeta">
+                <CuadreSaldo cuadre={cuadre} />
+              </div>
+            </Bloque>
+          )}
+
+          {propuesta.repetidos.length > 0 && (
+            <Bloque
+              titulo={`Ya importados (${propuesta.repetidos.length})`}
+              icono={CopyCheck}
+              color="#8E8E93"
+              nota="Estaban guardados de otra importación (mismo día, importe y saldo del banco, o mismo concepto). No se vuelven a subir."
+            >
+              <button className="boton-texto mb-2 px-1" onClick={() => setVerRepetidos((v) => !v)}>
+                {verRepetidos ? 'Ocultar' : 'Ver cuáles'}
+              </button>
+              {verRepetidos && (
+                <ul className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
+                  {propuesta.repetidos.map((r) => (
+                    <li key={r.fila} className="flex items-center gap-3 px-4 py-2 text-[15px]">
+                      <span className="w-12 shrink-0 text-xs text-zinc-500">{formatearFecha(r.fecha).slice(0, 5)}</span>
+                      <span className="min-w-0 flex-1 truncate">{r.concepto}</span>
+                      <span className="tabular-nums">{formatearImporte(r.importe)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Bloque>
+          )}
 
           {propuesta.problemas.length > 0 && (
             <Bloque titulo="Importación bloqueada" icono={ShieldAlert} color="#FF3B30" nota="Quedan datos identificativos en estas filas. Revisa el fichero o las plantillas de lectura.">
@@ -425,15 +477,15 @@ export function Importar() {
             )}
           </Bloque>
 
-          <div className="fixed inset-x-3 bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+4.25rem)] z-30 mx-auto max-w-md">
+          <Flotante>
             <button
               className="boton-primario w-full py-3 text-[17px] shadow-lg"
               disabled={guardando || !propuesta.nuevos.length || propuesta.problemas.length > 0}
               onClick={importar}
             >
-              {guardando ? 'Importando…' : propuesta.nuevos.length ? `Importar ${propuesta.nuevos.length} movimientos` : 'Nada nuevo que importar'}
+              {guardando ? 'Importando…' : propuesta.nuevos.length ? `Importar ${plural(propuesta.nuevos.length, 'movimiento', 'movimientos')}` : 'Nada nuevo que importar'}
             </button>
-          </div>
+          </Flotante>
         </div>
       )}
 

@@ -66,7 +66,7 @@ export const AJUSTES_POR_DEFECTO: Ajustes = {
 export function datosIniciales(): BaseDatos {
   const creada = ahora()
   const cuenta = (alias: string, entidad: string | null, tipo: TipoCuenta, orden: number): Cuenta => ({
-    id: nuevoId(), alias, entidad, tipo, activa: true, orden, created_at: creada,
+    id: nuevoId(), alias, entidad, tipo, activa: true, orden, created_at: creada, saldo_confirmado: null,
   })
   const categorias: Categoria[] = []
   CATALOGO.forEach(([nombre, icono, color, naturaleza, subs], i) => {
@@ -95,7 +95,7 @@ export function datosIniciales(): BaseDatos {
       {
         id: nuevoId(),
         nombre: 'Deuda familiar',
-        deuda_inicial: 0,
+        deuda_inicial: 0, // los importes se introducen en la app, nunca en el código
         fecha_referencia: '2026-10-01',
         interes_anual: 0,
         colchon: 0,
@@ -135,7 +135,7 @@ export function guardarCuenta(db: BaseDatos, datos: DatosCuenta, id?: string): B
     return { ...db, cuentas: db.cuentas.map((c) => (c.id === id ? { ...c, alias, entidad, tipo: datos.tipo, activa: datos.activa } : c)) }
   }
   const orden = Math.max(0, ...db.cuentas.map((c) => c.orden)) + 1
-  return { ...db, cuentas: [...db.cuentas, { id: nuevoId(), alias, entidad, tipo: datos.tipo, activa: datos.activa, orden, created_at: ahora() }] }
+  return { ...db, cuentas: [...db.cuentas, { id: nuevoId(), alias, entidad, tipo: datos.tipo, activa: datos.activa, orden, created_at: ahora(), saldo_confirmado: null }] }
 }
 
 // ---------------------------------------------------------------------------
@@ -252,6 +252,30 @@ export function guardarAjustes(db: BaseDatos, cambios: Partial<Ajustes>): BaseDa
 // ---------------------------------------------------------------------------
 // Importaciones y datos de prueba
 // ---------------------------------------------------------------------------
+
+/** Anota el saldo que el usuario ve en el banco y si coincide con el de la app */
+export function confirmarSaldo(db: BaseDatos, cuenta_id: string, importe: number, saldoApp: number, fecha: string): BaseDatos {
+  if (!Number.isFinite(importe)) throw new ErrorDatos('Escribe el saldo que ves en el banco')
+  if (!db.cuentas.some((c) => c.id === cuenta_id)) throw new ErrorDatos('Cuenta no encontrada')
+  const cuadra = Math.round(importe * 100) === Math.round(saldoApp * 100)
+  return { ...db, cuentas: db.cuentas.map((c) => (c.id === cuenta_id ? { ...c, saldo_confirmado: { importe, fecha, cuadra } } : c)) }
+}
+
+/** Borra movimientos sueltos (por ejemplo, duplicados) con sus conciliaciones y los descuenta de su importación */
+export function borrarMovimientos(db: BaseDatos, ids: Set<string>): BaseDatos {
+  const borrados = db.movimientos.filter((m) => ids.has(m.id))
+  if (borrados.length !== ids.size) throw new ErrorDatos('Movimiento no encontrado')
+  const porImportacion = new Map<string, number>()
+  for (const m of borrados) if (m.importacion_id) porImportacion.set(m.importacion_id, (porImportacion.get(m.importacion_id) ?? 0) + 1)
+  return {
+    ...db,
+    importaciones: db.importaciones.map((i) =>
+      porImportacion.has(i.id) ? { ...i, movimientos_nuevos: Math.max(0, i.movimientos_nuevos - porImportacion.get(i.id)!) } : i,
+    ),
+    movimientos: db.movimientos.filter((m) => !ids.has(m.id)),
+    conciliaciones: db.conciliaciones.filter((c) => !ids.has(c.gasto_id) && !ids.has(c.reembolso_id)),
+  }
+}
 
 /** Borra importaciones con sus movimientos y las conciliaciones de esos movimientos */
 export function borrarImportaciones(db: BaseDatos, ids: Set<string>): BaseDatos {

@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { contieneIdentificativo } from './identificativos'
 import { generarDatosPrueba } from './datosPrueba'
+import { cuadrarCuenta } from './saldos'
 import { calcularResumen, periodoMes } from './resumen'
 import type { Categoria, Cuenta } from './tipos'
 
 const cuenta = (id: string, alias: string, tipo: Cuenta['tipo'], orden: number): Cuenta => ({
-  id, alias, entidad: 'BBVA', tipo, activa: true, orden, created_at: '',
+  id, alias, entidad: 'BBVA', tipo, activa: true, orden, created_at: '', saldo_confirmado: null,
 })
 const CUENTAS = [
   cuenta('c1', 'Cuenta principal', 'cuenta', 1),
@@ -71,6 +72,10 @@ describe('generarDatosPrueba', () => {
     expect(reembolso.importe).toBeCloseTo(-gastosOct.reduce((s, m) => s + m.importe, 0), 2)
     const conciliados = datos.conciliaciones.filter((x) => x.reembolso_id === reembolso.id)
     expect(conciliados.map((x) => x.gasto_id).sort()).toEqual(gastosOct.map((m) => m.id).sort())
+  })
+
+  it('las cuentas bancarias llevan saldo y cuadran', () => {
+    for (const id of ['c1', 'c2']) expect(cuadrarCuenta(datos.movimientos.filter((m) => m.cuenta_id === id))).toMatchObject({ conSaldo: true, cuadra: true })
   })
 
   it('es determinista', () => {

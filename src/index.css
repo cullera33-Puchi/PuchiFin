@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+/* Modo oscuro según el tema elegido (data-theme en <html>), no solo el del sistema */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
 @theme {
   --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --color-marca-50: #f0fdfa;
@@ -14,6 +17,20 @@
   html {
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+  /* Como una app nativa: sin selección de texto ni menú de copiar en la interfaz */
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    overscroll-behavior: none;
+  }
+  input,
+  textarea,
+  [contenteditable] {
+    -webkit-user-select: text;
+    user-select: text;
   }
   body {
     /* Fondo agrupado de iOS (systemGroupedBackground) */
@@ -61,6 +78,11 @@
   @apply text-sm font-medium text-marca-700 hover:opacity-70 disabled:opacity-40 dark:text-marca-500;
 }
 
+/* Cabecera de grupo fija al desplazarse, con material translúcido */
+@utility cabecera-grupo {
+  @apply sticky top-0 z-10 -mx-4 mb-1.5 flex items-baseline justify-between bg-[#F2F2F7]/85 px-8 py-1.5 text-[13px] font-medium text-zinc-500 uppercase backdrop-blur-xl backdrop-saturate-150 dark:bg-black/80;
+}
+
 /* Lista agrupada (inset grouped) */
 @utility lista {
   @apply overflow-hidden rounded-xl bg-white dark:bg-zinc-900;
@@ -74,14 +96,91 @@
 :root {
   --serie-1: #2a78d6;
   --serie-2: #eb6834;
+  --serie-3: #1baf7a;
+  --serie-4: #eda100;
+  --serie-5: #e87ba4;
+  --serie-6: #008300;
+  --serie-7: #6250d6;
+  --serie-8: #e34948;
+  --serie-otras: #a1a1aa;
+  --graf-superficie: #ffffff;
   --graf-texto: #52514e;
   --graf-rejilla: #e4e4e0;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
+[data-theme='dark'] {
+  & {
     --serie-1: #3987e5;
     --serie-2: #d95926;
+    --serie-3: #199e70;
+    --serie-4: #c98500;
+    --serie-5: #d55181;
+    --serie-6: #008300;
+    --serie-7: #9085e9;
+    --serie-8: #e66767;
+    --serie-otras: #71717a;
+    --graf-superficie: #18181b;
     --graf-texto: #c3c2b7;
     --graf-rejilla: #3a3a37;
+  }
+}
+
+/* Sin el recuadro de foco de Recharts al tocar un gráfico */
+.recharts-wrapper :focus,
+.recharts-surface:focus {
+  outline: none;
+}
+
+/* Curva única de las animaciones (guía de usabilidad) */
+:root {
+  --curva: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Hoja inferior y hoja de acciones: suben desde abajo; el fondo se oscurece */
+@keyframes hoja-entra {
+  from {
+    transform: translate3d(0, 100%, 0);
+  }
+}
+@keyframes velo-entra {
+  from {
+    opacity: 0;
+  }
+}
+.hoja-panel {
+  animation: hoja-entra 0.5s var(--curva);
+}
+.hoja-velo {
+  animation: velo-entra 0.45s var(--curva);
+}
+.hoja-panel.saliendo {
+  transform: translate3d(0, 100%, 0) !important;
+  transition: transform 0.45s var(--curva) !important;
+}
+.hoja-velo.saliendo {
+  opacity: 0 !important;
+  transition: opacity 0.45s var(--curva) !important;
+}
+
+/* Con una hoja abierta, la pantalla de detrás se encoge un poco */
+#contenido {
+  transition: transform 0.5s var(--curva);
+}
+html.con-hoja #contenido {
+  transform: scale(0.96);
+}
+
+/* Reducir movimiento: fundidos cortos y sin encoger la pantalla de detrás */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.2s !important;
+    transition-duration: 0.2s !important;
+  }
+  .hoja-panel {
+    animation-name: velo-entra;
+  }
+  html.con-hoja #contenido {
+    transform: none;
   }
 }

@@ -1,5 +1,6 @@
 import { Trash2 } from 'lucide-react'
 import { BarraNavegacion } from '../../componentes/Encabezado'
+import { useHacer } from '../../componentes/acciones'
 import { Interruptor, useInterfaz } from '../../componentes/Interfaz'
 import { activarRegla, borrarRegla } from '../../datos/reglas'
 import { intentar, useDatos } from '../../datos/ProveedorDatos'
@@ -10,6 +11,7 @@ import { nombreCategoria } from '../../lib/vista'
 export function Reglas() {
   const db = useDatos()
   const { avisar } = useInterfaz()
+  const hacer = useHacer()
   const grupos: [string, string, Regla[]][] = [
     ['Tus reglas', 'Se crean al corregir una categoría con «Crear una regla». Se aplican antes que las de la app.', db.reglas.filter((r) => r.origen !== 'sistema')],
     ['Sugerencias', 'Proponen gastos de empleado, reembolsos y pagos de deuda en la revisión de cada importación. Con 3 descartes sin ninguna confirmación se desactivan solas.', db.reglas.filter((r) => r.origen === 'sistema' && r.es_sugerencia)],
@@ -31,7 +33,7 @@ export function Reglas() {
           <button
             className="boton-icono text-red-600 dark:text-red-500"
             aria-label="Borrar regla"
-            onClick={async () => avisar((await intentar((d) => borrarRegla(d, r.id), 'Regla borrada')) ?? 'Regla borrada')}
+            onClick={() => hacer((d) => borrarRegla(d, r.id), 'Regla borrada')}
           >
             <Trash2 className="size-5" strokeWidth={1.75} />
           </button>

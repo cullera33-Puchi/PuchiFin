@@ -2,6 +2,8 @@ import { ChevronRight, Plus, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useState, type FormEvent } from 'react'
 import { Aviso } from '../../componentes/Encabezado'
+import { Segmentado } from '../../componentes/Interfaz'
+import { guardarTema, leerTema, type Tema } from '../../lib/tema'
 import { contieneIdentificativo } from '../../lib/identificativos'
 import { formatearImporte } from '../../lib/formato'
 import { guardarAjustes } from '../../datos/operaciones'
@@ -203,6 +205,8 @@ export function General() {
         <p className="text-xs text-zinc-500">Escribe el nombre y pulsa Intro. Guarda los cambios con «Guardar ajustes».</p>
       </section>
 
+      <Aspecto />
+
       <Link to="/ajustes/reglas" className="lista fila">
         <span className="flex-1 text-[15px]">Reglas de categorización</span>
         <span className="text-[15px] text-zinc-500">{db.reglas.filter((r) => r.activa).length} activas</span>
@@ -212,11 +216,17 @@ export function General() {
       {deuda && (
         <section className="tarjeta space-y-2">
           <h2 className="text-sm font-semibold">{deuda.nombre}</h2>
+          {deuda.deuda_inicial === 0 ? (
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Importes sin configurar. Se introducen en la fase 4, con el plan de pagos, y solo se guardan en el iPhone.
+            </p>
+          ) : (
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
             {formatearImporte(deuda.deuda_inicial)} pendientes, colchón de {formatearImporte(deuda.colchon)}, pago entre{' '}
             {MESES[deuda.ventana_mes_inicio - 1]} y {MESES[deuda.ventana_mes_fin - 1]} con {MESES[deuda.mes_referencia - 1]} como
             referencia, {deuda.interes_anual > 0 ? `${deuda.interes_anual} % de interés` : 'sin intereses'}.
           </p>
+          )}
           <p className="text-xs text-zinc-500">Valores iniciales. Se podrán editar en la fase 4, con el plan de pagos.</p>
         </section>
       )}
@@ -225,5 +235,28 @@ export function General() {
       {guardado && <Aviso tipo="ok">Ajustes guardados.</Aviso>}
       <button type="submit" className="boton-primario">Guardar ajustes</button>
     </form>
+  )
+}
+
+/** Tema de la app: Automático (el del iPhone), Claro u Oscuro. Se guarda en este dispositivo */
+function Aspecto() {
+  const [tema, setTema] = useState<Tema>(leerTema)
+  return (
+    <section className="space-y-1.5">
+      <h2 className="px-4 text-[13px] text-zinc-500 uppercase">Aspecto</h2>
+      <Segmentado
+        etiqueta="Tema"
+        opciones={[
+          ['auto', 'Automático'],
+          ['claro', 'Claro'],
+          ['oscuro', 'Oscuro'],
+        ]}
+        valor={tema}
+        onCambio={(t) => {
+          guardarTema(t)
+          setTema(t)
+        }}
+      />
+    </section>
   )
 }

@@ -4,12 +4,21 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="PuchiFin" />
-    <meta name="theme-color" content="#f4f4f5" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+    <script>
+      // Tema antes de pintar (Automático, Claro u Oscuro; ver src/lib/tema.ts)
+      try {
+        var t = localStorage.getItem('puchifin-tema')
+        var d = t === 'oscuro' || (t !== 'claro' && matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.dataset.theme = d ? 'dark' : 'light'
+      } catch (e) {}
+    </script>
     <meta name="robots" content="noindex, nofollow" />
     <title>PuchiFin</title>
   </head>
