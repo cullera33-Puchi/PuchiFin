@@ -2,6 +2,13 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.3.0. Estilo iOS y PDF para compartir (13 de noviembre de 2026)
+
+- Iconos: catálogo propio de 50 glifos de trazo fino (`src/componentes/iconos.ts`, lucide) mostrados en baldosas de color con esquinas redondeadas (`Baldosa`), al estilo de Ajustes de iOS. Las categorías guardan la clave del icono en lugar de un emoji; un valor desconocido se muestra como etiqueta. Catálogo inicial con la paleta del sistema de iOS (migración `20261113000003` corregida antes de aplicarse en ningún proyecto). No se usan SF Symbols: su licencia los limita a apps de Apple.
+- Barra de pestañas flotante y translúcida con la pestaña activa resaltada; barra lateral de escritorio al estilo de iPad y Mac; títulos grandes; fondo agrupado (#F2F2F7) y tarjetas sin borde.
+- Componentes: `Interruptor` y `FilaInterruptor` (en lugar de casillas), control segmentado, botones de icono y de texto sin marco, botón secundario gris relleno. Cuentas y categorías como listas agrupadas con chevrón; la cuenta se activa o desactiva en su ficha. Editor de categoría con selector de icono en cuadrícula y colores de la paleta de iOS (más uno libre).
+- Resúmenes: PDF «Para compartir» (`reducida`), con indicadores y gasto por categoría, sin subcategorías, movimientos, semanas ni gastos de empleado. La vista previa muestra lo mismo que saldrá en el PDF. La elección se recuerda en el dispositivo.
+
 ## v0.2.0. Herramientas de PuchiTask y resúmenes en PDF (13 de noviembre de 2026)
 
 - Versiones y novedades: la versión sale de `package.json` (`__APP_VERSION__`). El service worker pasa a `registerType: 'prompt'`: la versión nueva espera hasta que se toca «Actualizar». El aviso abre la hoja «Novedades de la X» con las versiones que faltan, leídas sin caché de `public/novedades.json` (fuera del precache). En Ajustes, Herramientas: versión, Novedades y Buscar actualización. Comprobación al volver a la app.

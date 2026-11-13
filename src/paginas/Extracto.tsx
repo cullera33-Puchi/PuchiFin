@@ -54,7 +54,7 @@ export function Extracto() {
         subtitulo="Ingresos, gastos y ahorro del mes"
         accion={
           <Link to="/resumenes" className="boton-secundario">
-            <FileText className="size-4" /> Resúmenes
+            <FileText className="size-4" strokeWidth={2} /> Resúmenes
           </Link>
         }
       />
@@ -63,7 +63,7 @@ export function Extracto() {
         <div className="mb-4">
           <Aviso tipo="info">
             <span className="flex flex-wrap items-center gap-2">
-              <FlaskConical className="size-4 text-amber-600" /> Hay {resumen.prueba} movimientos de prueba.
+              <FlaskConical className="size-4 text-[#FF9500]" strokeWidth={2} /> Hay {resumen.prueba} movimientos de prueba.
               <Link to="/ajustes/herramientas" className="font-medium text-marca-700 underline dark:text-marca-500">
                 Gestionarlos
               </Link>

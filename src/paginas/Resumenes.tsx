@@ -1,7 +1,8 @@
 import { ChevronLeft, ChevronRight, Download, FlaskConical, Share2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Aviso, Encabezado } from '../componentes/Encabezado'
-import { useInterfaz } from '../componentes/Interfaz'
+import { Baldosa } from '../componentes/Icono'
+import { FilaInterruptor, useInterfaz } from '../componentes/Interfaz'
 import { compartirArchivo, puedeCompartirArchivos } from '../lib/compartir'
 import { contarDatosPrueba } from '../lib/datosPruebaSupabase'
 import { cargarDatosResumen } from '../lib/datosResumen'
@@ -27,18 +28,48 @@ import { mensajeError, supabase } from '../lib/supabase'
 import { NOMBRE_TIPO_MOVIMIENTO, type Categoria } from '../lib/tipos'
 
 const CLAVE_CONCEPTOS = 'puchifin-resumen-conceptos'
+const CLAVE_VERSION = 'puchifin-resumen-version'
 const TONO: Record<Tono, string> = {
   bueno: 'text-emerald-700 dark:text-emerald-400',
   malo: 'text-red-700 dark:text-red-400',
   neutro: 'text-zinc-500',
 }
 
-function leerPreferencia(): boolean {
+function leerPreferencia(clave: string, porDefecto: string): string {
   try {
-    return localStorage.getItem(CLAVE_CONCEPTOS) !== 'no'
+    return localStorage.getItem(clave) ?? porDefecto
   } catch {
-    return true
+    return porDefecto
   }
+}
+
+function guardarPreferencia(clave: string, valor: string) {
+  try {
+    localStorage.setItem(clave, valor)
+  } catch {
+    // sin almacenamiento
+  }
+}
+
+/** Control segmentado al estilo de iOS */
+function Segmentado<T extends string>({ opciones, valor, onCambio, etiqueta }: { opciones: [T, string][]; valor: T; onCambio: (v: T) => void; etiqueta: string }) {
+  return (
+    <div role="radiogroup" aria-label={etiqueta} className="flex gap-0.5 rounded-[9px] bg-zinc-200/80 p-0.5 dark:bg-zinc-800">
+      {opciones.map(([v, texto]) => (
+        <button
+          key={v}
+          role="radio"
+          aria-checked={valor === v}
+          onClick={() => onCambio(v)}
+          className={`flex-1 rounded-[7px] px-3 py-1 text-[13px] font-medium transition ${
+            valor === v ? 'bg-white text-zinc-900 shadow-[0_3px_8px_rgba(0,0,0,0.12),0_3px_1px_rgba(0,0,0,0.04)] dark:bg-zinc-600 dark:text-white' : 'text-zinc-700 dark:text-zinc-300'
+          }`}
+        >
+          {texto}
+        </button>
+      ))}
+    </div>
+  )
 }
 
 export function Resumenes() {
@@ -48,7 +79,8 @@ export function Resumenes() {
   const [categorias, setCategorias] = useState<Categoria[] | null>(null)
   const [datos, setDatos] = useState<{ clave: string; movimientos: MovimientoResumen[]; conciliaciones: ConciliacionResumen[] } | null>(null)
   const [hayPrueba, setHayPrueba] = useState(false)
-  const [conceptos, setConceptos] = useState(leerPreferencia)
+  const [conceptos, setConceptos] = useState(() => leerPreferencia(CLAVE_CONCEPTOS, 'si') !== 'no')
+  const [reducida, setReducida] = useState(() => leerPreferencia(CLAVE_VERSION, 'completa') === 'reducida')
   const [error, setError] = useState<string | null>(null)
   const [generando, setGenerando] = useState(false)
 
@@ -81,11 +113,11 @@ export function Resumenes() {
 
   const cambiarConceptos = (v: boolean) => {
     setConceptos(v)
-    try {
-      localStorage.setItem(CLAVE_CONCEPTOS, v ? 'si' : 'no')
-    } catch {
-      // sin almacenamiento
-    }
+    guardarPreferencia(CLAVE_CONCEPTOS, v ? 'si' : 'no')
+  }
+  const cambiarVersion = (v: 'completa' | 'reducida') => {
+    setReducida(v === 'reducida')
+    guardarPreferencia(CLAVE_VERSION, v)
   }
 
   const generarPdf = async (descargar: boolean) => {
@@ -93,9 +125,9 @@ export function Resumenes() {
     setGenerando(true)
     try {
       const { generarPdfResumen, nombreArchivoResumen } = await import('../lib/pdf')
-      const doc = generarPdfResumen(resumen, { incluirConceptos: conceptos, hayDatosPrueba: hayPrueba, categorias })
-      const nombre = nombreArchivoResumen(resumen)
-      registrar('info', `Resumen ${resumen.periodo.tipo === 'mes' ? 'mensual' : 'semanal'} en PDF`, { periodo: resumen.periodo.inicio, paginas: doc.getNumberOfPages(), conceptos })
+      const doc = generarPdfResumen(resumen, { incluirConceptos: conceptos, hayDatosPrueba: hayPrueba, categorias, reducida })
+      const nombre = nombreArchivoResumen(resumen, reducida)
+      registrar('info', `Resumen ${resumen.periodo.tipo === 'mes' ? 'mensual' : 'semanal'} en PDF`, { periodo: resumen.periodo.inicio, paginas: doc.getNumberOfPages(), conceptos, reducida })
       const r = await compartirArchivo(doc.output('blob'), nombre, resumen.periodo.etiqueta, descargar)
       if (r === 'descargado') avisar(`${nombre} descargado`)
     } catch (e) {
@@ -114,38 +146,46 @@ export function Resumenes() {
       <Encabezado titulo="Resúmenes" subtitulo="Semanal y mensual, en PDF para compartir" />
 
       <div className="mb-4 space-y-3">
-        <div className="flex gap-1 rounded-xl bg-zinc-200/70 p-1 dark:bg-zinc-800/70">
-          {(['semana', 'mes'] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => {
-                setTipo(t)
-                setDesplazamiento(0)
-              }}
-              className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium ${
-                tipo === t ? 'bg-white text-zinc-900 shadow-xs dark:bg-zinc-950 dark:text-zinc-100' : 'text-zinc-600 dark:text-zinc-400'
-              }`}
-            >
-              {t === 'semana' ? 'Semanal' : 'Mensual'}
-            </button>
-          ))}
-        </div>
+        <Segmentado
+          etiqueta="Periodo"
+          opciones={[['semana', 'Semanal'], ['mes', 'Mensual']]}
+          valor={tipo}
+          onCambio={(t) => {
+            setTipo(t)
+            setDesplazamiento(0)
+          }}
+        />
 
         <div className="flex items-center gap-2">
-          <button className="boton-secundario px-2" aria-label="Periodo anterior" onClick={() => setDesplazamiento((d) => d - 1)}>
-            <ChevronLeft className="size-5" />
+          <button className="boton-icono" aria-label="Periodo anterior" onClick={() => setDesplazamiento((d) => d - 1)}>
+            <ChevronLeft className="size-6" strokeWidth={2} />
           </button>
-          <p className="flex-1 text-center font-medium">{periodo.etiqueta}</p>
-          <button className="boton-secundario px-2" aria-label="Periodo siguiente" disabled={futuro} onClick={() => setDesplazamiento((d) => d + 1)}>
-            <ChevronRight className="size-5" />
+          <p className="flex-1 text-center font-semibold">{periodo.etiqueta}</p>
+          <button className="boton-icono" aria-label="Periodo siguiente" disabled={futuro} onClick={() => setDesplazamiento((d) => d + 1)}>
+            <ChevronRight className="size-6" strokeWidth={2} />
           </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="mr-auto flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-            <input type="checkbox" checked={conceptos} onChange={(e) => cambiarConceptos(e.target.checked)} />
-            Incluir los conceptos de los movimientos
-          </label>
+        <div className="tarjeta space-y-3">
+          <div className="flex items-center gap-3">
+            <span className="text-sm">PDF</span>
+            <div className="flex-1">
+              <Segmentado
+                etiqueta="Versión del PDF"
+                opciones={[['completa', 'Completo'], ['reducida', 'Para compartir']]}
+                valor={reducida ? 'reducida' : 'completa'}
+                onCambio={cambiarVersion}
+              />
+            </div>
+          </div>
+          {reducida ? (
+            <p className="text-xs text-zinc-500">Solo ingresos, gastos, ahorro y gasto por categoría, sin movimientos ni gastos de empleado.</p>
+          ) : (
+            <FilaInterruptor texto="Incluir los conceptos" nota="Sin ellos, solo fechas, categorías e importes" activo={conceptos} onCambio={cambiarConceptos} />
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {compartir && (
             <button className="boton-primario" disabled={!resumen || generando} onClick={() => generarPdf(false)}>
               <Share2 className="size-4" /> Compartir PDF
@@ -168,7 +208,7 @@ export function Resumenes() {
         </div>
       )}
 
-      {!resumen ? <p className="text-sm text-zinc-500">Cargando…</p> : <VistaPrevia r={resumen} conceptos={conceptos} categorias={categorias ?? []} />}
+      {!resumen ? <p className="text-sm text-zinc-500">Cargando…</p> : <VistaPrevia r={resumen} conceptos={conceptos} reducida={reducida} categorias={categorias ?? []} />}
     </>
   )
 }
@@ -179,7 +219,7 @@ function etiquetaSemana(etiqueta: string): string {
   return /^\d+$/.test(e) ? `Día ${e}` : e
 }
 
-function VistaPrevia({ r, conceptos, categorias }: { r: Resumen; conceptos: boolean; categorias: Categoria[] }) {
+function VistaPrevia({ r, conceptos, reducida, categorias }: { r: Resumen; conceptos: boolean; reducida: boolean; categorias: Categoria[] }) {
   const porId = new Map(categorias.map((c) => [c.id, c]))
   const nombreCategoria = (id: string | null) => {
     if (!id) return 'Sin categoría'
@@ -216,7 +256,9 @@ function VistaPrevia({ r, conceptos, categorias }: { r: Resumen; conceptos: bool
             {r.categorias.map((c) => (
               <li key={c.id ?? 'sin'}>
                 <div className="flex items-baseline gap-2 text-sm">
-                  <span className="w-5 text-center">{c.icono ?? ''}</span>
+                  <span className="self-center">
+                    <Baldosa icono={c.icono} color={c.color} tamano="sm" />
+                  </span>
                   <span className="flex-1 truncate">{c.nombre}</span>
                   <span className="font-medium tabular-nums">{formatearImporte(c.importe)}</span>
                   <span
@@ -227,7 +269,7 @@ function VistaPrevia({ r, conceptos, categorias }: { r: Resumen; conceptos: bool
                     {c.diferencia === null ? 'nueva' : `${c.diferencia > 0 ? '+' : ''}${formatearImporte(c.diferencia)}`}
                   </span>
                 </div>
-                <div className="mt-1 ml-7 flex items-center gap-2">
+                <div className="mt-1 ml-9 flex items-center gap-2">
                   <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
                     <div className="h-full rounded-full" style={{ width: `${Math.max(1, c.peso * 100)}%`, backgroundColor: c.color }} />
                   </div>
@@ -239,7 +281,7 @@ function VistaPrevia({ r, conceptos, categorias }: { r: Resumen; conceptos: bool
         )}
       </section>
 
-      {esMes && (
+      {esMes && !reducida && (
         <section className="tarjeta overflow-x-auto">
           <h2 className="mb-2 text-sm font-semibold">Semana a semana <span className="font-normal text-zinc-500">({r.periodo.etiqueta.split(' de ')[0].toLowerCase()})</span></h2>
           <table className="w-full text-xs sm:text-sm">
@@ -265,7 +307,7 @@ function VistaPrevia({ r, conceptos, categorias }: { r: Resumen; conceptos: bool
         </section>
       )}
 
-      {!esMes && (
+      {!esMes && !reducida && (
         <section className="tarjeta">
           <div className="mb-2 flex items-baseline justify-between gap-2">
             <h2 className="text-sm font-semibold">Movimientos de la semana</h2>
@@ -295,6 +337,7 @@ function VistaPrevia({ r, conceptos, categorias }: { r: Resumen; conceptos: bool
         </section>
       )}
 
+      {!reducida && (
       <section className="tarjeta">
         <h2 className="mb-2 text-sm font-semibold">Fuera del extracto</h2>
         <ul className="space-y-1 text-sm text-zinc-600 dark:text-zinc-400">
@@ -303,6 +346,7 @@ function VistaPrevia({ r, conceptos, categorias }: { r: Resumen; conceptos: bool
           ))}
         </ul>
       </section>
+      )}
     </div>
   )
 }

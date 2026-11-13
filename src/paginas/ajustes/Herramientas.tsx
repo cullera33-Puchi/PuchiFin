@@ -2,6 +2,7 @@ import { Copy, Download, FlaskConical, RotateCcw, Share2, Trash2, Upload } from 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { useActualizacion } from '../../componentes/Actualizacion'
 import { Aviso } from '../../componentes/Encabezado'
+import { Baldosa } from '../../componentes/Icono'
 import { Hoja, useInterfaz } from '../../componentes/Interfaz'
 import { compartirArchivo, copiarTexto } from '../../lib/compartir'
 import {
@@ -245,9 +246,9 @@ export function Herramientas() {
         ) : copias.length === 0 ? (
           <p className="text-sm text-zinc-500">Todavía ninguna copia en este dispositivo.</p>
         ) : (
-          <ul className="divide-y divide-zinc-100 rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+          <ul className="divide-y divide-zinc-200/70 rounded-[10px] bg-zinc-50 dark:divide-zinc-800 dark:bg-zinc-800/40">
             {copias.map((m) => (
-              <li key={m.clave} className="flex items-center gap-2 px-3 py-2">
+              <li key={m.clave} className="flex items-center gap-1 py-1.5 pr-1 pl-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">
                     {formatearFecha(m.dia)} <span className="font-normal text-zinc-500">{hora(m.creada)}</span>
@@ -256,11 +257,11 @@ export function Herramientas() {
                     {NOMBRE_TIPO[m.tipo]}. {m.movimientos} movimientos, {m.cuentas} cuentas, v{m.version}
                   </p>
                 </div>
-                <button className="boton-secundario px-2" title="Restaurar" aria-label="Restaurar" disabled={!!ocupado} onClick={() => restaurarLocal(m)}>
-                  <RotateCcw className="size-4" />
+                <button className="boton-icono" title="Restaurar" aria-label="Restaurar" disabled={!!ocupado} onClick={() => restaurarLocal(m)}>
+                  <RotateCcw className="size-5" strokeWidth={1.75} />
                 </button>
                 <button
-                  className="boton-secundario px-2"
+                  className="boton-icono"
                   title="Guardar como archivo"
                   aria-label="Guardar como archivo"
                   disabled={!!ocupado}
@@ -269,10 +270,10 @@ export function Herramientas() {
                     if (c) await exportarArchivo(c)
                   }}
                 >
-                  <Download className="size-4" />
+                  <Download className="size-5" strokeWidth={1.75} />
                 </button>
-                <button className="boton-secundario px-2 text-red-600" title="Borrar" aria-label="Borrar copia" disabled={!!ocupado} onClick={() => borrarUna(m)}>
-                  <Trash2 className="size-4" />
+                <button className="boton-icono text-red-600 dark:text-red-500" title="Borrar" aria-label="Borrar copia" disabled={!!ocupado} onClick={() => borrarUna(m)}>
+                  <Trash2 className="size-5" strokeWidth={1.75} />
                 </button>
               </li>
             ))}
@@ -289,7 +290,7 @@ export function Herramientas() {
             <Upload className="size-4" /> Restaurar desde archivo
           </button>
           {!!copias?.length && (
-            <button className="boton-secundario text-red-600" disabled={!!ocupado} onClick={borrarTodas}>
+            <button className="boton-texto px-2 text-red-600 dark:text-red-500" disabled={!!ocupado} onClick={borrarTodas}>
               Borrar todas
             </button>
           )}
@@ -315,9 +316,9 @@ export function Herramientas() {
         {prueba ? (
           <div className="flex flex-wrap items-center gap-2">
             <span className="mr-auto flex items-center gap-2 text-sm">
-              <FlaskConical className="size-4 text-amber-600" /> {prueba} movimientos de prueba
+              <Baldosa glifo={FlaskConical} color="#FF9500" tamano="sm" /> {prueba} movimientos de prueba
             </span>
-            <button className="boton-secundario text-red-600" disabled={!!ocupado} onClick={eliminarPrueba}>
+            <button className="boton-secundario text-red-600 dark:text-red-500" disabled={!!ocupado} onClick={eliminarPrueba}>
               {ocupado === 'prueba' ? 'Eliminando…' : 'Eliminar datos de prueba'}
             </button>
           </div>

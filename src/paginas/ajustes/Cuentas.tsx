@@ -1,19 +1,27 @@
-import { CreditCard, Home, Landmark, Pencil, Plus } from 'lucide-react'
+import { ChevronRight, CreditCard, House, Landmark, Plus } from 'lucide-react'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Aviso } from '../../componentes/Encabezado'
+import { Baldosa } from '../../componentes/Icono'
+import { FilaInterruptor } from '../../componentes/Interfaz'
 import { validarAlias } from '../../lib/identificativos'
+import { registrar } from '../../lib/registro'
 import { mensajeError, supabase } from '../../lib/supabase'
 import { NOMBRE_TIPO_CUENTA, type Cuenta, type TipoCuenta } from '../../lib/tipos'
 
-const ICONO_TIPO = { cuenta: Landmark, tarjeta_credito: CreditCard, hipoteca: Home }
+const ESTILO_TIPO = {
+  cuenta: { glifo: Landmark, color: '#007AFF' },
+  tarjeta_credito: { glifo: CreditCard, color: '#FF9500' },
+  hipoteca: { glifo: House, color: '#A2845E' },
+}
 
 interface Borrador {
   alias: string
   entidad: string
   tipo: TipoCuenta
+  activa: boolean
 }
 
-const VACIO: Borrador = { alias: '', entidad: 'BBVA', tipo: 'cuenta' }
+const VACIO: Borrador = { alias: '', entidad: 'BBVA', tipo: 'cuenta', activa: true }
 
 export function Cuentas() {
   const [cuentas, setCuentas] = useState<Cuenta[] | null>(null)
@@ -35,80 +43,63 @@ export function Cuentas() {
   const guardar = async (b: Borrador, id?: string): Promise<string | null> => {
     const motivo = validarAlias(b.alias)
     if (motivo) return motivo
-    const fila = { alias: b.alias.trim(), entidad: b.entidad.trim() || null, tipo: b.tipo }
+    const fila = { alias: b.alias.trim(), entidad: b.entidad.trim() || null, tipo: b.tipo, activa: b.activa }
     const { error: e } = id
       ? await supabase.from('cuentas').update(fila).eq('id', id)
       : await supabase.from('cuentas').insert({ ...fila, orden: (cuentas?.length ?? 0) + 1 })
     if (e) return mensajeError(e)
+    registrar('info', id ? 'Cuenta modificada' : 'Cuenta creada', { tipo: b.tipo, activa: b.activa })
     setEditando(null)
     await cargar()
     return null
   }
 
-  const alternarActiva = async (c: Cuenta) => {
-    const { error: e } = await supabase.from('cuentas').update({ activa: !c.activa }).eq('id', c.id)
-    if (e) setError(mensajeError(e))
-    else cargar()
-  }
-
   return (
     <div className="space-y-4">
-      <Aviso tipo="info">
-        Cada cuenta se identifica solo por su alias. No escribas números de cuenta, IBAN ni números de tarjeta: la app
-        los rechaza.
-      </Aviso>
       {error && <Aviso>{error}</Aviso>}
 
-      <ul className="space-y-2">
+      <ul className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
         {cuentas?.map((c) => {
-          const Icono = ICONO_TIPO[c.tipo]
+          const estilo = ESTILO_TIPO[c.tipo]
           return (
-            <li key={c.id} className={`tarjeta ${c.activa ? '' : 'opacity-60'}`}>
+            <li key={c.id}>
               {editando === c.id ? (
                 <Formulario
-                  inicial={{ alias: c.alias, entidad: c.entidad ?? '', tipo: c.tipo }}
+                  inicial={{ alias: c.alias, entidad: c.entidad ?? '', tipo: c.tipo, activa: c.activa }}
                   onGuardar={(b) => guardar(b, c.id)}
                   onCancelar={() => setEditando(null)}
                 />
               ) : (
-                <div className="flex items-center gap-3">
-                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-marca-50 text-marca-700 dark:bg-marca-900/40 dark:text-marca-100">
-                    <Icono className="size-5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{c.alias}</p>
-                    <p className="text-xs text-zinc-500">
+                <button className={`fila hover:bg-zinc-50 active:bg-zinc-100 dark:hover:bg-zinc-800/60 ${c.activa ? '' : 'opacity-50'}`} onClick={() => setEditando(c.id)}>
+                  <Baldosa glifo={estilo.glifo} color={estilo.color} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{c.alias}</span>
+                    <span className="block text-xs text-zinc-500">
                       {NOMBRE_TIPO_CUENTA[c.tipo]}
                       {c.entidad ? `, ${c.entidad}` : ''}
-                      {c.activa ? '' : '. Inactiva'}
-                    </p>
-                  </div>
-                  <button className="boton-secundario px-2" onClick={() => alternarActiva(c)}>
-                    {c.activa ? 'Desactivar' : 'Activar'}
-                  </button>
-                  <button className="boton-secundario px-2" aria-label={`Editar ${c.alias}`} onClick={() => setEditando(c.id)}>
-                    <Pencil className="size-4" />
-                  </button>
-                </div>
+                    </span>
+                  </span>
+                  {!c.activa && <span className="text-xs text-zinc-500">Inactiva</span>}
+                  <ChevronRight className="size-4 text-zinc-400" strokeWidth={2} />
+                </button>
               )}
             </li>
           )
         })}
+        <li>
+          {editando === 'nueva' ? (
+            <Formulario inicial={VACIO} onGuardar={(b) => guardar(b)} onCancelar={() => setEditando(null)} />
+          ) : (
+            <button className="fila text-marca-700 hover:bg-zinc-50 dark:text-marca-500 dark:hover:bg-zinc-800/60" onClick={() => setEditando('nueva')}>
+              <Plus className="size-5" strokeWidth={2} /> Añadir cuenta
+            </button>
+          )}
+        </li>
       </ul>
 
-      {editando === 'nueva' ? (
-        <div className="tarjeta">
-          <Formulario inicial={VACIO} onGuardar={(b) => guardar(b)} onCancelar={() => setEditando(null)} />
-        </div>
-      ) : (
-        <button className="boton-primario" onClick={() => setEditando('nueva')}>
-          <Plus className="size-4" /> Añadir cuenta
-        </button>
-      )}
-
-      <p className="text-xs text-zinc-500">
-        La hipoteca no tiene movimientos propios: su cuota se carga en una de las cuentas y computa en Vivienda,
-        subcategoría Hipoteca.
+      <p className="px-4 text-xs text-zinc-500">
+        Cada cuenta se identifica solo por su alias: la app rechaza números de cuenta, IBAN y números de tarjeta. La hipoteca no tiene
+        movimientos propios: su cuota se carga en una cuenta y computa en Vivienda, subcategoría Hipoteca.
       </p>
     </div>
   )
@@ -135,18 +126,11 @@ function Formulario({
   }
 
   return (
-    <form onSubmit={enviar} className="space-y-3">
+    <form onSubmit={enviar} className="space-y-3 bg-zinc-50 px-4 py-4 dark:bg-zinc-800/40">
       <div className="grid gap-3 sm:grid-cols-3">
-        <label className="sm:col-span-1">
+        <label>
           <span className="etiqueta">Alias</span>
-          <input
-            className="campo"
-            value={b.alias}
-            maxLength={40}
-            autoFocus
-            placeholder="Cuenta principal"
-            onChange={(e) => setB({ ...b, alias: e.target.value })}
-          />
+          <input className="campo" value={b.alias} maxLength={40} autoFocus placeholder="Cuenta principal" onChange={(e) => setB({ ...b, alias: e.target.value })} />
         </label>
         <label>
           <span className="etiqueta">Tipo</span>
@@ -160,22 +144,17 @@ function Formulario({
         </label>
         <label>
           <span className="etiqueta">Entidad</span>
-          <input
-            className="campo"
-            value={b.entidad}
-            maxLength={40}
-            placeholder="BBVA"
-            onChange={(e) => setB({ ...b, entidad: e.target.value })}
-          />
+          <input className="campo" value={b.entidad} maxLength={40} placeholder="BBVA" onChange={(e) => setB({ ...b, entidad: e.target.value })} />
         </label>
       </div>
+      <FilaInterruptor texto="Activa" nota="Las cuentas inactivas no aparecen al importar" activo={b.activa} onCambio={(activa) => setB({ ...b, activa })} />
       {error && <Aviso>{error}</Aviso>}
-      <div className="flex gap-2">
-        <button type="submit" className="boton-primario" disabled={guardando}>
-          Guardar
-        </button>
+      <div className="flex justify-end gap-2">
         <button type="button" className="boton-secundario" onClick={onCancelar}>
           Cancelar
+        </button>
+        <button type="submit" className="boton-primario" disabled={guardando}>
+          Guardar
         </button>
       </div>
     </form>

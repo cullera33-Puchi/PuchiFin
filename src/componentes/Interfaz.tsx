@@ -144,3 +144,35 @@ export function Hoja({
     </div>
   )
 }
+
+/** Interruptor al estilo de iOS */
+export function Interruptor({ activo, onCambio, etiqueta, disabled }: { activo: boolean; onCambio: (v: boolean) => void; etiqueta: string; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={activo}
+      aria-label={etiqueta}
+      disabled={disabled}
+      onClick={() => onCambio(!activo)}
+      className={`relative h-[31px] w-[51px] shrink-0 rounded-full transition-colors duration-200 disabled:opacity-40 ${activo ? 'bg-[#34C759]' : 'bg-zinc-300 dark:bg-zinc-700'}`}
+    >
+      <span
+        className={`absolute top-[2px] left-[2px] size-[27px] rounded-full bg-white shadow-[0_3px_8px_rgba(0,0,0,0.15),0_1px_1px_rgba(0,0,0,0.16)] transition-transform duration-200 ${activo ? 'translate-x-5' : ''}`}
+      />
+    </button>
+  )
+}
+
+/** Fila con etiqueta e interruptor */
+export function FilaInterruptor({ texto, nota, activo, onCambio }: { texto: string; nota?: string; activo: boolean; onCambio: (v: boolean) => void }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm">{texto}</p>
+        {nota && <p className="text-xs text-zinc-500">{nota}</p>}
+      </div>
+      <Interruptor activo={activo} onCambio={onCambio} etiqueta={texto} />
+    </div>
+  )
+}

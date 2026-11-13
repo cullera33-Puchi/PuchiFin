@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.3.0",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Aspecto más propio del iPhone: iconos de trazo fino en baldosas de color, como en Ajustes de iOS, y barra de pestañas flotante.",
+      "Las categorías se eligen de un catálogo de iconos y de la paleta de colores de iOS, en lugar de emojis.",
+      "Interruptores, controles segmentados y listas agrupadas al estilo de iOS; las filas se tocan para editar.",
+      "Resumen en PDF «Para compartir»: solo ingresos, gastos, ahorro y gasto por categoría, en una página."
+    ]
+  },
+  {
     "version": "0.2.0",
     "fecha": "2026-11-13",
     "cambios": [

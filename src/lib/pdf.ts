@@ -11,6 +11,8 @@ import { NOMBRE_TIPO_MOVIMIENTO, type Categoria } from './tipos'
 import { APP_VERSION } from './version'
 
 export interface OpcionesPdf {
+  /** Reducida: solo indicadores y gasto por categoría, para compartir */
+  reducida?: boolean
   /** Conceptos de los movimientos. Sin ellos, solo fechas, categorías e importes */
   incluirConceptos: boolean
   /** Si hay datos de prueba, el PDF lo avisa */
@@ -42,6 +44,7 @@ function hexARgb(hex: string): [number, number, number] {
 export function generarPdfResumen(r: Resumen, opciones: OpcionesPdf): jsPDF {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
   const esMes = r.periodo.tipo === 'mes'
+  const reducida = !!opciones.reducida
   const nombreAnterior = r.anterior.nombreCorto
   const tituloAnterior = esMes ? nombreAnterior : r.enCurso ? 'Semana anterior (mismos días)' : 'Semana anterior'
   const porId = new Map(opciones.categorias.map((c) => [c.id, c]))
@@ -144,7 +147,7 @@ export function generarPdfResumen(r: Resumen, opciones: OpcionesPdf): jsPDF {
     ])
     pesos.push(c.peso)
     colores.push(hexARgb(c.color))
-    if (esMes) {
+    if (esMes && !reducida) {
       for (const s of c.subcategorias) {
         const sub: CellDef = { content: `    ${s.nombre}`, styles: { textColor: GRIS, fontSize: 7.5 } }
         filasCategorias.push([sub, { content: eur(s.importe), styles: { textColor: GRIS, fontSize: 7.5 } }, '', '', ''])
@@ -190,7 +193,7 @@ export function generarPdfResumen(r: Resumen, opciones: OpcionesPdf): jsPDF {
   despues()
 
   // Ingresos
-  if (r.ingresosPorCategoria.length) {
+  if (!reducida && r.ingresosPorCategoria.length) {
     titulo('Ingresos')
     autoTable(doc, {
       ...estiloTabla,
@@ -203,7 +206,7 @@ export function generarPdfResumen(r: Resumen, opciones: OpcionesPdf): jsPDF {
   }
 
   // Semana a semana (mensual)
-  if (esMes && r.semanas.length) {
+  if (!reducida && esMes && r.semanas.length) {
     titulo('Semana a semana')
     autoTable(doc, {
       ...estiloTabla,
@@ -222,7 +225,9 @@ export function generarPdfResumen(r: Resumen, opciones: OpcionesPdf): jsPDF {
   }
 
   // Movimientos de la semana (semanal) o mayores gastos (mensual)
-  if (!esMes) {
+  if (reducida) {
+    // Sin detalle de movimientos
+  } else if (!esMes) {
     titulo('Movimientos de la semana', 'En gris, los que no computan en el extracto')
     const filas: RowInput[] = r.movimientos.map((m) => {
       const fuera = m.tipo !== 'normal'
@@ -260,11 +265,11 @@ export function generarPdfResumen(r: Resumen, opciones: OpcionesPdf): jsPDF {
     despues()
   }
 
-  // Lo que no computa
-  titulo('Fuera del extracto')
-  const lineas = lineasFueraDelExtracto(r)
+  // Lo que no computa (solo en la versión completa)
+  const lineas = reducida ? [] : lineasFueraDelExtracto(r)
+  if (!reducida) titulo('Fuera del extracto')
   doc.setTextColor(...TINTA).setFont('helvetica', 'normal').setFontSize(8.5)
-  y += 3
+  if (lineas.length) y += 3
   for (const l of lineas) {
     const partes = doc.splitTextToSize(l, ANCHO - 2 * MARGEN)
     if (y + partes.length * 4.2 > 282) {
@@ -287,6 +292,7 @@ export function generarPdfResumen(r: Resumen, opciones: OpcionesPdf): jsPDF {
   return doc
 }
 
-export function nombreArchivoResumen(r: Resumen): string {
-  return r.periodo.tipo === 'mes' ? `PuchiFin resumen ${r.periodo.inicio.slice(0, 7)}.pdf` : `PuchiFin semana ${r.periodo.inicio}.pdf`
+export function nombreArchivoResumen(r: Resumen, reducida = false): string {
+  const base = r.periodo.tipo === 'mes' ? `PuchiFin resumen ${r.periodo.inicio.slice(0, 7)}` : `PuchiFin semana ${r.periodo.inicio}`
+  return `${base}${reducida ? ' (reducido)' : ''}.pdf`
 }

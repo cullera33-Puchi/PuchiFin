@@ -4,7 +4,7 @@ export function Encabezado({ titulo, subtitulo, accion }: { titulo: string; subt
   return (
     <header className="mb-5 flex items-end justify-between gap-3">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{titulo}</h1>
+        <h1 className="text-[32px] leading-tight font-bold tracking-tight md:text-3xl">{titulo}</h1>
         {subtitulo && <p className="mt-0.5 text-sm text-zinc-500">{subtitulo}</p>}
       </div>
       {accion}
@@ -27,7 +27,7 @@ export function Aviso({ tipo = 'error', children }: { tipo?: 'error' | 'ok' | 'i
 
 export function Proximamente({ fase, children }: { fase: number; children: ReactNode }) {
   return (
-    <div className="tarjeta border-dashed text-sm text-zinc-600 dark:text-zinc-400">
+    <div className="tarjeta text-sm text-zinc-600 dark:text-zinc-400">
       <span className="mb-2 inline-block rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
         Fase {fase}
       </span>

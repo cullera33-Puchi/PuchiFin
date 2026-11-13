@@ -1,6 +1,9 @@
-import { ChevronDown, ChevronRight, Pencil, Plus } from 'lucide-react'
+import { Check, ChevronRight, Plus } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Aviso } from '../../componentes/Encabezado'
+import { Baldosa } from '../../componentes/Icono'
+import { ICONOS, ICONO_POR_DEFECTO } from '../../componentes/iconos'
+import { FilaInterruptor } from '../../componentes/Interfaz'
 import { mensajeError, supabase } from '../../lib/supabase'
 import type { Categoria, Naturaleza } from '../../lib/tipos'
 
@@ -50,8 +53,8 @@ export function Categorias() {
       nombre: nombre.trim(),
       padre_id: padre?.id ?? null,
       naturaleza,
-      color: padre?.color ?? '#607D8B',
-      icono: padre ? null : '🏷️',
+      color: padre?.color ?? '#8E8E93',
+      icono: padre ? null : ICONO_POR_DEFECTO,
       orden: hermanas.length + 1,
     })
     if (e) return mensajeError(e)
@@ -67,14 +70,13 @@ export function Categorias() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-zinc-500">{total} categorías activas</p>
-        <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-          <input type="checkbox" checked={verInactivas} onChange={(e) => setVerInactivas(e.target.checked)} />
-          Mostrar inactivas
-        </label>
+        <div className="w-52">
+          <FilaInterruptor texto="Mostrar inactivas" activo={verInactivas} onCambio={setVerInactivas} />
+        </div>
       </div>
       {error && <Aviso>{error}</Aviso>}
 
-      <ul className="tarjeta divide-y divide-zinc-100 p-0 dark:divide-zinc-800">
+      <ul className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
         {arbol.map(({ raiz, hijas }) => {
           const abierta = abiertas.has(raiz.id)
           return (
@@ -82,51 +84,42 @@ export function Categorias() {
               {editando === raiz.id ? (
                 <Editor categoria={raiz} todas={categorias ?? []} onFin={() => { setEditando(null); cargar() }} />
               ) : (
-                <div className={`flex items-center gap-3 px-4 py-3 ${raiz.activa ? '' : 'opacity-50'}`}>
-                  <button className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => alternar(raiz.id)}>
-                    {abierta ? <ChevronDown className="size-4 text-zinc-400" /> : <ChevronRight className="size-4 text-zinc-400" />}
-                    <span
-                      className="grid size-8 shrink-0 place-items-center rounded-lg text-base"
-                      style={{ backgroundColor: `${raiz.color ?? '#607D8B'}22` }}
-                    >
-                      {raiz.icono}
-                    </span>
-                    <span className="truncate font-medium">{raiz.nombre}</span>
+                <div className={`flex items-center gap-1 pr-3 ${raiz.activa ? '' : 'opacity-50'}`}>
+                  <button className="fila flex-1 hover:bg-zinc-50 dark:hover:bg-zinc-800/60" aria-expanded={abierta} onClick={() => alternar(raiz.id)}>
+                    <Baldosa icono={raiz.icono} color={raiz.color} />
+                    <span className="truncate">{raiz.nombre}</span>
                     {raiz.naturaleza === 'ingreso' && (
                       <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200">
                         Ingreso
                       </span>
                     )}
-                    <span className="ml-auto text-xs text-zinc-400">{hijas.length}</span>
+                    <span className="ml-auto text-sm text-zinc-400">{hijas.length}</span>
+                    <ChevronRight className={`size-4 text-zinc-400 transition-transform ${abierta ? 'rotate-90' : ''}`} strokeWidth={2} />
                   </button>
-                  <button className="boton-secundario px-2" aria-label={`Editar ${raiz.nombre}`} onClick={() => setEditando(raiz.id)}>
-                    <Pencil className="size-4" />
+                  <button className="boton-texto px-1" aria-label={`Editar ${raiz.nombre}`} onClick={() => setEditando(raiz.id)}>
+                    Editar
                   </button>
                 </div>
               )}
 
               {abierta && (
-                <ul className="border-t border-zinc-100 bg-zinc-50/60 py-1 dark:border-zinc-800 dark:bg-zinc-950/40">
+                <ul className="border-t border-zinc-200/70 bg-zinc-50/70 py-1 dark:border-zinc-800 dark:bg-zinc-950/40">
                   {hijas.map((h) =>
                     editando === h.id ? (
                       <li key={h.id}>
                         <Editor categoria={h} todas={categorias ?? []} onFin={() => { setEditando(null); cargar() }} />
                       </li>
                     ) : (
-                      <li key={h.id} className={`flex items-center gap-3 py-1.5 pr-4 pl-14 ${h.activa ? '' : 'opacity-50'}`}>
-                        <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: h.color ?? raiz.color ?? '#607D8B' }} />
+                      <li key={h.id} className={`flex items-center gap-3 py-2 pr-4 pl-[60px] ${h.activa ? '' : 'opacity-50'}`}>
+                        <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: h.color ?? raiz.color ?? '#8E8E93' }} />
                         <span className="flex-1 truncate text-sm">{h.nombre}</span>
-                        <button
-                          className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-800"
-                          aria-label={`Editar ${h.nombre}`}
-                          onClick={() => setEditando(h.id)}
-                        >
-                          <Pencil className="size-3.5" />
+                        <button className="boton-texto text-xs" aria-label={`Editar ${h.nombre}`} onClick={() => setEditando(h.id)}>
+                          Editar
                         </button>
                       </li>
                     ),
                   )}
-                  <li className="py-1.5 pr-4 pl-14">
+                  <li className="py-2 pr-4 pl-[60px]">
                     {nuevaEn === raiz.id ? (
                       <NuevaCategoria
                         placeholder="Nombre de la subcategoría"
@@ -134,8 +127,8 @@ export function Categorias() {
                         onCancelar={() => setNuevaEn(null)}
                       />
                     ) : (
-                      <button className="flex items-center gap-1 text-sm text-marca-700 hover:underline dark:text-marca-500" onClick={() => setNuevaEn(raiz.id)}>
-                        <Plus className="size-3.5" /> Añadir subcategoría
+                      <button className="boton-texto flex items-center gap-1" onClick={() => setNuevaEn(raiz.id)}>
+                        <Plus className="size-4" strokeWidth={2} /> Añadir subcategoría
                       </button>
                     )}
                   </li>
@@ -203,10 +196,13 @@ function NuevaCategoria({
   )
 }
 
+/** Paleta del sistema de iOS */
+const COLORES = ['#FF3B30', '#FF9500', '#F7B500', '#34C759', '#00C7BE', '#30B0C7', '#32ADE6', '#007AFF', '#5856D6', '#AF52DE', '#FF2D55', '#A2845E', '#8E8E93', '#636366']
+
 function Editor({ categoria, todas, onFin }: { categoria: Categoria; todas: Categoria[]; onFin: () => void }) {
   const [nombre, setNombre] = useState(categoria.nombre)
-  const [icono, setIcono] = useState(categoria.icono ?? '')
-  const [color, setColor] = useState(categoria.color ?? '#607D8B')
+  const [icono, setIcono] = useState(categoria.icono && ICONOS[categoria.icono] ? categoria.icono : ICONO_POR_DEFECTO)
+  const [color, setColor] = useState(categoria.color ?? '#8E8E93')
   const [activa, setActiva] = useState(categoria.activa)
   const [destino, setDestino] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -224,7 +220,7 @@ function Editor({ categoria, todas, onFin }: { categoria: Categoria; todas: Cate
     e.preventDefault()
     const { error: err } = await supabase
       .from('categorias')
-      .update({ nombre: nombre.trim(), icono: esRaiz ? icono || null : categoria.icono, color, activa })
+      .update({ nombre: nombre.trim(), icono: esRaiz ? icono : categoria.icono, color, activa })
       .eq('id', categoria.id)
     if (err) setError(mensajeError(err))
     else onFin()
@@ -243,33 +239,62 @@ function Editor({ categoria, todas, onFin }: { categoria: Categoria; todas: Cate
   }
 
   return (
-    <form onSubmit={guardar} className={`space-y-3 bg-marca-50/50 px-4 py-3 dark:bg-marca-900/20 ${esRaiz ? '' : 'pl-14'}`}>
-      <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
-        <label>
+    <form onSubmit={guardar} className={`space-y-4 bg-zinc-50 px-4 py-4 dark:bg-zinc-800/40 ${esRaiz ? '' : 'pl-[60px]'}`}>
+      <div className="flex items-end gap-3">
+        {esRaiz && <Baldosa icono={icono} color={color} tamano="lg" />}
+        <label className="flex-1">
           <span className="etiqueta">Nombre</span>
           <input className="campo" value={nombre} maxLength={60} onChange={(e) => setNombre(e.target.value)} />
         </label>
-        {esRaiz && (
-          <label>
-            <span className="etiqueta">Icono</span>
-            <input className="campo w-20 text-center" value={icono} maxLength={4} onChange={(e) => setIcono(e.target.value)} />
+      </div>
+      <div>
+        <span className="etiqueta">Color</span>
+        <div className="flex flex-wrap items-center gap-2">
+          {COLORES.map((c) => (
+            <button
+              key={c}
+              type="button"
+              aria-label={`Color ${c}`}
+              aria-pressed={color.toUpperCase() === c}
+              className="grid size-8 place-items-center rounded-full text-white"
+              style={{ backgroundColor: c }}
+              onClick={() => setColor(c)}
+            >
+              {color.toUpperCase() === c && <Check className="size-4" strokeWidth={3} />}
+            </button>
+          ))}
+          <label className="relative grid size-8 cursor-pointer place-items-center overflow-hidden rounded-full bg-[conic-gradient(#FF3B30,#FF9500,#FFCC00,#34C759,#007AFF,#AF52DE,#FF3B30)]" title="Otro color">
+            <input type="color" className="absolute inset-0 cursor-pointer opacity-0" value={color} onChange={(e) => setColor(e.target.value.toUpperCase())} />
           </label>
-        )}
-        <label>
-          <span className="etiqueta">Color</span>
-          <input type="color" className="h-[42px] w-16 cursor-pointer rounded-lg border border-zinc-300 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-950" value={color} onChange={(e) => setColor(e.target.value)} />
-        </label>
+        </div>
       </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={activa} onChange={(e) => setActiva(e.target.checked)} />
-        Activa
-      </label>
+      {esRaiz && (
+        <div>
+          <span className="etiqueta">Icono</span>
+          <div className="grid grid-cols-8 gap-2 sm:grid-cols-10">
+            {Object.entries(ICONOS).map(([clave, { nombre: n }]) => (
+              <button
+                key={clave}
+                type="button"
+                title={n}
+                aria-label={n}
+                aria-pressed={icono === clave}
+                onClick={() => setIcono(clave)}
+                className={`grid place-items-center rounded-[10px] p-0.5 ring-offset-2 transition ${icono === clave ? 'ring-2 ring-marca-600 dark:ring-offset-zinc-900' : 'opacity-80 hover:opacity-100'}`}
+              >
+                <Baldosa icono={clave} color={icono === clave ? color : '#8E8E93'} />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <FilaInterruptor texto="Activa" nota="Las inactivas no se ofrecen al categorizar" activo={activa} onCambio={setActiva} />
       {error && <Aviso>{error}</Aviso>}
-      <div className="flex flex-wrap gap-2">
-        <button type="submit" className="boton-primario">Guardar</button>
+      <div className="flex justify-end gap-2">
         <button type="button" className="boton-secundario" onClick={onFin}>Cancelar</button>
+        <button type="submit" className="boton-primario">Guardar</button>
       </div>
-      <div className="border-t border-zinc-200 pt-3 dark:border-zinc-800">
+      <div className="border-t border-zinc-200 pt-4 dark:border-zinc-700">
         <span className="etiqueta">Fusionar en otra categoría</span>
         <div className="flex flex-wrap gap-2">
           <select className="campo min-w-48 flex-1" value={destino} onChange={(e) => setDestino(e.target.value)}>

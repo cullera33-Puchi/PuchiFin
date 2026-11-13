@@ -32,8 +32,20 @@ describe('generarPdfResumen', () => {
     expect(doc.getNumberOfPages()).toBe(1)
   })
 
+  it('la versión reducida ocupa una página y no lleva conceptos', () => {
+    const r = calcularResumen(periodoMes('2026-11-01'), datos.movimientos, categorias, datos.conciliaciones)
+    const completa = generarPdfResumen(r, { incluirConceptos: true, hayDatosPrueba: false, categorias })
+    const reducida = generarPdfResumen(r, { incluirConceptos: true, hayDatosPrueba: false, categorias, reducida: true })
+    expect(reducida.getNumberOfPages()).toBe(1)
+    const texto = (d: typeof reducida) => new TextDecoder('latin1').decode(new Uint8Array(d.output('arraybuffer')))
+    expect(texto(completa)).toContain('Mercadona')
+    expect(texto(reducida)).not.toContain('Mercadona')
+    expect(texto(reducida)).not.toContain('Fuera del extracto')
+  })
+
   it('nombra el archivo según el periodo', () => {
     expect(nombreArchivoResumen(calcularResumen(periodoMes('2026-11-05'), [], categorias))).toBe('PuchiFin resumen 2026-11.pdf')
     expect(nombreArchivoResumen(calcularResumen(periodoSemana('2026-11-13'), [], categorias))).toBe('PuchiFin semana 2026-11-09.pdf')
+    expect(nombreArchivoResumen(calcularResumen(periodoMes('2026-11-05'), [], categorias), true)).toBe('PuchiFin resumen 2026-11 (reducido).pdf')
   })
 })

@@ -4,7 +4,8 @@
 -- si el usuario ya tiene ajustes, no hace nada. Carga:
 --   * la fila de ajustes con los valores por defecto,
 --   * las cuatro cuentas previstas por alias (sin números),
---   * el catálogo predeterminado de categorías (apartado 5),
+--   * el catálogo predeterminado de categorías (apartado 5), con la clave del icono
+--     (src/componentes/Icono.tsx) y colores de la paleta del sistema de iOS,
 --   * el compromiso de la deuda familiar con los valores iniciales (apartado 10).
 -- Se ejecuta con los permisos del usuario (security invoker), así que pasa por RLS.
 
@@ -40,20 +41,20 @@ begin
 
   for cat in
     select * from (values
-      ('Vivienda',               '🏠', '#8D6E63', 'gasto',   array['Hipoteca', 'Comunidad', 'IBI y tasas', 'Seguro de hogar', 'Mantenimiento y reformas']),
-      ('Suministros',            '💡', '#F9A825', 'gasto',   array['Luz', 'Agua', 'Fibra y móvil']),
-      ('Alimentación',           '🛒', '#43A047', 'gasto',   array['Supermercado', 'Mercado y tiendas']),
-      ('Restaurantes y ocio',    '🍽️', '#E53935', 'gasto',   array['Restaurantes', 'Cafeterías', 'Ocio', 'Cultura']),
-      ('Transporte',             '🚗', '#1E88E5', 'gasto',   array['Combustible', 'Peajes', 'Aparcamiento', 'Transporte público', 'Mantenimiento del coche']),
-      ('Hijos',                  '🧒', '#FB8C00', 'gasto',   array['Colegio', 'Extraescolares', 'Ropa', 'Cuidado']),
-      ('Salud',                  '🩺', '#00897B', 'gasto',   array['Farmacia', 'Seguro médico', 'Consultas']),
-      ('Compras',                '🛍️', '#8E24AA', 'gasto',   array['Ropa', 'Hogar', 'Tecnología', 'Regalos']),
-      ('Suscripciones',          '🔁', '#5E35B1', 'gasto',   array['Plataformas', 'Software', 'Cuotas']),
-      ('Viajes',                 '✈️', '#039BE5', 'gasto',   array['Alojamiento', 'Transporte', 'Actividades']),
-      ('Seguros',                '🛡️', '#546E7A', 'gasto',   array['Coche', 'Vida', 'Otros']),
-      ('Comisiones e intereses', '🏦', '#757575', 'gasto',   array['Comisiones bancarias', 'Intereses de tarjeta']),
-      ('Impuestos',              '🧾', '#6D4C41', 'gasto',   array['IRPF', 'Otros']),
-      ('Ingresos',               '💶', '#2E7D32', 'ingreso', array['Nómina', 'Otros ingresos'])
+      ('Vivienda',               'casa', '#FF9500', 'gasto',   array['Hipoteca', 'Comunidad', 'IBI y tasas', 'Seguro de hogar', 'Mantenimiento y reformas']),
+      ('Suministros',            'bombilla', '#F7B500', 'gasto',   array['Luz', 'Agua', 'Fibra y móvil']),
+      ('Alimentación',           'carrito', '#34C759', 'gasto',   array['Supermercado', 'Mercado y tiendas']),
+      ('Restaurantes y ocio',    'cubiertos', '#FF3B30', 'gasto',   array['Restaurantes', 'Cafeterías', 'Ocio', 'Cultura']),
+      ('Transporte',             'coche', '#007AFF', 'gasto',   array['Combustible', 'Peajes', 'Aparcamiento', 'Transporte público', 'Mantenimiento del coche']),
+      ('Hijos',                  'bebe', '#FF2D55', 'gasto',   array['Colegio', 'Extraescolares', 'Ropa', 'Cuidado']),
+      ('Salud',                  'salud', '#30B0C7', 'gasto',   array['Farmacia', 'Seguro médico', 'Consultas']),
+      ('Compras',                'bolsa', '#AF52DE', 'gasto',   array['Ropa', 'Hogar', 'Tecnología', 'Regalos']),
+      ('Suscripciones',          'repetir', '#5856D6', 'gasto',   array['Plataformas', 'Software', 'Cuotas']),
+      ('Viajes',                 'avion', '#32ADE6', 'gasto',   array['Alojamiento', 'Transporte', 'Actividades']),
+      ('Seguros',                'escudo', '#8E8E93', 'gasto',   array['Coche', 'Vida', 'Otros']),
+      ('Comisiones e intereses', 'banco', '#636366', 'gasto',   array['Comisiones bancarias', 'Intereses de tarjeta']),
+      ('Impuestos',              'recibo', '#A2845E', 'gasto',   array['IRPF', 'Otros']),
+      ('Ingresos',               'billete', '#00C7BE', 'ingreso', array['Nómina', 'Otros ingresos'])
     ) as c(nombre, icono, color, naturaleza, subcategorias)
   loop
     orden_cat := orden_cat + 1;

@@ -16,21 +16,21 @@ export function Ajustes() {
       <Encabezado
         titulo="Ajustes"
         accion={
-          <button className="boton-secundario md:hidden" onClick={salir} title={sesion?.user.email ?? ''}>
+          <button className="boton-texto md:hidden" onClick={salir} title={sesion?.user.email ?? ''}>
             Salir
           </button>
         }
       />
-      <nav className="mb-5 flex gap-1 rounded-xl bg-zinc-200/70 p-1 dark:bg-zinc-800/70">
+      <nav className="mb-5 flex gap-0.5 rounded-[9px] bg-zinc-200/80 p-0.5 dark:bg-zinc-800">
         {PESTANAS.map(({ a, texto }) => (
           <NavLink
             key={a}
             to={a}
             className={({ isActive }) =>
-              `flex-1 rounded-lg px-2 py-1.5 text-center text-sm font-medium transition-colors ${
+              `flex-1 rounded-[7px] px-1 py-1 text-center text-[13px] font-medium transition ${
                 isActive
-                  ? 'bg-white text-zinc-900 shadow-xs dark:bg-zinc-950 dark:text-zinc-100'
-                  : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'
+                  ? 'bg-white text-zinc-900 shadow-[0_3px_8px_rgba(0,0,0,0.12),0_3px_1px_rgba(0,0,0,0.04)] dark:bg-zinc-600 dark:text-white'
+                  : 'text-zinc-700 dark:text-zinc-300'
               }`
             }
           >
