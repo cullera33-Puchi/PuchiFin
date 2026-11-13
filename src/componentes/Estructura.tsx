@@ -61,7 +61,7 @@ export function Estructura() {
 
       {/* Barra de pestañas de iOS: abajo, translúcida, icono relleno en la activa */}
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-black/10 bg-[#F9F9F9]/80 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl backdrop-saturate-150 dark:border-white/10 dark:bg-[#161618]/80">
-        <div className="mx-auto grid h-12 max-w-lg grid-cols-5">
+        <div className="mx-auto grid h-12 max-w-lg grid-cols-4">
           {SECCIONES.map(({ a, texto, icono: Icono, fin }) => (
             <NavLink key={a} to={a} end={fin} className="flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium">
               {({ isActive }) => {

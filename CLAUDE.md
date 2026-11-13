@@ -135,6 +135,7 @@ Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alt
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.15.2 (13/11/2026): barra de pestañas a cuatro columnas, sin hueco a la derecha.
 - v0.15.1 (13/11/2026): deslizar una fila ya no cambia de mes ni vuelve atrás (el gesto que empieza en una fila es solo de la fila; volver, desde el mismo borde). En Informes, dentro de una categoría, las subcategorías filtran los movimientos.
 - v0.15.0 (13/11/2026): fuera la gestión de gastos de empleado (decisión del usuario: no la usa). Sin pestaña Empleado, sin propuestas automáticas, sin conciliación ni pendiente de reembolso. Queda el marcado rápido: deslizar hacia la derecha, «No cuenta» (gasto a gasto de empleado, ingreso a reembolso) o «Cuenta»; la categoría pasa a deslizar hacia la izquierda. Reglas de la app retiradas con `REGLAS_RETIRADAS`. Sin cambio de esquema.
 - v0.14.1 (13/11/2026): el cuadre de la tarjeta cuenta los abonos de compras fraccionadas o financiadas y excluye solo el pago de la liquidación; «Dar por buena» una liquidación que no cuadra (esquema 9, `cuadre_confirmado`).

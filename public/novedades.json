@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.15.2",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Las cuatro pestañas de abajo ocupan ahora todo el ancho, sin hueco a la derecha."
+    ]
+  },
+  {
     "version": "0.15.1",
     "fecha": "2026-11-13",
     "cambios": [

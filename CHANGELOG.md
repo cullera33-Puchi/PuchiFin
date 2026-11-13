@@ -2,6 +2,10 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.15.2. Barra de pestañas a cuatro columnas (13 de noviembre de 2026)
+
+- `Estructura.tsx`: la barra de pestañas seguía con cinco columnas tras quitar Empleado y dejaba un hueco a la derecha. Ahora son cuatro.
+
 ## v0.15.1. Gesto de las filas sin cambiar de pantalla y filtro por subcategoría (13 de noviembre de 2026)
 
 - Gestos (`gestos.tsx`): un gesto que empieza sobre una fila deslizable (`data-fila-deslizable`) es solo de la fila. `Deslizable` (cambio de mes) lo ignora y `useVolverDesdeBorde` solo lo toma si empieza en los primeros 12 px de la pantalla, fuera de la fila. La fila se fija como horizontal solo con un movimiento claramente lateral (1,2 veces el vertical).
