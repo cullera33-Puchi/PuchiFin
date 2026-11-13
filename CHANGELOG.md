@@ -2,6 +2,11 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.19.1. La pantalla de detrás no se mueve con una hoja abierta (13 de noviembre de 2026)
+
+- `Interfaz.tsx`: mientras haya una hoja abierta, un `touchmove` no pasivo en el documento anula el gesto si no hay una zona desplazable de la hoja bajo el dedo (cabecera, velo, contenido que cabe entero) o si esa zona ya está en su principio o su final en la dirección del gesto. Safari en el iPhone pasaba ese desplazamiento a la página aunque el contenido tuviera `overscroll-behavior: contain`. Los gestos laterales y el cierre arrastrando no cambian.
+- Comprobado en el navegador con gestos táctiles: sin el cambio, un gesto sobre el velo desplazaba la página; con el cambio, no.
+
 ## v0.19.0. Tu posición: capital de un vistazo (13 de noviembre de 2026)
 
 - `calcularPosicion` (`src/lib/posicion.ts`): saldo de cada cuenta bancaria activa según el banco (`cuadrarCuenta`, último Disponible), pendiente de cada tarjeta (`pendienteTarjeta` en `src/lib/tarjeta.ts`: lo posterior al último tramo liquidado; sin liquidaciones, el mes de la última compra, marcado como aproximado), capital (cuentas más pendiente), saldo de las cuentas a final de los últimos 12 meses y variación frente al cierre del mes anterior.

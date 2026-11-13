@@ -88,10 +88,53 @@ export function ProveedorInterfaz({ children }: { children: ReactNode }) {
   )
 }
 
-/** Hojas abiertas a la vez: mientras haya alguna, la pantalla de detrás se encoge */
+/**
+ * Con una hoja abierta, la pantalla de detrás no se desplaza. Safari en el iPhone pasa el scroll a la
+ * página cuando el contenido de la hoja llega a su principio o a su final, o cuando el dedo está fuera de
+ * una zona desplazable (cabecera, velo): ahí se anula el gesto. Dentro de la hoja, lo que se desplaza
+ * sigue funcionando (lista, nota) y los gestos laterales no se tocan.
+ */
+let inicioToque = { x: 0, y: 0 }
+function alEmpezarToque(e: TouchEvent) {
+  const t = e.touches[0]
+  if (t) inicioToque = { x: t.clientX, y: t.clientY }
+}
+function desplazable(desde: Element | null, tope: Element): HTMLElement | null {
+  for (let el = desde; el && el !== tope.parentElement; el = el.parentElement) {
+    if (!(el instanceof HTMLElement)) continue
+    const oy = getComputedStyle(el).overflowY
+    if ((oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight + 1) return el
+  }
+  return null
+}
+function bloquearFondo(e: TouchEvent) {
+  const t = e.touches[0]
+  if (!t || !e.cancelable) return
+  const dx = t.clientX - inicioToque.x
+  const dy = t.clientY - inicioToque.y
+  const objetivo = e.target instanceof Element ? e.target : null
+  const panel = objetivo?.closest('[role="dialog"]')
+  // Lateral dentro de una hoja (filas, chips): no afecta a la página
+  if (panel && Math.abs(dx) > Math.abs(dy)) return
+  const zona = panel ? desplazable(objetivo, panel) : null
+  if (!zona) return e.preventDefault()
+  const arriba = zona.scrollTop <= 0
+  const abajo = zona.scrollTop + zona.clientHeight >= zona.scrollHeight - 1
+  if ((dy > 0 && arriba) || (dy < 0 && abajo)) e.preventDefault()
+}
+
+/** Hojas abiertas a la vez: mientras haya alguna, la pantalla de detrás se encoge y no se desplaza */
 let hojasAbiertas = 0
 function marcarHoja(abre: boolean) {
+  const antes = hojasAbiertas
   hojasAbiertas = Math.max(0, hojasAbiertas + (abre ? 1 : -1))
+  if (!antes && hojasAbiertas) {
+    document.addEventListener('touchstart', alEmpezarToque, { passive: true, capture: true })
+    document.addEventListener('touchmove', bloquearFondo, { passive: false, capture: true })
+  } else if (antes && !hojasAbiertas) {
+    document.removeEventListener('touchstart', alEmpezarToque, { capture: true })
+    document.removeEventListener('touchmove', bloquearFondo, { capture: true })
+  }
   const contenido = document.getElementById('contenido')
   if (abre && contenido) {
     // Que se encoja hacia el centro de lo que se ve, no hacia el centro de la página entera

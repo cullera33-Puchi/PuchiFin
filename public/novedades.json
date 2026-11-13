@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.19.1",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Con un movimiento abierto, al desplazarte por la hoja la pantalla de detrás ya no se mueve.",
+      "Cerrar la hoja arrastrándola hacia abajo sigue igual."
+    ]
+  },
+  {
     "version": "0.19.0",
     "fecha": "2026-11-13",
     "cambios": [

@@ -135,6 +135,7 @@ Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alt
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.19.1 (13/11/2026): con una hoja abierta, la pantalla de detrás ya no se desplaza (bloqueo del gesto fuera de las zonas desplazables de la hoja y en sus extremos).
 - v0.19.0 (13/11/2026): «Tu posición» arriba del Extracto: capital (cuentas según el banco menos lo pendiente de la tarjeta), saldo por cuenta, variación del mes, evolución y ojo para ocultar las cifras (`calcularPosicion`, `pendienteTarjeta`).
 - v0.18.0 (13/11/2026): tira de periodos con botones grandes en el Extracto e Informes (`TiraPeriodos`); aviso de 5 días sin importar por cuenta (`avisoImportacion`); registro saneado (sin comercios, importes ni categorías), con repeticiones agrupadas y «Borrar» a la vista.
 - v0.17.0 (13/11/2026): crear una categoría al momento desde el selector de categoría, con aviso de las parecidas que ya existen (`categoriasParecidas`: igual, parecida o sinónimo) y «Usar esta»; la igual en el mismo nivel no se duplica. También en Ajustes, Categorías.
