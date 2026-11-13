@@ -34,9 +34,9 @@ npm run dev
 
 ## Publicar
 
-La app es estática: Vercel (plan gratuito) con `vercel.json`, que ya incluye la reescritura de rutas y cabeceras de seguridad. No necesita variables de entorno. En el iPhone, abrir la URL en Safari y «Añadir a pantalla de inicio».
+La app está en **https://cullera33-puchi.github.io/PuchiFin/**. Cada envío a `main` la publica con GitHub Pages (`.github/workflows/publicar.yml`): tests, build con `BASE_PATH=/PuchiFin/`, `404.html` para los enlaces directos y publicación. Requisito, una sola vez: en el repositorio, Settings, Pages, Source: GitHub Actions.
 
-Los datos dependen de la dirección de la app: si cambia el dominio, se exportan en el antiguo y se importan en el nuevo.
+En el iPhone: abrir la dirección en Safari, Compartir, «Añadir a pantalla de inicio». Los datos dependen de esa dirección: si cambia, se exportan en la antigua y se importan en la nueva.
 
 ### Nueva versión
 

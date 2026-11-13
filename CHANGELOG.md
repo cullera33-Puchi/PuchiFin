@@ -2,6 +2,12 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.4.2. Publicación en GitHub Pages (13 de noviembre de 2026)
+
+- Flujo `.github/workflows/publicar.yml`: en cada envío a `main`, tests, build con `BASE_PATH=/<repositorio>/`, copia de `index.html` a `404.html` y publicación con `actions/deploy-pages`.
+- La app admite una ruta base: `base` de Vite, `basename` del router, `start_url`, `scope` e `id` del manifiesto y lectura de `novedades.json` relativa a la base.
+- Se retira `vercel.json`. Comprobado en un servidor que imita GitHub Pages: inicio, navegación, enlaces directos, service worker y novedades bajo `/PuchiFin/`.
+
 ## v0.4.1. Solo iPhone (13 de noviembre de 2026)
 
 - Decisión del usuario: de momento, solo la app del iPhone con los datos en el móvil. Escritorio, Google y sincronización, para más adelante.

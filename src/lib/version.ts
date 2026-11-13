@@ -54,7 +54,7 @@ let enCurso: Promise<Novedad[] | null> | null = null
 
 /** Lee novedades.json sin caché. Devuelve null si no se puede leer */
 export function cargarNovedades(): Promise<Novedad[] | null> {
-  enCurso ??= fetch('/novedades.json', { cache: 'no-store' })
+  enCurso ??= fetch(`${import.meta.env.BASE_URL}novedades.json`, { cache: 'no-store' })
     .then((r) => {
       if (!r.ok) throw new Error(`HTTP ${r.status}`)
       return r.json()

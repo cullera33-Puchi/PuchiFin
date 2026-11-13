@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.4.2",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "PuchiFin ya está publicada: ábrela en Safari y añádela a la pantalla de inicio para usarla como una app.",
+      "Funciona sin conexión una vez instalada, y las nuevas versiones llegan solas con su aviso de novedades."
+    ]
+  },
+  {
     "version": "0.4.1",
     "fecha": "2026-11-13",
     "cambios": [

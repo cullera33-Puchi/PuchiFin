@@ -15,7 +15,7 @@ import { Resumenes } from './paginas/Resumenes'
 
 export function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || '/'}>
       <ProveedorInterfaz>
         <ProveedorActualizacion>
           <ProveedorDatos>

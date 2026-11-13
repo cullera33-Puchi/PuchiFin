@@ -21,7 +21,7 @@ La especificación funcional completa está en la segunda parte de este document
 - Lectura de Excel: SheetJS, siempre en el navegador.
 - Datos: solo en el iPhone (IndexedDB), sin backend ni base de datos externa (decisión del usuario del 13/11/2026). Exportar un archivo JSON es la copia fuera del móvil; importarlo lo recupera todo exactamente igual (por ejemplo, en un iPhone nuevo). Supabase queda en pausa (`supabase/README.md`).
 - Gráficos: Recharts.
-- Despliegue: gratuito (Vercel o GitHub Pages).
+- Despliegue: GitHub Pages en `https://cullera33-puchi.github.io/PuchiFin/`, publicado por `.github/workflows/publicar.yml` en cada envío a `main` (tests, build con la ruta `/PuchiFin/` y publicación).
 - Todos los servicios deben ser gratuitos. No usar la API de Anthropic ni ningún servicio de pago.
 
 ## Reglas que no se pueden saltar
@@ -96,7 +96,7 @@ Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (po
 - Ordenante y concepto de la transferencia de reembolso de la empresa.
 - Si la deuda familiar tiene intereses y si el colchón se mide sobre el saldo conjunto de las dos cuentas (afecta a la fase 4).
 - Entidad de cada cuenta y cuenta desde la que se paga la hipoteca.
-- El repositorio es público. No contiene datos personales, pero para una app de finanzas conviene hacerlo privado (Vercel funciona igual). el usuario lo deja pendiente.
+- El repositorio es público. No contiene datos personales. El usuario lo deja pendiente. Ojo: GitHub Pages en un repositorio privado exige un plan de pago de GitHub; si se hace privado, habría que publicar en otro servicio gratuito (por ejemplo, Vercel).
 
 ## Estado
 
@@ -108,6 +108,7 @@ Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (po
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.4.2 (13/11/2026): publicada en GitHub Pages (`https://cullera33-puchi.github.io/PuchiFin/`). La app admite publicarse en una subcarpeta (variable `BASE_PATH`) y `404.html` hace que funcionen los enlaces directos.
 - v0.4.1 (13/11/2026): solo la app del iPhone. Se retira el diseño de escritorio (barra lateral y variantes para pantalla ancha); en un navegador de ordenador se ve la misma columna de móvil. Textos de la app centrados en el iPhone.
 - v0.4.0 (13/11/2026): los datos pasan a guardarse solo en el dispositivo (IndexedDB), sin Supabase ni acceso con Google. Exportar e importar un archivo JSON deja otro dispositivo exactamente igual. Las reglas que comprobaba Postgres (datos identificativos, alias únicos, dos niveles de categoría, deduplicación, borrado en cascada) están en `src/datos/operaciones.ts`. Aviso en el Extracto si hay datos reales sin exportar en 14 días. El nombre del familiar (alias Familia) se guardará también en el dispositivo.
 - v0.3.0 (13/11/2026): estilo iOS (iconos en baldosas, barra de pestañas flotante, interruptores, listas agrupadas) y PDF reducido para compartir, ambos pedidos por el usuario.

@@ -7,7 +7,11 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
 
+// Ruta de publicación: en GitHub Pages, /PuchiFin/ (la pone el flujo de publicación); en local, /
+const base = process.env.BASE_PATH ?? '/'
+
 export default defineConfig({
+  base,
   define: {
     __APP_VERSION__: JSON.stringify(version),
   },
@@ -22,7 +26,9 @@ export default defineConfig({
         short_name: 'PuchiFin',
         description: 'Finanzas personales: extracto mensual, gastos de empleado y presupuesto',
         lang: 'es',
-        start_url: '/',
+        start_url: base,
+        scope: base,
+        id: base,
         display: 'standalone',
         background_color: '#0b1220',
         theme_color: '#0f766e',
