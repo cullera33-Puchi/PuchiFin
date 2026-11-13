@@ -14,6 +14,7 @@ import { Extracto } from './paginas/Extracto'
 import { CategoriaMes } from './paginas/CategoriaMes'
 import { Importaciones } from './paginas/Importaciones'
 import { Movimientos } from './paginas/Movimientos'
+import { Categorizar } from './paginas/Categorizar'
 import { Reglas } from './paginas/ajustes/Reglas'
 import { RevisarEmpleado } from './paginas/RevisarEmpleado'
 import { Resumenes } from './paginas/Resumenes'
@@ -41,6 +42,7 @@ export function App() {
                 <Route path="movimientos" element={<Movimientos />} />
                 <Route path="movimientos/importar" element={<Suspense fallback={cargando}><Importar /></Suspense>} />
                 <Route path="movimientos/importaciones" element={<Importaciones />} />
+                <Route path="movimientos/categorizar" element={<Categorizar />} />
                 <Route path="ajustes/reglas" element={<Reglas />} />
                 <Route path="empleado" element={<Empleado />} />
                 <Route path="empleado/revisar" element={<RevisarEmpleado />} />

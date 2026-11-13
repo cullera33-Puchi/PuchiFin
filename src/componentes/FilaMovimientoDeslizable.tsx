@@ -59,7 +59,6 @@ export function FilaMovimientoDeslizable({ m, onPulsar, conFecha }: { m: Movimie
         onCerrar={() => setCorreccion(undefined)}
         onHecho={() => {
           setCorreccion(undefined)
-          avisar('Categoría corregida')
         }}
       />
     </>

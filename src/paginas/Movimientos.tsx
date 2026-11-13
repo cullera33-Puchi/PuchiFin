@@ -1,4 +1,5 @@
-import { Briefcase, History, Search, SlidersHorizontal, Tag, Upload, X } from 'lucide-react'
+import { Briefcase, ChevronRight, History, Search, SlidersHorizontal, Sparkles, Tag, Upload, X } from 'lucide-react'
+import { Baldosa } from '../componentes/Icono'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Encabezado } from '../componentes/Encabezado'
@@ -174,6 +175,16 @@ export function Movimientos() {
               </button>
             ))}
         </div>
+        {sinCategoria > 0 && (
+          <Link to="/movimientos/categorizar" className="lista fila">
+            <Baldosa glifo={Sparkles} color="#FF9500" tamano="sm" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px]">Categorizar por comercio</span>
+              <span className="block text-xs text-zinc-500">{plural(sinCategoria, 'pendiente', 'pendientes')}, agrupados y con sugerencias</span>
+            </span>
+            <ChevronRight className="size-4 text-zinc-400" />
+          </Link>
+        )}
         {filtros.categoria === null && sinCategoria > 0 && (
           <button
             className="boton-texto px-1"
@@ -281,10 +292,9 @@ export function Movimientos() {
         ids={correccionBloque !== undefined ? elegidos.map((m) => m.id) : null}
         categoria={correccionBloque ?? null}
         onCerrar={() => setCorreccionBloque(undefined)}
-        onHecho={(n) => {
+        onHecho={() => {
           setCorreccionBloque(undefined)
           setSeleccion(new Set())
-          avisar(`Categoría corregida en ${plural(n, 'movimiento', 'movimientos')}`)
         }}
       />
       <Hoja abierta={tipoBloque} titulo={`Tipo de ${plural(seleccion?.size ?? 0, 'movimiento', 'movimientos')}`} onCerrar={() => setTipoBloque(false)}>

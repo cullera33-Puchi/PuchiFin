@@ -161,7 +161,7 @@ export function Extracto() {
                   </Link>
                 )}
                 {e.sinCategoria > 0 && (
-                  <Link to="/movimientos?sin=1" className="fila">
+                  <Link to="/movimientos/categorizar" className="fila">
                     <Baldosa glifo={Tag} color="#FF9500" tamano="sm" />
                     <span className="flex-1 text-[15px]">Movimientos sin categoría</span>
                     <span className="text-[15px] text-zinc-500">{e.sinCategoria}</span>

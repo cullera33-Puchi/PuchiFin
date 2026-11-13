@@ -15,6 +15,7 @@ import { nombreMes } from '../lib/fechas'
 import { mesSiguiente } from '../lib/imputacion'
 import { registrar } from '../lib/registro'
 import { cuadrarCuenta } from '../lib/saldos'
+import { esPendiente } from '../importacion/pendientes'
 import { NOMBRE_TIPO_MOVIMIENTO } from '../lib/tipos'
 
 const CLAVE_CUENTA = 'puchifin-importar-cuenta-'
@@ -67,6 +68,7 @@ export function Importar() {
     () => (propuesta ? cuadrarCuenta([...base.movimientos.filter((m) => m.cuenta_id === propuesta.cuenta_id), ...propuesta.nuevos]) : null),
     [propuesta, base],
   )
+  const pendientesHecha = hecha ? db.movimientos.filter((m) => m.importacion_id === hecha.id && esPendiente(m)).length : 0
   const cuadreHecha = useMemo(() => (hecha ? cuadrarCuenta(db.movimientos.filter((m) => m.cuenta_id === hecha.cuenta_id)) : null), [hecha, db])
   // Por defecto, las sugerencias seguras (confianza 0,75 o más) vienen aceptadas y las dudosas no
   const rechazadas =
@@ -214,8 +216,13 @@ export function Importar() {
               <CuadreSaldo cuadre={cuadreHecha} />
             </div>
           )}
+          {pendientesHecha > 0 && (
+            <button className="boton-primario w-full" onClick={() => navegar('/movimientos/categorizar')}>
+              Categorizar {plural(pendientesHecha, 'pendiente', 'pendientes')}
+            </button>
+          )}
           <div className="flex flex-wrap justify-center gap-2">
-            <button className="boton-primario" onClick={() => navegar('/movimientos')}>
+            <button className={pendientesHecha > 0 ? 'boton-secundario' : 'boton-primario'} onClick={() => navegar('/movimientos')}>
               Ver movimientos
             </button>
             <button className="boton-secundario" onClick={() => entrada.current?.click()}>

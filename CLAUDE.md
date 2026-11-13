@@ -109,19 +109,20 @@ Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alt
 
 | Versión | Mejora | Tipo | Prioridad | Complejidad |
 | --- | --- | --- | --- | --- |
-| v0.9 | Ajustes con los primeros datos reales pegados: formato de la tarjeta, Bizum, reembolso de la empresa y periodo de liquidación | F | Muy alta | Baja |
-| v0.9 | Cierre de mes guiado: lista de pasos (pegar cuenta principal, cuenta 2 y tarjeta; cuadre en verde; sin categoría a cero; empleado revisado) | CV | Muy alta | Baja |
-| v0.9 | Pruebas de navegador (Playwright) en GitHub antes de publicar, con archivos de cada esquema anterior | T | Alta | Media |
-| v0.10 | Gastos hormiga: compras pequeñas y frecuentes (cafés, snacks, apps) por comercio y categoría, total del mes y proyección anual, en Informes | F | Alta | Baja |
-| v0.10 | Gastos fijos y recurrentes: detección por comercio, periodicidad e importe estable (suscripciones, recibos, seguros, hipoteca); fijo frente a variable, próximos cargos y subidas de precio | F | Alta | Media |
-| v0.11 | Optimizar con Claude: gastos fijos, recurrentes y hormiga con un prompt preparado (comparar tarifas de luz, fibra y seguros, suscripciones duplicadas o sin uso), por enlace a claude.ai o archivo con la hoja de compartir. Sin API ni coste | F | Alta | Media |
-| v0.11 | Avisos de recurrentes: cargo nuevo, subida de importe o cargo esperado que no llega | F | Media | Media |
-| v0.12 | Fase 4: presupuesto por categoría, plan de pagos de la deuda familiar con simulación y «Analizar con Claude» en el resto de vistas | F | Media | Alta |
+| v0.9 (hecha) | Categorización rápida de lo pendiente: pantalla por comercio con sugerencias, categorías de un toque, sugerencias claras en bloque y similares pendientes al corregir | CV | Muy alta | Media |
+| v0.10 | Ajustes con los primeros datos reales pegados: formato de la tarjeta, Bizum, reembolso de la empresa y periodo de liquidación | F | Muy alta | Baja |
+| v0.10 | Cierre de mes guiado: lista de pasos (pegar cuenta principal, cuenta 2 y tarjeta; cuadre en verde; sin categoría a cero; empleado revisado) | CV | Muy alta | Baja |
+| v0.10 | Pruebas de navegador (Playwright) en GitHub antes de publicar, con archivos de cada esquema anterior | T | Alta | Media |
+| v0.11 | Gastos hormiga: compras pequeñas y frecuentes (cafés, snacks, apps) por comercio y categoría, total del mes y proyección anual, en Informes | F | Alta | Baja |
+| v0.11 | Gastos fijos y recurrentes: detección por comercio, periodicidad e importe estable (suscripciones, recibos, seguros, hipoteca); fijo frente a variable, próximos cargos y subidas de precio | F | Alta | Media |
+| v0.12 | Optimizar con Claude: gastos fijos, recurrentes y hormiga con un prompt preparado (comparar tarifas de luz, fibra y seguros, suscripciones duplicadas o sin uso), por enlace a claude.ai o archivo con la hoja de compartir. Sin API ni coste | F | Alta | Media |
+| v0.12 | Avisos de recurrentes: cargo nuevo, subida de importe o cargo esperado que no llega | F | Media | Media |
+| v0.13 | Fase 4: presupuesto por categoría, plan de pagos de la deuda familiar con simulación y «Analizar con Claude» en el resto de vistas | F | Media | Alta |
 | Continua | Hojas con campos: acciones en la cabecera y la hoja sube con el teclado (guía 6.3 y 6.4) | CV | Media | Media |
 | Continua | Menú de pulsación larga en las filas (guía 7) y búsqueda con «Cancelar» | CV | Media | Media |
 | Continua | Cambiar de pestaña deslizando y recolocación animada de las listas (guía 4.1 y 5) | CV | Baja | Media |
 | Más adelante | Fase 5: histórico de Fintonic y previsiones (cierre de mes, estacionalidad, gastos atípicos) | F | Baja | Alta |
-| Más adelante | Fase 6: Face ID, notificaciones, importación de PDF, otras entidades | F | Baja | Media |
+| Más adelante | Fase 6: Face ID, notificaciones, importación de PDF, otras entidades (la sugerencia por similitud ya está, v0.9.0) | F | Baja | Media |
 | Decisión | Historial de git y descripciones de PR con datos de las primeras versiones; repositorio privado (exige otro alojamiento gratuito) | T | Pendiente del usuario | Baja |
 
 ## Estado
@@ -134,6 +135,10 @@ Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alt
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.9.0 (13/11/2026): categorización rápida de lo pendiente, pensada para la primera carga. Pendiente de validar por el usuario.
+  - Pantalla Categorizar (`/movimientos/categorizar`, `src/datos/categorizar.ts`): pendientes agrupados por comercio y signo, de más a menos movimientos; sugerencia por parecido con lo ya categorizado (mismo comercio, misma primera palabra o palabras en común) o por las reglas de la app; «Sí», «Otra», «Saltar» y chips con las categorías más usadas y las últimas elegidas; casillas para quitar movimientos de un grupo; «Aceptar sugerencias claras» en bloque con confirmación; reglas para las próximas importaciones; todo con Deshacer.
+  - Hoja de corrección: además del elegido, los similares pendientes (mismo comercio y comercios que empiezan igual) activados; los ya categorizados de otra forma, desactivados.
+  - Accesos: Extracto (sin categoría), Movimientos y el final de cada importación.
 - v0.8.1 (13/11/2026): corregidos los artefactos al hacer scroll rápido en Movimientos (cabeceras de día y barra de filtros fijas en el mismo sitio; desenfoque en cabeceras fijas; franja bajo la barra de estado).
 - v0.8.0 (13/11/2026): datos protegidos entre versiones, tarjeta por periodo de liquidación y hoja de ruta. Pendiente de validar por el usuario.
   - Lo ya categorizado no se toca nunca. Una vez por versión (`actualizarLogica` en `src/importacion/pendientes.ts`, al arrancar y con copia previa) las reglas de la app se ponen al día y se aplican solo a lo pendiente; también a mano con «Aplicar reglas a lo pendiente» en Movimientos. Los traspasos ya no se emparejan con lo categorizado a mano y deshacer una importación devuelve también la categoría. Prueba de compatibilidad con un archivo de la v0.6.0 (`src/datos/versiones.test.ts`). Esquema 5 (`version_logica`).

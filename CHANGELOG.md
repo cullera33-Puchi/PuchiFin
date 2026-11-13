@@ -2,6 +2,14 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.9.0. Categorización rápida de lo pendiente (13 de noviembre de 2026)
+
+- `src/datos/categorizar.ts`: `gruposPendientes` (pendientes por comercio y signo, ordenados por número de movimientos e importe), `sugerirPorParecido` (mismo comercio, misma primera palabra o índice de palabras en común con lo ya categorizado, ponderando lo manual; respeta la naturaleza gasto o ingreso), sugerencia por reglas de la app si no hay parecido, `categoriasRapidas` y `similares` (pendientes del mismo comercio, parecidos y ya categorizados por separado).
+- Pantalla Categorizar: grupos con «Sí», «Otra», «Saltar», chips de un toque, casillas por movimiento, «Aceptar sugerencias claras» (confianza 0,8 o más) en un solo cambio con confirmación, interruptor «Crear reglas» y Deshacer en cada acción.
+- `HojaCorreccion`: similares pendientes activados por defecto; lo ya categorizado del mismo comercio, desactivado (antes se cambiaba por defecto). Usa `useHacer` (Deshacer).
+- Accesos desde el Extracto, Movimientos y el final de la importación.
+- Pruebas: 236 tests. Prueba en navegador con una primera carga sin categorizar: sugerencias, «Sí», chips, sugerencias claras en bloque y corrección individual.
+
 ## v0.8.1. Scroll de Movimientos sin artefactos (13 de noviembre de 2026)
 
 - Movimientos: la barra de búsqueda y filtros y las cabeceras de día eran fijas en la misma posición y se pisaban al hacer scroll. Ahora las cabeceras se paran debajo de la barra (variable `--alto-fijo`, medida con `ResizeObserver`).

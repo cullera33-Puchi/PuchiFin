@@ -1,16 +1,18 @@
 /** Piezas comunes para mostrar y corregir movimientos */
 import { Briefcase, Check, ChevronRight, Search, Tag } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { similares } from '../datos/categorizar'
 import { aplicado, cambiarCategoria, cambiarTipo, cerrarReembolso, guardarNota, imputarMesSiguiente, mismoConcepto } from '../datos/movimientos'
 import { mesSiguiente } from '../lib/imputacion'
 import { intentar, useDatos } from '../datos/ProveedorDatos'
 import { normalizarConcepto } from '../lib/conceptos'
-import { formatearFecha, formatearImporte } from '../lib/formato'
+import { formatearFecha, formatearImporte, plural } from '../lib/formato'
 import { nombreMes } from '../lib/fechas'
 import { NOMBRE_TIPO_MOVIMIENTO, type BaseDatos, type Categoria, type Movimiento, type TipoMovimiento } from '../lib/tipos'
 import { COLOR_TIPO, nombreCategoria } from '../lib/vista'
 import { Aviso } from './Encabezado'
 import { Baldosa } from './Icono'
+import { useHacer } from './acciones'
 import { FilaInterruptor, Hoja } from './Interfaz'
 
 function raizDe(db: BaseDatos, id: string | null): Categoria | undefined {
@@ -124,8 +126,9 @@ export function SelectorCategoria({
 }
 
 /**
- * Corrección de categoría con las preguntas de la especificación: aplicar a todos los movimientos con
- * el mismo concepto y crear la regla para los futuros.
+ * Corrección de categoría: además de los elegidos, propone a la vez los similares PENDIENTES (mismo
+ * comercio y comercios que empiezan igual) y crear la regla para las próximas importaciones. Lo ya
+ * categorizado de otra forma solo cambia si se activa a mano. Todo con «Deshacer».
  */
 export function HojaCorreccion({
   ids,
@@ -139,16 +142,24 @@ export function HojaCorreccion({
   onHecho?: (n: number) => void
 }) {
   const db = useDatos()
-  const [todos, setTodos] = useState(true)
+  const hacer = useHacer()
+  const [mismo, setMismo] = useState(true)
+  const [parecidos, setParecidos] = useState(true)
+  const [yaHechos, setYaHechos] = useState(false)
   const [regla, setRegla] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const otros = ids ? mismoConcepto(db, ids).filter((m) => m.categoria_id !== categoria) : []
+  const s = useMemo(() => (ids ? similares(db, ids, categoria) : null), [db, ids, categoria])
+  const nombres = (movs: Movimiento[]) => {
+    const unicos = [...new Set(movs.map((m) => m.concepto_limpio))]
+    return unicos.slice(0, 4).join(', ') + (unicos.length > 4 ? ` y ${unicos.length - 4} más` : '')
+  }
   const aplicar = async () => {
-    if (!ids) return
-    const n = ids.length + (todos ? otros.length : 0)
-    const e = await intentar((d) => cambiarCategoria(d, ids, categoria, { mismoConcepto: todos, crearRegla: regla && !!categoria }), `Categoría corregida en ${n} movimientos`)
-    if (e) setError(e)
-    else onHecho?.(n)
+    if (!ids || !s) return
+    const todos = [...ids, ...(mismo ? s.mismoComercio : []), ...(parecidos ? s.parecidos : []), ...(yaHechos ? s.yaCategorizados : [])].map((x) => (typeof x === 'string' ? x : x.id))
+    const ok = await hacer(
+      (d) => cambiarCategoria(d, todos, categoria, { crearRegla: regla && !!categoria }),
+      `${plural(todos.length, 'movimiento', 'movimientos')}: ${nombreCategoria(db, categoria)}`,
+    )
+    if (ok) onHecho?.(todos.length)
   }
   return (
     <Hoja
@@ -167,11 +178,30 @@ export function HojaCorreccion({
       }
     >
       <div className="space-y-4">
-        {otros.length > 0 && (
-          <FilaInterruptor texto={`Aplicar también a ${otros.length} ${otros.length === 1 ? 'movimiento' : 'movimientos'} con el mismo concepto`} activo={todos} onCambio={setTodos} />
+        {s && s.mismoComercio.length > 0 && (
+          <FilaInterruptor
+            texto={`También ${plural(s.mismoComercio.length, 'pendiente', 'pendientes')} del mismo comercio`}
+            activo={mismo}
+            onCambio={setMismo}
+          />
         )}
-        {categoria && <FilaInterruptor texto="Crear una regla para las próximas importaciones" nota="Los movimientos nuevos con este concepto se categorizarán solos" activo={regla} onCambio={setRegla} />}
-        {error && <Aviso>{error}</Aviso>}
+        {s && s.parecidos.length > 0 && (
+          <FilaInterruptor
+            texto={`También ${plural(s.parecidos.length, 'pendiente parecido', 'pendientes parecidos')}`}
+            nota={nombres(s.parecidos)}
+            activo={parecidos}
+            onCambio={setParecidos}
+          />
+        )}
+        {s && s.yaCategorizados.length > 0 && (
+          <FilaInterruptor
+            texto={`Cambiar también ${plural(s.yaCategorizados.length, 'ya categorizado', 'ya categorizados')} de otra forma`}
+            nota="Del mismo comercio. Desactivado: lo que ya categorizaste no se toca"
+            activo={yaHechos}
+            onCambio={setYaHechos}
+          />
+        )}
+        {categoria && <FilaInterruptor texto="Crear la regla para las próximas importaciones" nota="Los movimientos nuevos de estos comercios se categorizarán solos" activo={regla} onCambio={setRegla} />}
       </div>
     </Hoja>
   )

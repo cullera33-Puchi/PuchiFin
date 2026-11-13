@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.9.0",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Nueva pantalla Categorizar: lo pendiente agrupado por comercio, de los que más se repiten a los que menos. Cada comercio se resuelve con un toque y se crea su regla.",
+      "La app sugiere la categoría por parecido con lo que ya categorizaste («Mercadona Valencia» como «Mercadona») y tiene chips con tus categorías más usadas.",
+      "«Aceptar sugerencias claras» categoriza de una vez todo lo que está muy claro, después de pedirte confirmación. Todo se puede deshacer.",
+      "Al corregir un movimiento, la app propone a la vez los pendientes parecidos. Lo que ya habías categorizado no se cambia salvo que lo actives."
+    ]
+  },
+  {
     "version": "0.8.1",
     "fecha": "2026-11-13",
     "cambios": [
