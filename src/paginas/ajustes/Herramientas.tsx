@@ -28,6 +28,7 @@ import { hoyIso } from '../../lib/fechas'
 import { formatearFecha } from '../../lib/formato'
 import { borrarRegistro, entradasRegistro, recuperarRegistro, registrar, suscribirRegistro, textoRegistro } from '../../lib/registro'
 import { APP_VERSION } from '../../lib/version'
+import { SeccionClaude } from './ConClaude'
 
 function Seccion({ titulo, nota, children }: { titulo: string; nota?: ReactNode; children: ReactNode }) {
   return (
@@ -319,6 +320,8 @@ export function Herramientas() {
           )}
         </div>
       </Seccion>
+
+      <SeccionClaude />
 
       <Seccion titulo="Datos de prueba" nota="Movimientos inventados para probar el extracto y los resúmenes sin datos reales. Se eliminan de una vez sin tocar lo real.">
         {prueba ? (

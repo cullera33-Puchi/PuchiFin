@@ -203,3 +203,65 @@ html.con-hoja #contenido {
     transform: none;
   }
 }
+
+/* Interruptor Liquid Glass (ver Interruptor en src/componentes/Interfaz.tsx) */
+.interruptor-carril {
+  width: 64px;
+  height: 28px;
+  border-radius: 999px;
+  background: #e9e9ea;
+  transition: background-color 0.25s var(--curva);
+}
+[data-theme='dark'] .interruptor-carril {
+  background: #39393d;
+}
+.interruptor[data-activo='true'] .interruptor-carril {
+  background: #34c759;
+}
+[data-theme='dark'] .interruptor[data-activo='true'] .interruptor-carril {
+  background: #30d158;
+}
+.interruptor-boton {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 38px;
+  height: 24px;
+  margin-top: -12px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.16),
+    0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  transform: translateX(2px);
+  transition:
+    transform 0.38s cubic-bezier(0.34, 1.45, 0.64, 1),
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.interruptor[data-activo='true'] .interruptor-boton {
+  transform: translateX(24px);
+}
+/* Mientras se pulsa: lente de cristal, más grande y translúcida */
+.interruptor[data-pulsado='true'] .interruptor-boton {
+  background: rgba(255, 255, 255, 0.28);
+  -webkit-backdrop-filter: blur(1.5px) saturate(180%);
+  backdrop-filter: blur(1.5px) saturate(180%);
+  box-shadow:
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.9),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.55),
+    0 6px 16px rgba(0, 0, 0, 0.2);
+  transform: translateX(2px) scale(1.28, 1.42);
+}
+.interruptor[data-pulsado='true'][data-activo='true'] .interruptor-boton {
+  transform: translateX(24px) scale(1.28, 1.42);
+}
+@media (prefers-reduced-motion: reduce) {
+  .interruptor[data-pulsado='true'] .interruptor-boton {
+    transform: translateX(2px);
+  }
+  .interruptor[data-pulsado='true'][data-activo='true'] .interruptor-boton {
+    transform: translateX(24px);
+  }
+}

@@ -2,6 +2,14 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.11.0. Hoja de movimiento, interruptores Liquid Glass y categorizar con Claude (13 de noviembre de 2026)
+
+- `Hoja`: prop `listo` para la acción de cabecera y cierre arrastrando desde el contenido (eventos táctiles nativos, solo con el contenido arriba del todo, por distancia o lanzamiento).
+- `DetalleMovimiento` rediseñado y `useElegirCategoria` (sin hoja intermedia cuando no hay parecidos; regla creada y Deshacer). Selector de tipo como lista con descripción. Nota con guardado automático a los 600 ms.
+- `Interruptor` Liquid Glass (clases `interruptor-*` en `index.css`), con movimiento reducido.
+- `src/importacion/claude.ts`: `conceptosDeFila` (extraída de `proponer`), `resumirComercios`, `textoResumen`, `leerReglas` e `importarReglas`. Sección «Categorizar con Claude» en Herramientas (`ConClaude.tsx`).
+- Pruebas: 290 tests. Prueba en navegador de la hoja, el interruptor, el resumen y la importación de reglas.
+
 ## v0.10.0. Categorización eficiente (13 de noviembre de 2026)
 
 - Catálogo: Restaurantes y Ocio por separado y suscripciones por plataforma. `actualizarCatalogo` (esquema 6) renombra y recoloca sin cambiar identificadores: «Restaurantes y ocio» pasa a Restaurantes; sus subcategorías Ocio («Planes y salidas») y Cultura pasan a la nueva Ocio; «Plataformas» pasa a «Otras plataformas».

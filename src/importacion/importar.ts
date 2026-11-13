@@ -13,7 +13,7 @@ import type { BaseDatos, Cuenta, Importacion, Movimiento, TipoMovimiento } from 
 import { anonimizarConcepto, aplicarAlias, conservarDesde } from './anonimizar'
 import { cuadrarLiquidaciones } from '../lib/tarjeta'
 import { contextoEmpleado, puntuarEmpleado, UMBRAL_EMPLEADO } from './empleado'
-import type { Lectura } from './lector'
+import type { FilaBruta, Lectura } from './lector'
 import { categoriasAprendidas, clasificar, type Sugerencia } from './reglas'
 
 export interface MovimientoPropuesto extends Movimiento {
@@ -61,6 +61,28 @@ export function conceptoLimpio(anonimizado: string, alias: string[] = []): strin
       return i > 0 && minus.has(l) ? l : l.charAt(0).toUpperCase() + l.slice(1)
     })
     .join(' ')
+}
+
+/**
+ * Concepto completo y limpio de una fila, ya anonimizados. El nombre de una persona (titular u
+ * ordenante) solo se conserva como alias, con lo que sigue desde una palabra clave
+ * («ACME CONSULTING SL GASTOS» queda «Empresa GASTOS»); si no tiene alias, se quita.
+ */
+export function conceptosDeFila(f: FilaBruta, alias: BaseDatos['ajustes']['alias_terceros']): { original: string; limpio: string; normalizado: string } {
+  const nombresAlias = alias.map((a) => a.alias)
+  const terceroComoAlias = (t: string | null) => {
+    if (!t) return null
+    const con = aplicarAlias(t, alias)
+    const a = nombresAlias.find((x) => con.includes(x))
+    const resto = conservarDesde(con.slice(a ? con.indexOf(a) + a.length : 0))
+    return [a, resto].filter(Boolean).join(' ') || null
+  }
+  const tercero = terceroComoAlias(f.tercero)
+  const completo = [f.poblacion ? `${f.concepto} ${f.poblacion}` : f.concepto, f.detalle, tercero, f.operacion, f.extra].filter(Boolean).join(' - ')
+  const original = anonimizarConcepto(completo, alias)
+  const base = f.generico && f.detalle ? f.detalle : [f.concepto, f.detalle].filter(Boolean).join(' ')
+  const limpio = conceptoLimpio(anonimizarConcepto([base, tercero].filter(Boolean).join(' '), alias), nombresAlias) || original
+  return { original, limpio, normalizado: normalizarConcepto(limpio) }
 }
 
 const ES_TRASPASO = /\b(traspaso|transferencia|transf|trf|bizum)\b/
@@ -121,7 +143,6 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
   const cuenta = db.cuentas.find((c) => c.id === cuenta_id)
   if (!cuenta) throw new ErrorDatos('Elige la cuenta a la que pertenece el fichero')
   const alias = db.ajustes.alias_terceros
-  const nombresAlias = alias.map((a) => a.alias)
   const aprendidas = categoriasAprendidas(db)
   const creado = new Date().toISOString()
 
@@ -130,26 +151,12 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
   const repetidos: Propuesta['repetidos'] = []
   const nuevos: MovimientoPropuesto[] = []
   const filasOrdenadas = [...lectura.filas].sort((a, b) => a.fecha_operacion.localeCompare(b.fecha_operacion) || b.numero - a.numero)
-  // El nombre de una persona (titular u ordenante) solo se conserva como alias
-  // (con lo que sigue desde una palabra clave: «ACME CONSULTING SL GASTOS» queda «Empresa GASTOS»)
-  const terceroComoAlias = (t: string | null) => {
-    if (!t) return null
-    const con = aplicarAlias(t, alias)
-    const a = nombresAlias.find((x) => con.includes(x))
-    const resto = conservarDesde(con.slice(a ? con.indexOf(a) + a.length : 0))
-    return [a, resto].filter(Boolean).join(' ') || null
-  }
   const filas = filasOrdenadas.flatMap((f) => {
     if (f.fecha_operacion < db.ajustes.fecha_inicio) {
       anteriores++
       return []
     }
-    const tercero = terceroComoAlias(f.tercero)
-    const completo = [f.poblacion ? `${f.concepto} ${f.poblacion}` : f.concepto, f.detalle, tercero, f.operacion, f.extra].filter(Boolean).join(' - ')
-    const original = anonimizarConcepto(completo, alias)
-    const base = f.generico && f.detalle ? f.detalle : [f.concepto, f.detalle].filter(Boolean).join(' ')
-    const limpio = conceptoLimpio(anonimizarConcepto([base, tercero].filter(Boolean).join(' '), alias), nombresAlias) || original
-    return [{ f, original, limpio, normalizado: normalizarConcepto(limpio) }]
+    return [{ f, ...conceptosDeFila(f, alias) }]
   })
 
   // Deduplicación contra lo ya guardado en esta cuenta, emparejando uno a uno (dos cafés iguales el

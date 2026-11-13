@@ -136,12 +136,15 @@ export function Hoja({
   onCerrar,
   children,
   acciones,
+  listo,
 }: {
   abierta: boolean
   titulo: string
   onCerrar: () => void
   children: ReactNode
   acciones?: ReactNode
+  /** Botón de texto a la derecha de la cabecera, como «Listo» en iOS (sustituye a la X) */
+  listo?: string
 }) {
   const { montada, saliendo, recien } = useCicloHoja(abierta)
   // Mientras sale, se sigue mostrando lo último que tenía (el padre ya puede haberlo vaciado)
@@ -152,6 +155,64 @@ export function Hoja({
   const [dy, setDy] = useState(0)
   const [arrastrando, setArrastrando] = useState(false)
   const inicio = useRef<{ y: number; id: number; vel: Velocidad } | null>(null)
+  const cuerpo = useRef<HTMLDivElement>(null)
+  const cerrarRef = useRef(onCerrar)
+  useEffect(() => {
+    cerrarRef.current = onCerrar
+  })
+
+  // También se cierra arrastrando hacia abajo desde el contenido, si está arriba del todo
+  // (como en iOS: primero se desplaza el contenido y, al llegar arriba, baja la hoja)
+  useEffect(() => {
+    const el = cuerpo.current
+    if (!el || !abierta) return
+    let y0: number | null = null
+    let activo = false
+    let actual = 0
+    let vel: Velocidad | null = null
+    const empezar = (e: TouchEvent) => {
+      y0 = null
+      activo = false
+      if (e.touches.length !== 1 || el.scrollTop > 0 || (e.target as HTMLElement).closest('textarea, input, select')) return
+      y0 = e.touches[0].clientY
+      vel = crearVelocidad(y0, e.timeStamp)
+    }
+    const mover = (e: TouchEvent) => {
+      if (y0 === null) return
+      const d = e.touches[0].clientY - y0
+      if (!activo) {
+        if (d > 6 && el.scrollTop <= 0) activo = true
+        else {
+          if (d < -6) y0 = null
+          return
+        }
+      }
+      e.preventDefault()
+      vel?.mover(e.touches[0].clientY, e.timeStamp)
+      actual = Math.max(0, d)
+      setArrastrando(true)
+      setDy(actual)
+    }
+    const terminar = (e: TouchEvent) => {
+      if (y0 === null || !activo) return
+      y0 = null
+      activo = false
+      setArrastrando(false)
+      if (e.type === 'touchend' && (actual > 110 || esLanzamiento(vel?.valor(e.timeStamp) ?? 0, actual, 1))) cerrarRef.current()
+      actual = 0
+      setDy(0)
+    }
+    el.addEventListener('touchstart', empezar, { passive: true })
+    el.addEventListener('touchmove', mover, { passive: false })
+    el.addEventListener('touchend', terminar)
+    el.addEventListener('touchcancel', terminar)
+    return () => {
+      el.removeEventListener('touchstart', empezar)
+      el.removeEventListener('touchmove', mover)
+      el.removeEventListener('touchend', terminar)
+      el.removeEventListener('touchcancel', terminar)
+    }
+  }, [abierta, montada])
 
   useEffect(() => {
     if (!abierta) return
@@ -212,16 +273,28 @@ export function Hoja({
           }}
         >
           <div className="mx-auto mt-2 h-[5px] w-9 rounded-full bg-zinc-300 dark:bg-zinc-600" aria-hidden="true" />
-          <div className="flex min-h-11 items-center justify-between px-4 pb-2">
-            <h2 className="text-[17px] font-semibold">{v.titulo}</h2>
-            <button aria-label="Cerrar" className="grid size-11 place-items-center -mr-2" onClick={onCerrar}>
-              <span className="rounded-full bg-zinc-100 p-1 text-zinc-500 dark:bg-zinc-800">
-                <X className="size-4" strokeWidth={2.5} />
-              </span>
-            </button>
-          </div>
+          {listo ? (
+            <div className="grid min-h-11 grid-cols-[1fr_auto_1fr] items-center px-4 pb-1">
+              <span />
+              <h2 className="truncate text-center text-[17px] font-semibold">{v.titulo}</h2>
+              <button className="-mr-2 min-h-11 justify-self-end px-2 text-[17px] font-semibold text-marca-700 active:opacity-60 dark:text-marca-500" onClick={onCerrar}>
+                {listo}
+              </button>
+            </div>
+          ) : (
+            <div className="flex min-h-11 items-center justify-between px-4 pb-2">
+              <h2 className="text-[17px] font-semibold">{v.titulo}</h2>
+              <button aria-label="Cerrar" className="grid size-11 place-items-center -mr-2" onClick={onCerrar}>
+                <span className="rounded-full bg-zinc-100 p-1 text-zinc-500 dark:bg-zinc-800">
+                  <X className="size-4" strokeWidth={2.5} />
+                </span>
+              </button>
+            </div>
+          )}
         </div>
-        <div className="overflow-y-auto overscroll-contain px-4 py-4">{v.children}</div>
+        <div ref={cuerpo} className="overflow-y-auto overscroll-contain px-4 py-4">
+          {v.children}
+        </div>
         {v.acciones && <div className="flex justify-end gap-2 border-t border-zinc-200 px-4 py-3 dark:border-zinc-800">{v.acciones}</div>}
       </div>
     </div>,
@@ -289,8 +362,13 @@ export function Flotante({ children }: { children: ReactNode }) {
   return createPortal(<div className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+3.75rem)] z-30 mx-auto max-w-md">{children}</div>, document.body)
 }
 
-/** Interruptor al estilo de iOS */
+/**
+ * Interruptor al estilo Liquid Glass (iOS 26 y posteriores): carril ancho, botón en cápsula alargada y,
+ * mientras se pulsa, la cápsula crece y se vuelve una lente de cristal translúcida con un rebote suave.
+ * Zona táctil de 44 pt aunque el dibujo sea más pequeño.
+ */
 export function Interruptor({ activo, onCambio, etiqueta, disabled }: { activo: boolean; onCambio: (v: boolean) => void; etiqueta: string; disabled?: boolean }) {
+  const [pulsado, setPulsado] = useState(false)
   return (
     <button
       type="button"
@@ -302,16 +380,20 @@ export function Interruptor({ activo, onCambio, etiqueta, disabled }: { activo: 
         vibrar()
         onCambio(!activo)
       }}
-      className={`relative h-[31px] w-[51px] shrink-0 rounded-full transition-colors duration-200 disabled:opacity-40 ${activo ? 'bg-[#34C759]' : 'bg-zinc-300 dark:bg-zinc-700'}`}
+      onPointerDown={() => setPulsado(true)}
+      onPointerUp={() => setPulsado(false)}
+      onPointerLeave={() => setPulsado(false)}
+      onPointerCancel={() => setPulsado(false)}
+      className="interruptor relative inline-grid h-11 w-16 shrink-0 place-items-center disabled:opacity-40"
+      data-activo={activo}
+      data-pulsado={pulsado}
     >
-      <span
-        className={`absolute top-[2px] left-[2px] size-[27px] rounded-full bg-white shadow-[0_3px_8px_rgba(0,0,0,0.15),0_1px_1px_rgba(0,0,0,0.16)] transition-transform duration-200 ${activo ? 'translate-x-5' : ''}`}
-      />
+      <span className="interruptor-carril" />
+      <span className="interruptor-boton" />
     </button>
   )
 }
 
-/** Fila con etiqueta e interruptor */
 export function FilaInterruptor({ texto, nota, activo, onCambio }: { texto: string; nota?: string; activo: boolean; onCambio: (v: boolean) => void }) {
   return (
     <div className="flex items-center gap-3">

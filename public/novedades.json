@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.11.0",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "La ficha de cada movimiento es más clara: «Listo» arriba para cerrar, se cierra también arrastrando hacia abajo, y todo se guarda al momento (también la nota) con opción de deshacer.",
+      "Si eliges una categoría y no hay otros movimientos parecidos, se aplica directamente, sin pasos de más.",
+      "Interruptores con el nuevo estilo de cristal de iOS.",
+      "Nuevo en Ajustes, Herramientas: «Categorizar con Claude». Preparas un resumen anonimizado de tus comercios, lo pegas en el chat y traes de vuelta las reglas."
+    ]
+  },
+  {
     "version": "0.10.0",
     "fecha": "2026-11-13",
     "cambios": [

@@ -1,8 +1,8 @@
 /** Piezas comunes para mostrar y corregir movimientos */
 import { Briefcase, Check, ChevronRight, Search, Tag } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { similares } from '../datos/categorizar'
-import { aplicado, cambiarCategoria, cambiarTipo, cerrarReembolso, guardarNota, imputarMesSiguiente, mismoConcepto } from '../datos/movimientos'
+import { aplicado, cambiarCategoria, cambiarTipo, cerrarReembolso, guardarNota, imputarMesSiguiente } from '../datos/movimientos'
 import { mesSiguiente } from '../lib/imputacion'
 import { intentar, useDatos } from '../datos/ProveedorDatos'
 import { normalizarConcepto } from '../lib/conceptos'
@@ -10,7 +10,6 @@ import { formatearFecha, formatearImporte, plural } from '../lib/formato'
 import { nombreMes } from '../lib/fechas'
 import { NOMBRE_TIPO_MOVIMIENTO, type BaseDatos, type Categoria, type Movimiento, type TipoMovimiento } from '../lib/tipos'
 import { COLOR_TIPO, nombreCategoria } from '../lib/vista'
-import { Aviso } from './Encabezado'
 import { Baldosa } from './Icono'
 import { useHacer } from './acciones'
 import { FilaInterruptor, Hoja } from './Interfaz'
@@ -208,134 +207,186 @@ export function HojaCorreccion({
 }
 
 const TIPOS: TipoMovimiento[] = ['normal', 'gasto_empleado', 'reembolso_empresa', 'traspaso_interno', 'pago_deuda']
+const NOTA_TIPO: Record<TipoMovimiento, string> = {
+  normal: 'Computa en el extracto',
+  gasto_empleado: 'Lo adelantas tú y te lo reembolsa la empresa',
+  reembolso_empresa: 'Lo que te devuelve la empresa',
+  traspaso_interno: 'Entre tus cuentas o liquidación de la tarjeta',
+  pago_deuda: 'Reduce la deuda familiar',
+}
 
-/** Detalle de un movimiento: categoría, tipo, nota y reembolso */
+/**
+ * Elegir categoría para unos movimientos: si hay pendientes parecidos (o del mismo comercio ya
+ * categorizados de otra forma), abre la hoja de corrección; si no, aplica directamente con su regla
+ * y el aviso con «Deshacer», sin pasos de más.
+ */
+// oxlint-disable-next-line react/only-export-components
+export function useElegirCategoria(ids: string[], alAbrirCorreccion: (cat: string | null) => void) {
+  const db = useDatos()
+  const hacer = useHacer()
+  return async (cat: string | null) => {
+    const s = similares(db, ids, cat)
+    if (s.mismoComercio.length || s.parecidos.length || s.yaCategorizados.length) return alAbrirCorreccion(cat)
+    await hacer(
+      (d) => cambiarCategoria(d, ids, cat, { crearRegla: !!cat }),
+      cat ? `${nombreCategoria(db, cat)}${ids.length > 1 ? ` en ${ids.length} movimientos` : ''}. Regla creada para las próximas` : 'Sin categoría',
+    )
+  }
+}
+
+/** Detalle de un movimiento: categoría, tipo, mes, nota y reembolso. Todo se guarda al momento */
 export function DetalleMovimiento({ id, onCerrar }: { id: string | null; onCerrar: () => void }) {
   const db = useDatos()
+  const hacer = useHacer()
   const m = id ? db.movimientos.find((x) => x.id === id) : undefined
   const [selector, setSelector] = useState(false)
+  const [tipos, setTipos] = useState(false)
   const [correccion, setCorreccion] = useState<string | null | undefined>(undefined)
   const [nota, setNota] = useState<{ id: string; texto: string } | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [estadoNota, setEstadoNota] = useState<'' | 'guardando' | 'guardada'>('')
+  const elegir = useElegirCategoria(m ? [m.id] : [], setCorreccion)
+  const textoNota = m && nota?.id === m.id ? nota.texto : (m?.nota ?? '')
+
+  // La nota se guarda sola al dejar de escribir
+  useEffect(() => {
+    if (!m || !nota || nota.id !== m.id || nota.texto === (m.nota ?? '')) return
+    const t = window.setTimeout(async () => {
+      const e = await intentar((d) => guardarNota(d, m.id, nota.texto), 'Nota guardada')
+      setEstadoNota(e ? '' : 'guardada')
+    }, 600)
+    return () => window.clearTimeout(t)
+  }, [nota, m])
+
   if (!m) return null
   const cuenta = db.cuentas.find((c) => c.id === m.cuenta_id)
-  const textoNota = nota?.id === m.id ? nota.texto : m.nota ?? ''
+  const cat = db.categorias.find((c) => c.id === m.categoria_id)
+  const raiz = raizDe(db, m.categoria_id)
   const { gastos, reembolsos } = aplicado(db)
   const conciliados = db.conciliaciones.filter((c) => c.gasto_id === m.id || c.reembolso_id === m.id)
-
-  const elegirCategoria = async (cat: string | null) => {
-    setSelector(false)
-    if (cat === m.categoria_id) return
-    if (mismoConcepto(db, [m.id]).length || cat) setCorreccion(cat)
-    else {
-      const e = await intentar((d) => cambiarCategoria(d, [m.id], cat), 'Categoría corregida')
-      if (e) setError(e)
-    }
-  }
-
-  const guardarLaNota = async () => {
-    if (textoNota === (m.nota ?? '')) return
-    const e = await intentar((d) => guardarNota(d, m.id, textoNota), 'Nota guardada')
-    if (e) setError(e)
+  const cerrar = async () => {
+    if (nota && nota.id === m.id && nota.texto !== (m.nota ?? '')) await intentar((d) => guardarNota(d, m.id, nota.texto), 'Nota guardada')
+    setNota(null)
+    setEstadoNota('')
+    onCerrar()
   }
 
   return (
     <>
-      <Hoja
-        abierta={!!id && !selector && correccion === undefined}
-        titulo="Movimiento"
-        onCerrar={() => {
-          guardarLaNota()
-          setNota(null)
-          setError(null)
-          onCerrar()
-        }}
-      >
-        <div className="space-y-4">
-          <div className="text-center">
-            <p className={`text-3xl font-semibold tabular-nums ${m.importe > 0 && m.tipo === 'normal' ? 'text-[#248A3D] dark:text-[#30D158]' : ''}`}>{formatearImporte(m.importe)}</p>
-            <p className="mt-1 text-[15px]">{m.concepto_limpio}</p>
-            <p className="text-xs text-zinc-500">
+      <Hoja abierta={!!id} titulo="Movimiento" listo="Listo" onCerrar={cerrar}>
+        <div className="space-y-5">
+          <div className="flex flex-col items-center text-center">
+            {m.tipo !== 'normal' ? (
+              <Baldosa glifo={m.tipo === 'gasto_empleado' ? Briefcase : Tag} color={COLOR_TIPO[m.tipo]} tamano="lg" />
+            ) : cat ? (
+              <Baldosa icono={raiz?.icono ?? null} color={cat.color} tamano="lg" />
+            ) : (
+              <Baldosa glifo={Tag} color="#C7C7CC" tamano="lg" />
+            )}
+            <p className={`mt-3 text-[34px] leading-tight font-bold tracking-tight tabular-nums ${m.importe > 0 && m.tipo === 'normal' ? 'text-[#248A3D] dark:text-[#30D158]' : ''}`}>
+              {formatearImporte(m.importe)}
+            </p>
+            <p className="mt-1 text-[17px]">{m.concepto_limpio}</p>
+            <p className="text-[13px] text-zinc-500">
               {formatearFecha(m.fecha_operacion)}, {cuenta?.alias ?? '?'}
             </p>
           </div>
 
-          <div className="lista divide-y divide-zinc-200/70 border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
-            <button className="fila hover:bg-zinc-50 dark:hover:bg-zinc-800/60" onClick={() => setSelector(true)}>
-              <span className="flex-1 text-[15px]">Categoría</span>
-              <span className={`text-[15px] ${m.categoria_id ? 'text-zinc-500' : 'text-[#FF9500]'}`}>{nombreCategoria(db, m.categoria_id)}</span>
-              <ChevronRight className="size-4 text-zinc-400" />
+          <div className="lista divide-y divide-zinc-200/70 bg-zinc-100/70 dark:divide-zinc-800 dark:bg-zinc-800/50">
+            <button className="fila min-h-12 active:bg-zinc-200/60 dark:active:bg-zinc-700/60" onClick={() => setSelector(true)}>
+              <span className="text-[17px]">Categoría</span>
+              <span className={`min-w-0 flex-1 truncate text-right text-[17px] ${m.categoria_id ? 'text-zinc-500' : 'text-[#FF9500]'}`}>{nombreCategoria(db, m.categoria_id)}</span>
+              <ChevronRight className="size-4 shrink-0 text-zinc-400" />
             </button>
-            <div className="px-4 py-3">
-              <p className="mb-2 text-[15px]">Tipo</p>
-              <div className="flex flex-wrap gap-1.5">
-                {TIPOS.map((t) => (
-                  <button
-                    key={t}
-                    className={`rounded-full px-3 py-1 text-[13px] font-medium ${m.tipo === t ? 'bg-marca-700 text-white' : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'}`}
-                    onClick={async () => {
-                      const e = await intentar((d) => cambiarTipo(d, [m.id], t), 'Tipo cambiado')
-                      if (e) setError(e)
-                    }}
-                  >
-                    {NOMBRE_TIPO_MOVIMIENTO[t]}
-                  </button>
-                ))}
-              </div>
-              {m.tipo !== 'normal' && <p className="mt-2 text-xs text-zinc-500">No computa en el extracto ni en los totales.</p>}
-            </div>
-            <div className="px-4 py-3">
+            <button className="fila min-h-12 active:bg-zinc-200/60 dark:active:bg-zinc-700/60" onClick={() => setTipos(true)}>
+              <span className="text-[17px]">Tipo</span>
+              <span className="min-w-0 flex-1 truncate text-right text-[17px] text-zinc-500">{NOMBRE_TIPO_MOVIMIENTO[m.tipo]}</span>
+              <ChevronRight className="size-4 shrink-0 text-zinc-400" />
+            </button>
+            <div className="px-4 py-2.5">
               <FilaInterruptor
                 texto={`Cuenta en ${nombreMes(`${mesSiguiente(m.fecha_operacion)}-01`)}`}
-                nota="Para cobros y cargos de fin de mes que son del mes siguiente (nómina, hipoteca). Cuenta desde el día 1."
+                nota="Cobros y cargos de fin de mes que son del mes siguiente"
                 activo={!!m.mes_imputacion}
-                onCambio={async (v) => {
-                  const e = await intentar((d) => imputarMesSiguiente(d, [m.id], v), v ? 'Pasado al mes siguiente' : 'Devuelto a su mes')
-                  if (e) setError(e)
-                }}
+                onCambio={(v) => hacer((d) => imputarMesSiguiente(d, [m.id], v), v ? `Cuenta en ${nombreMes(`${mesSiguiente(m.fecha_operacion)}-01`)}` : 'Vuelve a su mes')}
               />
             </div>
-            {m.tipo === 'gasto_empleado' && (
-              <div className="space-y-2 px-4 py-3">
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Reembolsado: {formatearImporte(gastos.get(m.id) ?? 0)} de {formatearImporte(-m.importe)}
-                </p>
-                <FilaInterruptor
-                  texto="Cerrado sin reembolso completo"
-                  nota="Deja de contar como pendiente; la diferencia queda visible"
-                  activo={m.reembolso_cerrado}
-                  onCambio={async (v) => {
-                    const e = await intentar((d) => cerrarReembolso(d, m.id, v), v ? 'Gasto cerrado' : 'Gasto reabierto')
-                    if (e) setError(e)
-                  }}
-                />
-              </div>
-            )}
-            {m.tipo === 'reembolso_empresa' && (
-              <p className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
-                Aplicado a gastos: {formatearImporte(reembolsos.get(m.id) ?? 0)} de {formatearImporte(m.importe)} ({conciliados.length}{' '}
-                {conciliados.length === 1 ? 'gasto' : 'gastos'}). Se concilia en la pestaña Empleado.
-              </p>
-            )}
-            <label className="block px-4 py-3">
-              <span className="mb-1 block text-[15px]">Nota</span>
-              <textarea
-                className="campo min-h-16"
-                maxLength={500}
-                placeholder="Añadir una nota"
-                value={textoNota}
-                onChange={(e) => setNota({ id: m.id, texto: e.target.value })}
-                onBlur={guardarLaNota}
-              />
-            </label>
           </div>
-          <p className="text-xs break-words text-zinc-500">Concepto del banco, anonimizado: {m.concepto_original}</p>
-          {error && <Aviso>{error}</Aviso>}
+          {m.tipo !== 'normal' && <p className="-mt-3 px-4 text-[13px] text-zinc-500">No computa en el extracto ni en los totales.</p>}
+
+          {m.tipo === 'gasto_empleado' && (
+            <div className="lista space-y-2 bg-zinc-100/70 px-4 py-3 dark:bg-zinc-800/50">
+              <p className="text-[15px] text-zinc-600 dark:text-zinc-400">
+                Reembolsado: {formatearImporte(gastos.get(m.id) ?? 0)} de {formatearImporte(-m.importe)}
+              </p>
+              <FilaInterruptor
+                texto="Cerrado sin reembolso completo"
+                nota="Deja de contar como pendiente; la diferencia queda visible"
+                activo={m.reembolso_cerrado}
+                onCambio={(v) => hacer((d) => cerrarReembolso(d, m.id, v), v ? 'Gasto cerrado' : 'Gasto reabierto')}
+              />
+            </div>
+          )}
+          {m.tipo === 'reembolso_empresa' && (
+            <p className="lista bg-zinc-100/70 px-4 py-3 text-[15px] text-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-400">
+              Aplicado a gastos: {formatearImporte(reembolsos.get(m.id) ?? 0)} de {formatearImporte(m.importe)} ({plural(conciliados.length, 'gasto', 'gastos')}). Se concilia en la pestaña Empleado.
+            </p>
+          )}
+
+          <div>
+            <div className="mb-1.5 flex items-baseline justify-between px-4">
+              <span className="text-[13px] text-zinc-500 uppercase">Nota</span>
+              <span className="text-[13px] text-zinc-500" aria-live="polite">
+                {estadoNota === 'guardando' ? 'Guardando…' : estadoNota === 'guardada' ? 'Guardada' : ''}
+              </span>
+            </div>
+            <textarea
+              className="campo min-h-20 rounded-xl border-0 bg-zinc-100/70 px-4 py-3 dark:bg-zinc-800/50"
+              maxLength={500}
+              placeholder="Añadir una nota"
+              value={textoNota}
+              onChange={(e) => {
+                setNota({ id: m.id, texto: e.target.value })
+                setEstadoNota('guardando')
+              }}
+            />
+          </div>
+          <p className="px-4 text-[13px] break-words text-zinc-500">
+            Los cambios se guardan al momento. Concepto del banco, anonimizado: {m.concepto_original}
+          </p>
         </div>
       </Hoja>
-      <SelectorCategoria abierta={selector} actual={m.categoria_id} onElegir={elegirCategoria} onCerrar={() => setSelector(false)} />
+
+      <Hoja abierta={tipos} titulo="Tipo" listo="Listo" onCerrar={() => setTipos(false)}>
+        <ul className="lista divide-y divide-zinc-200/70 bg-zinc-100/70 dark:divide-zinc-800 dark:bg-zinc-800/50">
+          {TIPOS.map((t) => (
+            <li key={t}>
+              <button
+                className="fila min-h-14 active:bg-zinc-200/60 dark:active:bg-zinc-700/60"
+                onClick={async () => {
+                  setTipos(false)
+                  if (t !== m.tipo) await hacer((d) => cambiarTipo(d, [m.id], t), `Tipo: ${NOMBRE_TIPO_MOVIMIENTO[t]}`)
+                }}
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[17px]">{NOMBRE_TIPO_MOVIMIENTO[t]}</span>
+                  <span className="block text-[13px] text-zinc-500">{NOTA_TIPO[t]}</span>
+                </span>
+                {m.tipo === t && <Check className="size-5 text-[#007AFF] dark:text-[#0A84FF]" strokeWidth={2.5} />}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </Hoja>
+      <SelectorCategoria
+        abierta={selector}
+        actual={m.categoria_id}
+        onElegir={(c) => {
+          setSelector(false)
+          if (c !== m.categoria_id) void elegir(c)
+        }}
+        onCerrar={() => setSelector(false)}
+      />
       <HojaCorreccion ids={correccion !== undefined ? [m.id] : null} categoria={correccion ?? null} onCerrar={() => setCorreccion(undefined)} onHecho={() => setCorreccion(undefined)} />
     </>
   )
 }
-

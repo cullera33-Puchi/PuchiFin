@@ -5,7 +5,7 @@ import { intentar } from '../datos/ProveedorDatos'
 import type { Movimiento } from '../lib/tipos'
 import { FilaDeslizable } from './gestos'
 import { useInterfaz } from './Interfaz'
-import { ContenidoMovimiento, HojaCorreccion, SelectorCategoria } from './movimientos'
+import { ContenidoMovimiento, HojaCorreccion, SelectorCategoria, useElegirCategoria } from './movimientos'
 
 /**
  * Fila de movimiento con los gestos de la especificación:
@@ -16,6 +16,7 @@ export function FilaMovimientoDeslizable({ m, onPulsar, conFecha }: { m: Movimie
   const [selector, setSelector] = useState(false)
   const [correccion, setCorreccion] = useState<string | null | undefined>(undefined)
   const esEmpleado = m.tipo === 'gasto_empleado'
+  const elegir = useElegirCategoria([m.id], setCorreccion)
 
   const empleado = async () => {
     const e = await intentar((d) => alternarEmpleado(d, m.id), esEmpleado ? 'Gasto de empleado desmarcado' : 'Gasto de empleado marcado')
@@ -49,7 +50,7 @@ export function FilaMovimientoDeslizable({ m, onPulsar, conFecha }: { m: Movimie
         actual={m.categoria_id}
         onElegir={(c) => {
           setSelector(false)
-          if (c !== m.categoria_id) setCorreccion(c)
+          if (c !== m.categoria_id) void elegir(c)
         }}
         onCerrar={() => setSelector(false)}
       />

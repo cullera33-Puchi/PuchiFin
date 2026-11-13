@@ -109,17 +109,18 @@ Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alt
 
 | Versión | Mejora | Tipo | Prioridad | Complejidad |
 | --- | --- | --- | --- | --- |
+| v0.11 (hecha) | Hoja de movimiento rediseñada (Listo, cierre arrastrando desde el contenido, guardado al momento), interruptores Liquid Glass y categorizar la primera carga con Claude en el chat (resumen anonimizado e importación de reglas) | CV | Muy alta | Media |
 | v0.10 (hecha) | Categorización eficiente: diccionario de unos 650 comercios y palabras clave, Restaurantes y Ocio por separado, suscripciones por plataforma y mejoras propuestas para lo ya categorizado por la app (Sí o No) | F | Muy alta | Media |
 | v0.9 (hecha) | Categorización rápida de lo pendiente: pantalla por comercio con sugerencias, categorías de un toque, sugerencias claras en bloque y similares pendientes al corregir | CV | Muy alta | Media |
-| v0.11 | Ajustes con los primeros datos reales pegados: formato de la tarjeta, Bizum, reembolso de la empresa y periodo de liquidación | F | Muy alta | Baja |
-| v0.11 | Cierre de mes guiado: lista de pasos (pegar cuenta principal, cuenta 2 y tarjeta; cuadre en verde; sin categoría a cero; empleado revisado) | CV | Muy alta | Baja |
-| v0.11 | Pruebas de navegador (Playwright) en GitHub antes de publicar, con archivos de cada esquema anterior | T | Alta | Media |
-| v0.12 | Gastos hormiga: compras pequeñas y frecuentes (cafés, snacks, apps) por comercio y categoría, total del mes y proyección anual, en Informes | F | Alta | Baja |
-| v0.12 | Gastos fijos y recurrentes: detección por comercio, periodicidad e importe estable (suscripciones, recibos, seguros, hipoteca); fijo frente a variable, próximos cargos y subidas de precio | F | Alta | Media |
-| v0.13 | Optimizar con Claude: gastos fijos, recurrentes y hormiga con un prompt preparado (comparar tarifas de luz, fibra y seguros, suscripciones duplicadas o sin uso), por enlace a claude.ai o archivo con la hoja de compartir. Sin API ni coste | F | Alta | Media |
-| v0.13 | Avisos de recurrentes: cargo nuevo, subida de importe o cargo esperado que no llega | F | Media | Media |
-| v0.14 | Fase 4: presupuesto por categoría, plan de pagos de la deuda familiar con simulación y «Analizar con Claude» en el resto de vistas | F | Media | Alta |
-| Continua | Hojas con campos: acciones en la cabecera y la hoja sube con el teclado (guía 6.3 y 6.4) | CV | Media | Media |
+| v0.12 | Ajustes con los primeros datos reales pegados: formato de la tarjeta, Bizum, reembolso de la empresa y periodo de liquidación | F | Muy alta | Baja |
+| v0.12 | Cierre de mes guiado: lista de pasos (pegar cuenta principal, cuenta 2 y tarjeta; cuadre en verde; sin categoría a cero; empleado revisado) | CV | Muy alta | Baja |
+| v0.12 | Pruebas de navegador (Playwright) en GitHub antes de publicar, con archivos de cada esquema anterior | T | Alta | Media |
+| v0.13 | Gastos hormiga: compras pequeñas y frecuentes (cafés, snacks, apps) por comercio y categoría, total del mes y proyección anual, en Informes | F | Alta | Baja |
+| v0.13 | Gastos fijos y recurrentes: detección por comercio, periodicidad e importe estable (suscripciones, recibos, seguros, hipoteca); fijo frente a variable, próximos cargos y subidas de precio | F | Alta | Media |
+| v0.14 | Optimizar con Claude: gastos fijos, recurrentes y hormiga con un prompt preparado (comparar tarifas de luz, fibra y seguros, suscripciones duplicadas o sin uso), por enlace a claude.ai o archivo con la hoja de compartir. Sin API ni coste | F | Alta | Media |
+| v0.14 | Avisos de recurrentes: cargo nuevo, subida de importe o cargo esperado que no llega | F | Media | Media |
+| v0.15 | Fase 4: presupuesto por categoría, plan de pagos de la deuda familiar con simulación y «Analizar con Claude» en el resto de vistas | F | Media | Alta |
+| Continua | Hojas con campos: la hoja sube con el teclado (guía 6.4); las acciones en la cabecera ya están (v0.11.0) | CV | Media | Media |
 | Continua | Menú de pulsación larga en las filas (guía 7) y búsqueda con «Cancelar» | CV | Media | Media |
 | Continua | Cambiar de pestaña deslizando y recolocación animada de las listas (guía 4.1 y 5) | CV | Baja | Media |
 | Más adelante | Fase 5: histórico de Fintonic y previsiones (cierre de mes, estacionalidad, gastos atípicos) | F | Baja | Alta |
@@ -136,6 +137,10 @@ Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alt
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.11.0 (13/11/2026): hoja de movimiento, interruptores Liquid Glass y categorizar con Claude. Pendiente de validar por el usuario.
+  - `Hoja` admite `listo` (botón de texto a la derecha de la cabecera, como «Listo» en iOS) y se cierra arrastrando hacia abajo desde el contenido cuando está arriba del todo. `DetalleMovimiento` rediseñado: baldosa e importe grandes, filas agrupadas (Categoría, Tipo como lista con marca y descripción, Cuenta en el mes siguiente), nota que se guarda sola con «Guardando… / Guardada» y cada cambio con Deshacer. `useElegirCategoria`: sin parecidos, la categoría se aplica directamente con su regla, sin hoja intermedia (también al deslizar).
+  - `Interruptor` al estilo Liquid Glass: carril de 64 por 28, botón en cápsula y lente de cristal al pulsar, con zona táctil de 44.
+  - Categorizar con Claude (Ajustes, Herramientas; `src/importacion/claude.ts`): resumen de comercios anonimizado de cualquier periodo (también anterior a la fecha de inicio), sin fechas, saldos, cuentas ni nombres, que no se guarda; se ve antes de copiarlo o compartirlo. Importar reglas pegadas («clave, tabulador, Categoría > Subcategoría») con vista previa, errores por línea, aplicación opcional a lo pendiente y Deshacer. Las reglas son manuales y solo viven en el dispositivo; nada va al código.
 - v0.10.0 (13/11/2026): categorización eficiente. Pendiente de validar por el usuario.
   - Catálogo: «Restaurantes y ocio» se separa en Restaurantes (Restaurantes, Cafeterías, Comida rápida y a domicilio, Bares y copas) y Ocio (Planes y salidas, Cine y espectáculos, Cultura, Deporte, Juegos); Suscripciones con una subcategoría por plataforma (`PLATAFORMAS`) más Otras plataformas, Software y Cuotas. Esquema 6: `actualizarCatalogo` adapta los datos anteriores sin cambiar identificadores (nada pierde su categoría).
   - Diccionario de la app (`REGLAS_BASE`) ampliado a 63 reglas con unos 650 comercios y palabras clave españolas y catalanas; las plataformas mandan sobre las reglas generales; las reglas existentes conservan su nombre para que se actualicen en el dispositivo. Test con conceptos típicos (`src/importacion/diccionario.test.ts`). Expresiones compiladas en caché.
