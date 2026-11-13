@@ -2,7 +2,7 @@
 
 App web privada de finanzas personales (PWA). Especificación completa y estado del proyecto en [`CLAUDE.md`](CLAUDE.md).
 
-Los datos se guardan **solo en el dispositivo** (IndexedDB). No hay servidor, cuenta ni base de datos externa. Para pasar los datos del iPhone al ordenador, o al revés: Ajustes, Herramientas, «Exportar todos los datos», guardar el archivo en Archivos o iCloud Drive y, en el otro dispositivo, «Importar archivo». Queda todo exactamente igual.
+App solo para el iPhone. Los datos se guardan **solo en el móvil** (IndexedDB): no hay servidor, cuenta ni base de datos externa. La copia fuera del móvil es el archivo de Ajustes, Herramientas, «Exportar todos los datos», guardado en Archivos o iCloud Drive; «Importar archivo» lo recupera todo exactamente igual. El escritorio, Google y la sincronización quedan para más adelante.
 
 Stack: React, TypeScript, Vite, Tailwind CSS, jsPDF y Recharts. Todo gratuito.
 

@@ -51,7 +51,7 @@ export function General() {
     <form onSubmit={guardar} className="space-y-4">
       <section className="tarjeta space-y-3">
         <h2 className="text-sm font-semibold">Fechas</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3">
           <label>
             <span className="etiqueta">Fecha de inicio de la app</span>
             <input type="date" className="campo" value={ajustes.fecha_inicio} onChange={(e) => cambiar({ fecha_inicio: e.target.value })} />
@@ -67,7 +67,7 @@ export function General() {
 
       <section className="tarjeta space-y-3">
         <h2 className="text-sm font-semibold">Umbrales</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3">
           <label>
             <span className="etiqueta">Aviso de gasto de empleado pendiente (días)</span>
             <input type="number" min={1} className="campo" value={ajustes.dias_aviso_reembolso} onChange={(e) => cambiar({ dias_aviso_reembolso: Number(e.target.value) })} />

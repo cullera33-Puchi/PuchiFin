@@ -103,7 +103,7 @@ function Formulario({
 
   return (
     <form onSubmit={enviar} className="space-y-3 bg-zinc-50 px-4 py-4 dark:bg-zinc-800/40">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3">
         <label>
           <span className="etiqueta">Alias</span>
           <input className="campo" value={b.alias} maxLength={40} autoFocus placeholder="Cuenta principal" onChange={(e) => setB({ ...b, alias: e.target.value })} />

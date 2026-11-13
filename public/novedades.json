@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.4.1",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "La app se centra solo en el iPhone: una única pantalla de móvil, sin versión de escritorio por ahora.",
+      "Ajustes, Herramientas explica que la exportación es tu copia fuera del móvil, útil por ejemplo para pasar los datos a un iPhone nuevo."
+    ]
+  },
+  {
     "version": "0.4.0",
     "fecha": "2026-11-13",
     "cambios": [

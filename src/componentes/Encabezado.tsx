@@ -4,7 +4,7 @@ export function Encabezado({ titulo, subtitulo, accion }: { titulo: string; subt
   return (
     <header className="mb-5 flex items-end justify-between gap-3">
       <div>
-        <h1 className="text-[32px] leading-tight font-bold tracking-tight md:text-3xl">{titulo}</h1>
+        <h1 className="text-[32px] leading-tight font-bold tracking-tight">{titulo}</h1>
         {subtitulo && <p className="mt-0.5 text-sm text-zinc-500">{subtitulo}</p>}
       </div>
       {accion}

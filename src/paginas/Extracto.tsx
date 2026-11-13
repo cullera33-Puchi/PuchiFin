@@ -46,14 +46,14 @@ export function Extracto() {
         )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="space-y-4">
         <Proximamente fase={3}>
           El extracto mensual se activa cuando haya movimientos importados (fase 2) y llega completo en la fase 3: cabecera de
           ingresos, gastos y tasa de ahorro, desglose por categoría y comparativa con la media.
         </Proximamente>
 
         <section className="tarjeta">
-          <h2 className="mb-3 text-sm font-semibold">Datos en este dispositivo</h2>
+          <h2 className="mb-3 text-sm font-semibold">Datos en el iPhone</h2>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
             <Dato etiqueta="Cuentas activas" valor={db.cuentas.filter((c) => c.activa).length} a="/ajustes/cuentas" />
             <Dato

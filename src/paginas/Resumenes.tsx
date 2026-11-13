@@ -209,7 +209,7 @@ function VistaPrevia({ r, conceptos, reducida, categorias }: { r: Resumen; conce
   return (
     <div className="space-y-4">
       {enCurso && <Aviso tipo="info">{enCurso}</Aviso>}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3">
         {indicadores(r).map((i) => (
           <div key={i.etiqueta} className="tarjeta p-3">
             <p className="text-xs text-zinc-500">{i.etiqueta}</p>
@@ -259,7 +259,7 @@ function VistaPrevia({ r, conceptos, reducida, categorias }: { r: Resumen; conce
       {esMes && !reducida && (
         <section className="tarjeta overflow-x-auto">
           <h2 className="mb-2 text-sm font-semibold">Semana a semana <span className="font-normal text-zinc-500">({r.periodo.etiqueta.split(' de ')[0].toLowerCase()})</span></h2>
-          <table className="w-full text-xs sm:text-sm">
+          <table className="w-full text-xs">
             <thead className="text-xs text-zinc-500">
               <tr>
                 <th className="py-1 text-left font-medium">Semana</th>

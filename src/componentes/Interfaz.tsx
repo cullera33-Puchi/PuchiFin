@@ -1,6 +1,6 @@
 /**
  * Piezas comunes de la interfaz: aviso breve abajo (con acción opcional, como Deshacer),
- * hoja modal (abajo en el móvil, centrada en escritorio) y confirmación.
+ * hoja modal que sube desde abajo y confirmación.
  */
 import { X } from 'lucide-react'
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
@@ -58,7 +58,7 @@ export function ProveedorInterfaz({ children }: { children: ReactNode }) {
     <Contexto.Provider value={{ avisar, confirmar }}>
       {children}
       {aviso && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 flex justify-center px-4 md:bottom-6">
+        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-50 flex justify-center px-4">
           <div role="status" className="pointer-events-auto flex max-w-md items-center gap-3 rounded-xl bg-zinc-900 px-4 py-3 text-sm text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-900">
             <span className="flex-1">{aviso.texto}</span>
             {aviso.accion && (
@@ -106,14 +106,12 @@ export function Hoja({
   onCerrar,
   children,
   acciones,
-  ancha,
 }: {
   abierta: boolean
   titulo: string
   onCerrar: () => void
   children: ReactNode
   acciones?: ReactNode
-  ancha?: boolean
 }) {
   useEffect(() => {
     if (!abierta) return
@@ -124,12 +122,12 @@ export function Hoja({
 
   if (!abierta) return null
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 md:items-center md:p-6" onClick={onCerrar}>
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40" onClick={onCerrar}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label={titulo}
-        className={`flex max-h-[88dvh] w-full flex-col rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom)] shadow-xl md:rounded-2xl md:pb-0 dark:bg-zinc-900 ${ancha ? 'md:max-w-2xl' : 'md:max-w-md'}`}
+        className="flex max-h-[88dvh] w-full max-w-lg flex-col rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom)] shadow-xl dark:bg-zinc-900"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">

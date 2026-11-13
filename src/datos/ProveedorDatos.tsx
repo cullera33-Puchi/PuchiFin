@@ -29,7 +29,7 @@ export function ProveedorDatos({ children }: { children: ReactNode }) {
     return (
       <div className="mx-auto grid min-h-dvh max-w-md place-items-center p-6">
         <div className="tarjeta space-y-2 text-sm">
-          <p className="font-semibold">No se han podido abrir los datos de este dispositivo</p>
+          <p className="font-semibold">No se han podido abrir los datos del iPhone</p>
           <p className="text-zinc-600 dark:text-zinc-400">{error}</p>
           <p className="text-zinc-600 dark:text-zinc-400">Cierra la app y vuelve a abrirla. Si sigue igual, el registro de errores tiene el detalle.</p>
         </div>

@@ -8,16 +8,18 @@ Versión del 13 de noviembre de 2026.
 
 ## Qué es
 
-App web privada de finanzas personales para un único usuario. Sustituye a Fintonic: importa los extractos de BBVA en Excel, categoriza los movimientos, excluye los gastos de empleado y muestra un extracto mensual con el gasto real. Se usa en iPhone y en escritorio.
+App web privada de finanzas personales para un único usuario. Sustituye a Fintonic: importa los extractos de BBVA en Excel, categoriza los movimientos, excluye los gastos de empleado y muestra un extracto mensual con el gasto real. Se usa solo en el iPhone.
+
+**Alcance actual (decisión del usuario del 13/11/2026):** solo la app del iPhone, con los datos guardados en el propio móvil. Quedan para más adelante el escritorio, la conexión con Google y cualquier sincronización o base de datos externa. No se construye nada de eso hasta nueva indicación. Donde la especificación de la segunda parte habla de escritorio, aplica solo cuando se retome.
 
 La especificación funcional completa está en la segunda parte de este documento. Léela entera antes de empezar cualquier fase.
 
 ## Stack
 
-- Frontal: React, TypeScript y Vite. PWA instalable en el iPhone, responsive, una sola base de código para móvil y escritorio.
+- Frontal: React, TypeScript y Vite. PWA instalable en el iPhone, diseñada solo para móvil (en un navegador de ordenador se ve como una columna de móvil).
 - Estilos: Tailwind CSS. Tema claro y oscuro según el sistema.
 - Lectura de Excel: SheetJS, siempre en el navegador.
-- Datos: solo en el dispositivo (IndexedDB), sin backend ni base de datos externa (decisión del usuario del 13/11/2026). Los datos pasan del iPhone al ordenador, o al revés, exportando e importando un archivo JSON que lo recupera todo exactamente igual. Supabase queda en pausa (`supabase/README.md`).
+- Datos: solo en el iPhone (IndexedDB), sin backend ni base de datos externa (decisión del usuario del 13/11/2026). Exportar un archivo JSON es la copia fuera del móvil; importarlo lo recupera todo exactamente igual (por ejemplo, en un iPhone nuevo). Supabase queda en pausa (`supabase/README.md`).
 - Gráficos: Recharts.
 - Despliegue: gratuito (Vercel o GitHub Pages).
 - Todos los servicios deben ser gratuitos. No usar la API de Anthropic ni ningún servicio de pago.
@@ -59,7 +61,7 @@ Fases 1 a 3 de la hoja de ruta. Las fases 4 a 6 quedan fuera hasta nueva indicac
 ### Fase 3. Extracto y gastos de empleado
 
 - Extracto mensual, lista de movimientos con búsqueda y filtros, corrección de categorías individual y en bloque.
-- Marcado rápido de gastos de empleado: deslizar en móvil, selección múltiple y atajo de teclado en escritorio.
+- Marcado rápido de gastos de empleado: deslizar sobre el movimiento y selección múltiple.
 - Conciliación de reembolsos y vista de gastos de empleado.
 - Exportación a Excel de cualquier vista.
 - Se cierra cuando octubre y noviembre están cerrados con los reembolsos conciliados.
@@ -106,6 +108,7 @@ Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (po
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.4.1 (13/11/2026): solo la app del iPhone. Se retira el diseño de escritorio (barra lateral y variantes para pantalla ancha); en un navegador de ordenador se ve la misma columna de móvil. Textos de la app centrados en el iPhone.
 - v0.4.0 (13/11/2026): los datos pasan a guardarse solo en el dispositivo (IndexedDB), sin Supabase ni acceso con Google. Exportar e importar un archivo JSON deja otro dispositivo exactamente igual. Las reglas que comprobaba Postgres (datos identificativos, alias únicos, dos niveles de categoría, deduplicación, borrado en cascada) están en `src/datos/operaciones.ts`. Aviso en el Extracto si hay datos reales sin exportar en 14 días. El nombre del familiar (alias Familia) se guardará también en el dispositivo.
 - v0.3.0 (13/11/2026): estilo iOS (iconos en baldosas, barra de pestañas flotante, interruptores, listas agrupadas) y PDF reducido para compartir, ambos pedidos por el usuario.
 
@@ -410,7 +413,7 @@ Sin coste: la app no usa la API de Anthropic. Abre Claude con los datos ya prepa
 - **Plantillas de prompt** editables en ajustes: análisis del mes, desviaciones de presupuesto, gastos recurrentes y suscripciones, comparativa interanual, plan de pagos.
 - **Datos que salen:** solo los del periodo elegido, ya anonimizados. Opción en ajustes para quitar los conceptos y enviar solo categorías e importes.
 
-## 12. Experiencia en móvil y escritorio
+## 12. Experiencia en el móvil (escritorio en pausa)
 
 El móvil es para consultar y marcar rápido; el escritorio, para importar, revisar en bloque y analizar.
 
@@ -422,7 +425,9 @@ El móvil es para consultar y marcar rápido; el escritorio, para importar, revi
 | Revisión de importación | Tarjetas por bloque | Tabla editable |
 | Categorizar | Detalle del movimiento | Edición en línea en la tabla |
 
-Navegación en móvil con barra inferior de cuatro pestañas: Extracto, Movimientos, Empleado y Ajustes. En escritorio, menú lateral con las mismas secciones y las vistas de análisis. Tema claro y oscuro según el sistema.
+Navegación con barra inferior de cuatro pestañas: Extracto, Movimientos, Empleado y Ajustes. Tema claro y oscuro según el sistema.
+
+**Escritorio: en pausa (13/11/2026).** La columna de escritorio de la tabla y el menú lateral se retoman solo cuando el usuario lo indique. Hoy la app es solo para el iPhone.
 
 ## 13. Hoja de ruta
 

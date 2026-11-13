@@ -2,6 +2,12 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.4.1. Solo iPhone (13 de noviembre de 2026)
+
+- Decisión del usuario: de momento, solo la app del iPhone con los datos en el móvil. Escritorio, Google y sincronización, para más adelante.
+- Se retira la barra lateral de escritorio y las variantes para pantalla ancha: una sola columna de móvil (máximo 512 px) con la barra de pestañas flotante, también en un navegador de ordenador. Las hojas siempre suben desde abajo y los formularios van en una columna.
+- Textos de la app referidos al iPhone en lugar de «este dispositivo» y sin menciones al ordenador. Resúmenes se abre desde el Extracto.
+
 ## v0.4.0. Datos solo en el dispositivo (13 de noviembre de 2026)
 
 - Decisión del usuario: sin Supabase ni base de datos fuera del móvil. Se retiran el acceso con Google, el cliente `@supabase/supabase-js` y las pantallas de acceso y configuración. `supabase/` queda en pausa como referencia (`supabase/README.md`), fuera de las pruebas de GitHub.

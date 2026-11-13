@@ -101,10 +101,10 @@ export function Herramientas() {
       texto: (
         <>
           <p>
-            Se sustituyen todos los datos de este dispositivo por los del archivo: {n.cuentas} cuentas, {n.categorias} categorías y{' '}
+            Se sustituyen todos los datos del iPhone por los del archivo: {n.cuentas} cuentas, {n.categorias} categorías y{' '}
             {n.movimientos} movimientos. Quedará exactamente igual que cuando se guardó.
           </p>
-          <p className="mt-2">Antes se guarda una copia del estado actual en este dispositivo, por si hay que volver atrás.</p>
+          <p className="mt-2">Antes se guarda una copia del estado actual en el iPhone, por si hay que volver atrás.</p>
         </>
       ),
       aceptar: tipo === 'antes de importar' ? 'Importar' : 'Restaurar',
@@ -120,7 +120,7 @@ export function Herramientas() {
   const restaurarLocal = async (m: MetaCopia) => {
     const a = await leerCopia(m.clave)
     if (!a) {
-      setError('No se encuentra la copia en este dispositivo')
+      setError('No se encuentra la copia en el iPhone')
       return
     }
     await sustituir(a, `Restaurar copia ${cuando(m.creada)}`, 'antes de restaurar')
@@ -141,7 +141,7 @@ export function Herramientas() {
   const borrarUna = async (m: MetaCopia) => {
     const ok = await confirmar({
       titulo: 'Borrar copia',
-      texto: `La copia ${cuando(m.creada)} se borrará de este dispositivo. No se puede deshacer.`,
+      texto: `La copia ${cuando(m.creada)} se borrará del iPhone. No se puede deshacer.`,
       aceptar: 'Borrar',
       peligro: true,
     })
@@ -157,7 +157,7 @@ export function Herramientas() {
     const n = copias?.length ?? 0
     const ok = await confirmar({
       titulo: 'Borrar todas las copias',
-      texto: `${n === 1 ? 'La copia' : `Las ${n} copias`} de este dispositivo se borrarán. No se puede deshacer. La copia automática vuelve mañana.`,
+      texto: `${n === 1 ? 'La copia' : `Las ${n} copias`} del iPhone se borrarán. No se puede deshacer. La copia automática vuelve mañana.`,
       aceptar: 'Borrar todas',
       peligro: true,
     })
@@ -231,7 +231,7 @@ export function Herramientas() {
 
       <Seccion
         titulo="Exportar e importar"
-        nota="Tus datos se guardan solo en este dispositivo. Exporta un archivo y guárdalo en Archivos o iCloud Drive; al importarlo en el ordenador (o en otro iPhone) todo queda exactamente igual."
+        nota="Tus datos se guardan solo en este iPhone. Exporta de vez en cuando un archivo y guárdalo en Archivos o iCloud Drive: es tu copia fuera del móvil. Al importarlo (por ejemplo, en un iPhone nuevo), todo queda exactamente igual."
       >
         <p className="text-sm">
           {ultima ? (
@@ -239,7 +239,7 @@ export function Herramientas() {
               Última exportación: <strong>{cuando(ultima)}</strong>
             </>
           ) : (
-            <span className="text-zinc-500">Todavía no has exportado desde este dispositivo.</span>
+            <span className="text-zinc-500">Todavía no has exportado.</span>
           )}
         </p>
         <div className="flex flex-wrap gap-2">
@@ -264,11 +264,11 @@ export function Herramientas() {
         {ocupado === 'restaurar' && <Aviso tipo="info">Sustituyendo los datos…</Aviso>}
       </Seccion>
 
-      <Seccion titulo="Copias de seguridad" nota="Cada día, al abrir la app, se guarda una copia en este dispositivo (se conservan las 7 últimas).">
+      <Seccion titulo="Copias de seguridad" nota="Cada día, al abrir la app, se guarda una copia en el iPhone (se conservan las 7 últimas). Si borras la app, se borran con ella: para eso está la exportación.">
         {copias === null ? (
           <p className="text-sm text-zinc-500">Cargando…</p>
         ) : copias.length === 0 ? (
-          <p className="text-sm text-zinc-500">Todavía ninguna copia en este dispositivo.</p>
+          <p className="text-sm text-zinc-500">Todavía ninguna copia en el iPhone.</p>
         ) : (
           <ul className="divide-y divide-zinc-200/70 rounded-[10px] bg-zinc-50 dark:divide-zinc-800 dark:bg-zinc-800/40">
             {copias.map((m) => (
@@ -304,7 +304,7 @@ export function Herramientas() {
           </ul>
         )}
         <div className="flex flex-wrap items-center gap-2">
-          <button className="boton-secundario" disabled={!!ocupado} onClick={() => ejecutar('copia', async () => { await hacerCopia('manual'); avisar('Copia guardada en este dispositivo') })}>
+          <button className="boton-secundario" disabled={!!ocupado} onClick={() => ejecutar('copia', async () => { await hacerCopia('manual'); avisar('Copia guardada en el iPhone') })}>
             {ocupado === 'copia' ? 'Guardando…' : 'Hacer copia ahora'}
           </button>
           {!!copias?.length && (
@@ -332,7 +332,7 @@ export function Herramientas() {
         )}
       </Seccion>
 
-      <Seccion titulo="Registro" nota="Errores y eventos de este dispositivo. Cópialo o compártelo para pegarlo en el chat. No incluye conceptos ni importes.">
+      <Seccion titulo="Registro" nota="Errores y eventos de la app. Cópialo o compártelo para pegarlo en el chat. No incluye conceptos ni importes.">
         <div className="flex flex-wrap items-center gap-2">
           <span className="mr-auto text-sm">{entradas.length} entradas</span>
           <button className="boton-secundario" onClick={() => setVerRegistro(true)}>
@@ -371,7 +371,6 @@ export function Herramientas() {
       <Hoja
         abierta={verRegistro}
         titulo="Registro"
-        ancha
         onCerrar={() => setVerRegistro(false)}
         acciones={
           <>

@@ -249,7 +249,7 @@ function Editor({ categoria, todas, onFin }: { categoria: Categoria; todas: Cate
       {esRaiz && (
         <div>
           <span className="etiqueta">Icono</span>
-          <div className="grid grid-cols-8 gap-2 sm:grid-cols-10">
+          <div className="grid grid-cols-7 gap-2">
             {Object.entries(ICONOS).map(([clave, { nombre: n }]) => (
               <button
                 key={clave}

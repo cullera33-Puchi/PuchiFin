@@ -6,7 +6,7 @@ export function Movimientos() {
       <Encabezado titulo="Movimientos" subtitulo="Lista completa con búsqueda y filtros" />
       <div className="space-y-4">
         <Proximamente fase={2}>
-          Importación de los Excel de BBVA (cuentas y tarjeta) con anonimización en el dispositivo, deduplicación,
+          Importación de los Excel de BBVA (cuentas y tarjeta) desde Archivos o la hoja de compartir del iPhone, con anonimización, deduplicación,
           reglas de categorización y pantalla de revisión.
         </Proximamente>
         <Proximamente fase={3}>
