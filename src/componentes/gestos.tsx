@@ -132,7 +132,9 @@ export function FilaDeslizable({
         aria-label={etiqueta}
         className="relative bg-white select-none dark:bg-zinc-900"
         style={{
-          transform: `translateX(${x}px)`,
+          // Sin transform en reposo: en iOS cada transform crea una capa que, con el scroll rápido, se
+          // pinta a veces por encima de las cabeceras fijas
+          transform: x !== 0 || animar ? `translateX(${x}px)` : undefined,
           transition: animar ? 'transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1)' : 'none',
           touchAction: 'pan-y',
         }}
@@ -280,8 +282,9 @@ export function Deslizable({
     >
       <div
         style={{
-          transform: `translateX(${dx}px)`,
-          opacity: 1 - Math.min(Math.abs(dx) / 600, 0.4),
+          // Sin transform ni opacidad en reposo (ver FilaDeslizable): las cabeceras fijas de dentro se ven limpias
+          transform: dx !== 0 || animar ? `translateX(${dx}px)` : undefined,
+          opacity: dx !== 0 ? 1 - Math.min(Math.abs(dx) / 600, 0.4) : undefined,
           transition: animar ? 'transform 0.22s ease-out, opacity 0.22s ease-out' : 'none',
         }}
         onTransitionEnd={() => setAnimar(false)}

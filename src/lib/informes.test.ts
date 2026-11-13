@@ -25,13 +25,13 @@ const db: BaseDatos = {
     mov('2026-11-05', -40, 'Alimentación > Mercado y tiendas'),
     mov('2026-11-06', -10, 'Alimentación'),
     mov('2026-11-07', 5, 'Alimentación > Supermercado'), // devolución: resta gasto
-    mov('2026-11-08', -100, 'Restaurantes y ocio > Restaurantes'),
+    mov('2026-11-08', -100, 'Restaurantes > Restaurantes'),
     mov('2026-11-09', -30, null),
     mov('2026-11-10', -80, 'Viajes > Alojamiento', { tipo: 'gasto_empleado' }), // no computa
     mov('2026-10-30', 2500, 'Ingresos > Nómina', { mes_imputacion: '2026-11' }), // cuenta en noviembre
     mov('2026-11-12', 20, null),
     mov('2026-10-03', -50, 'Alimentación > Supermercado'),
-    mov('2026-10-20', -70, 'Restaurantes y ocio > Restaurantes'),
+    mov('2026-10-20', -70, 'Restaurantes > Restaurantes'),
   ],
 }
 const NOV = { escala: 'mes' as const, clave: '2026-11' }
@@ -42,7 +42,7 @@ describe('calcularInforme', () => {
     expect(r.total).toBe(235)
     expect(r.porciones.map((p) => [p.nombre, p.importe])).toEqual([
       ['Alimentación', 105],
-      ['Restaurantes y ocio', 100],
+      ['Restaurantes', 100],
       ['Sin categoría', 30],
     ])
     expect(r.porciones.reduce((s, p) => s + p.peso, 0)).toBeCloseTo(1)

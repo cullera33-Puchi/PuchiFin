@@ -12,6 +12,7 @@ import { cambiarTipo } from '../datos/movimientos'
 import { obtenerDatos } from '../datos/almacen'
 import { useDatos } from '../datos/ProveedorDatos'
 import { aplicarReglasAPendientes } from '../importacion/pendientes'
+import { propuestasRecategorizacion } from '../datos/categorizar'
 import { normalizarConcepto } from '../lib/conceptos'
 import { diaLargo, mesLargo } from '../lib/fechas'
 import { formatearImporte, leerImporteUsuario, plural } from '../lib/formato'
@@ -61,6 +62,7 @@ export function Movimientos() {
   const [correccionBloque, setCorreccionBloque] = useState<string | null | undefined>(undefined)
   const [tipoBloque, setTipoBloque] = useState(false)
 
+  const mejoras = useMemo(() => propuestasRecategorizacion(db).reduce((s, p) => s + p.movimientos.length, 0), [db])
   const sinCategoria = db.movimientos.filter((m) => m.tipo === 'normal' && !m.categoria_id).length
   const hijas = useMemo(() => {
     const mapa = new Map<string, Set<string>>()
@@ -147,7 +149,7 @@ export function Movimientos() {
         }
       />
 
-      <div ref={barra} className="sticky top-[env(safe-area-inset-top)] z-20 -mx-4 mb-3 space-y-2 bg-[#F2F2F7] px-4 pt-1 pb-2 dark:bg-black">
+      <div ref={barra} className="sticky top-[env(safe-area-inset-top)] z-20 -mx-4 mb-3 space-y-2 bg-[#F2F2F7] px-4 pt-1 pb-2 [transform:translateZ(0)] dark:bg-black">
         <div className="flex gap-2">
           <label className="flex flex-1 items-center gap-2 rounded-[10px] bg-zinc-200/70 px-3 py-2 dark:bg-zinc-800">
             <Search className="size-4 text-zinc-500" />
@@ -175,12 +177,14 @@ export function Movimientos() {
               </button>
             ))}
         </div>
-        {sinCategoria > 0 && (
+        {(sinCategoria > 0 || mejoras > 0) && (
           <Link to="/movimientos/categorizar" className="lista fila">
             <Baldosa glifo={Sparkles} color="#FF9500" tamano="sm" />
             <span className="min-w-0 flex-1">
               <span className="block text-[15px]">Categorizar por comercio</span>
-              <span className="block text-xs text-zinc-500">{plural(sinCategoria, 'pendiente', 'pendientes')}, agrupados y con sugerencias</span>
+              <span className="block text-xs text-zinc-500">
+                {[sinCategoria > 0 && `${plural(sinCategoria, 'pendiente', 'pendientes')}, agrupados y con sugerencias`, mejoras > 0 && plural(mejoras, 'mejora para revisar', 'mejoras para revisar')].filter(Boolean).join('. ')}
+              </span>
             </span>
             <ChevronRight className="size-4 text-zinc-400" />
           </Link>

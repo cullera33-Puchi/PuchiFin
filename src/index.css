@@ -84,6 +84,9 @@
      Se para debajo de la barra de estado y, si la pantalla tiene barra de filtros fija, debajo de ella */
   @apply sticky z-10 -mx-4 mb-1.5 flex items-baseline justify-between bg-[#F2F2F7] px-8 py-1.5 text-[13px] font-medium text-zinc-500 uppercase dark:bg-black;
   top: calc(env(safe-area-inset-top) + var(--alto-fijo, 0px));
+  /* Capa propia: Safari no la repinta a trozos durante el scroll por inercia */
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
 }
 
 /* Lista agrupada (inset grouped) */

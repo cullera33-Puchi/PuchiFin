@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.10.0",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Restaurantes y Ocio ahora son categorías distintas, y cada suscripción tiene la suya: Netflix, Disney+, HBO Max, Amazon Prime, Spotify, Claude, PlayStation y Nintendo. Lo que ya tenías categorizado se conserva.",
+      "La app reconoce cientos de comercios más (supermercados, comida a domicilio, gimnasios, gasolineras, talleres, clínicas, seguros, telefonía…), así que en la primera carga quedará mucho menos sin categoría.",
+      "En Categorizar, «Mejoras para lo ya categorizado» te propone afinar lo que la app puso de forma general (por ejemplo, Netflix en su plataforma). Dices Sí o No, y lo que corregiste a mano nunca se toca.",
+      "El scroll de las listas va más fino en el iPhone."
+    ]
+  },
+  {
     "version": "0.9.0",
     "fecha": "2026-11-13",
     "cambios": [

@@ -3,6 +3,7 @@ import { generarDatosPrueba } from '../lib/datosPrueba'
 import type { BaseDatos, Movimiento } from '../lib/tipos'
 import {
   ErrorDatos,
+  actualizarCatalogo,
   actualizarCategoria,
   borrarDatosPrueba,
   comprobarBaseDatos,
@@ -29,8 +30,8 @@ describe('datosIniciales', () => {
 
   it('carga cuentas, catálogo, ajustes y deuda', () => {
     expect(db.cuentas.map((c) => c.alias)).toEqual(['Cuenta principal', 'Cuenta 2', 'Tarjeta', 'Hipoteca'])
-    expect(db.categorias.filter((c) => !c.padre_id)).toHaveLength(14)
-    expect(db.categorias.filter((c) => c.padre_id)).toHaveLength(45)
+    expect(db.categorias.filter((c) => !c.padre_id)).toHaveLength(15)
+    expect(db.categorias.filter((c) => c.padre_id)).toHaveLength(58)
     expect(db.categorias.filter((c) => c.naturaleza === 'ingreso')).toHaveLength(3)
     expect(db.ajustes.fecha_inicio).toBe('2026-10-01')
     expect(db.compromisos[0]).toMatchObject({ nombre: 'Deuda familiar', deuda_inicial: 0, colchon: 0, mes_referencia: 7 })
@@ -145,3 +146,42 @@ describe('comprobarBaseDatos', () => {
     expect(comprobarBaseDatos({ ...a, movimientos: [] })).toEqual([])
   })
 })
+
+describe('actualizarCatalogo (v0.10.0)', () => {
+  // Catálogo como era antes: «Restaurantes y ocio» y «Plataformas»
+  const viejo = (() => {
+    const db = datosIniciales()
+    const rest = db.categorias.find((c) => c.nombre === 'Restaurantes')!
+    const ocio = db.categorias.find((c) => !c.padre_id && c.nombre === 'Ocio')!
+    const susc = db.categorias.find((c) => c.nombre === 'Suscripciones')!
+    return db.categorias
+      .filter((c) => c.id !== ocio.id && !(c.padre_id === rest.id && /rápida|Bares/.test(c.nombre)) && !(c.padre_id === ocio.id && /Cine|Deporte|Juegos/.test(c.nombre)) && !(c.padre_id === susc.id && c.nombre !== 'Otras plataformas' && c.nombre !== 'Software' && c.nombre !== 'Cuotas'))
+      .map((c) => {
+        if (c.id === rest.id) return { ...c, nombre: 'Restaurantes y ocio' }
+        if (c.padre_id === ocio.id) return { ...c, padre_id: rest.id, nombre: c.nombre === 'Planes y salidas' ? 'Ocio' : c.nombre }
+        if (c.padre_id === susc.id && c.nombre === 'Otras plataformas') return { ...c, nombre: 'Plataformas' }
+        return c
+      })
+  })()
+
+  it('separa Restaurantes y Ocio y añade las plataformas sin cambiar ningún identificador', () => {
+    const nuevo = actualizarCatalogo(viejo)
+    for (const c of viejo) expect(nuevo.some((n) => n.id === c.id)).toBe(true)
+    const porId = new Map(nuevo.map((c) => [c.id, c]))
+    const raiz = (nombre: string) => nuevo.find((c) => !c.padre_id && c.nombre === nombre)!
+    const subs = (nombre: string) => nuevo.filter((c) => c.padre_id === raiz(nombre).id).map((c) => c.nombre)
+    expect(subs('Restaurantes')).toEqual(expect.arrayContaining(['Restaurantes', 'Cafeterías', 'Comida rápida y a domicilio', 'Bares y copas']))
+    expect(subs('Ocio')).toEqual(expect.arrayContaining(['Planes y salidas', 'Cultura', 'Cine y espectáculos', 'Deporte', 'Juegos']))
+    expect(subs('Suscripciones')).toEqual(expect.arrayContaining(['Netflix', 'Disney+', 'HBO Max', 'Amazon Prime', 'Spotify', 'Claude', 'PlayStation', 'Nintendo', 'Otras plataformas']))
+    // La antigua subcategoría «Ocio» es la misma, ahora «Planes y salidas» dentro de Ocio
+    const antiguoOcio = viejo.find((c) => c.nombre === 'Ocio')!
+    expect(porId.get(antiguoOcio.id)).toMatchObject({ nombre: 'Planes y salidas', padre_id: raiz('Ocio').id })
+    expect(nuevo.filter((c) => !c.padre_id)).toHaveLength(15)
+  })
+
+  it('no hace nada si ya está al día', () => {
+    const actual = datosIniciales().categorias
+    expect(actualizarCatalogo(actual)).toEqual(actual)
+  })
+})
+

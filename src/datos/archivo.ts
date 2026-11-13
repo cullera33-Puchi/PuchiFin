@@ -6,7 +6,7 @@
 import { APP_VERSION } from '../lib/version'
 import { VERSION_ESQUEMA, type BaseDatos } from '../lib/tipos'
 import { reglasPredeterminadas } from '../importacion/reglas'
-import { AJUSTES_POR_DEFECTO, ErrorDatos, comprobarBaseDatos } from './operaciones'
+import { AJUSTES_POR_DEFECTO, ErrorDatos, actualizarCatalogo, comprobarBaseDatos } from './operaciones'
 
 export const FORMATO_ARCHIVO = 1
 
@@ -89,6 +89,8 @@ export function migrar(d: Partial<BaseDatos>): BaseDatos {
     datos.ajustes = { ...datos.ajustes, dias_fin_de_mes: datos.ajustes.dias_fin_de_mes ?? 5 }
   }
   // Esquema 4 (v0.7.0): saldo confirmado con el banco en cada cuenta
+  // Esquema 6 (v0.10.0): Restaurantes y Ocio por separado, suscripciones por plataforma (mismos identificadores)
+  if (desde < 6) datos.categorias = actualizarCatalogo(datos.categorias)
   // Esquema 5 (v0.8.0): versión de la lógica aplicada a lo pendiente (null: se aplica al arrancar)
   if (desde < 5) datos.ajustes = { ...datos.ajustes, version_logica: datos.ajustes.version_logica ?? null }
   if (desde < 4) datos.cuentas = datos.cuentas.map((c) => ({ ...c, saldo_confirmado: c.saldo_confirmado ?? null }))

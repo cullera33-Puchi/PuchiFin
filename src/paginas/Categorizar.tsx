@@ -1,11 +1,13 @@
-import { Check, CircleCheck, Sparkles, Tag } from 'lucide-react'
+import { ArrowRight, Check, CircleCheck, Sparkles, Tag } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useAcciones } from './categorizarAcciones'
 import { BarraNavegacion } from '../componentes/Encabezado'
 import { Baldosa } from '../componentes/Icono'
 import { FilaInterruptor, useInterfaz } from '../componentes/Interfaz'
 import { SelectorCategoria } from '../componentes/movimientos'
-import { categoriasRapidas, gruposPendientes, UMBRAL_SEGURA, type GrupoPendiente } from '../datos/categorizar'
+import { categoriasRapidas, gruposPendientes, propuestasRecategorizacion, UMBRAL_SEGURA, type GrupoPendiente, type PropuestaCambio } from '../datos/categorizar'
+import { cambiarCategoria, fijarCategoria } from '../datos/movimientos'
+import { useHacer } from '../componentes/acciones'
 import { useDatos } from '../datos/ProveedorDatos'
 import { formatearFecha, formatearImporte, plural } from '../lib/formato'
 import type { BaseDatos } from '../lib/tipos'
@@ -70,6 +72,8 @@ export function Categorizar() {
         atras="Movimientos"
         subtitulo={pendientes ? `${plural(pendientes, 'movimiento pendiente', 'movimientos pendientes')} en ${plural(grupos.length, 'comercio', 'comercios')}` : undefined}
       />
+
+      <Mejoras />
 
       {!grupos.length ? (
         <div className="tarjeta space-y-2 py-8 text-center">
@@ -214,5 +218,68 @@ export function Categorizar() {
         onCerrar={() => setEligiendo(null)}
       />
     </>
+  )
+}
+
+/**
+ * Mejoras para lo ya categorizado por la app: cuando una regla nueva o una corrección tuya en el mismo
+ * comercio afina la categoría (Netflix de «Otras plataformas» a «Netflix»). Sí la cambia; No la deja
+ * fijada y no se vuelve a proponer. Lo categorizado a mano no aparece nunca.
+ */
+function Mejoras() {
+  const db = useDatos()
+  const hacer = useHacer()
+  const { confirmar } = useInterfaz()
+  const propuestas = useMemo(() => propuestasRecategorizacion(db), [db])
+  if (!propuestas.length) return null
+  const total = propuestas.reduce((s, p) => s + p.movimientos.length, 0)
+  const ids = (p: PropuestaCambio) => p.movimientos.map((m) => m.id)
+  const si = (p: PropuestaCambio) => hacer((d) => cambiarCategoria(d, ids(p), p.hacia), `${plural(p.movimientos.length, 'movimiento', 'movimientos')}: ${categoriaDe(db, p.hacia).nombre}`)
+  const no = (p: PropuestaCambio) => hacer((d) => fijarCategoria(d, ids(p)), `${p.nombre}: se queda en ${categoriaDe(db, p.desde).nombre}`)
+  const todas = async () => {
+    const ok = await confirmar({
+      titulo: 'Aplicar todas las mejoras',
+      texto: `Se cambia la categoría de ${plural(total, 'movimiento', 'movimientos')} de ${plural(propuestas.length, 'comercio', 'comercios')}, tal como se propone. Podrás deshacerlo durante unos segundos.`,
+      aceptar: 'Aplicar',
+    })
+    if (ok) await hacer((d) => propuestas.reduce((acc, p) => cambiarCategoria(acc, ids(p), p.hacia), d), `${plural(total, 'movimiento recategorizado', 'movimientos recategorizados')}`)
+  }
+  return (
+    <section className="mb-6 space-y-3">
+      <div className="px-4">
+        <h2 className="text-[13px] font-medium text-zinc-500 uppercase">Mejoras para lo ya categorizado</h2>
+        <p className="mt-1 text-xs text-zinc-500">
+          La app los categorizó de forma más general o distinta de lo que corregiste después en el mismo comercio. Lo que categorizaste a mano no aparece aquí.
+        </p>
+      </div>
+      {propuestas.length > 1 && (
+        <button className="boton-secundario w-full" onClick={todas}>
+          Aplicar las {propuestas.length} mejoras ({plural(total, 'movimiento', 'movimientos')})
+        </button>
+      )}
+      {propuestas.map((p) => {
+        const desde = categoriaDe(db, p.desde)
+        const hacia = categoriaDe(db, p.hacia)
+        return (
+          <div key={`${p.clave}|${p.desde}|${p.hacia}`} className="lista px-4 py-3">
+            <p className="truncate text-[17px]">{p.nombre}</p>
+            <p className="text-[13px] text-zinc-500">{plural(p.movimientos.length, 'movimiento', 'movimientos')}</p>
+            <p className="mt-2 flex flex-wrap items-center gap-1.5 text-[15px]">
+              <span className="text-zinc-500">{desde.nombre}</span>
+              <ArrowRight className="size-4 text-zinc-400" strokeWidth={2} />
+              <span className="font-semibold">{hacia.nombre}</span>
+            </p>
+            <div className="mt-3 flex gap-2">
+              <button className="boton-primario" onClick={() => si(p)}>
+                <Check className="size-4" strokeWidth={2.5} /> Sí
+              </button>
+              <button className="boton-secundario" onClick={() => no(p)}>
+                No, dejarlo así
+              </button>
+            </div>
+          </div>
+        )
+      })}
+    </section>
   )
 }

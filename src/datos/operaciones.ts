@@ -31,16 +31,20 @@ export function exigirSinIdentificativos(campo: string, valor: string | null | u
 // Datos iniciales
 // ---------------------------------------------------------------------------
 
+/** Suscripciones con subcategoría propia (v0.10.0) */
+export const PLATAFORMAS = ['Netflix', 'Disney+', 'HBO Max', 'Amazon Prime', 'Spotify', 'Claude', 'PlayStation', 'Nintendo']
+
 const CATALOGO: [string, string, string, Naturaleza, string[]][] = [
   ['Vivienda', 'casa', '#FF9500', 'gasto', ['Hipoteca', 'Comunidad', 'IBI y tasas', 'Seguro de hogar', 'Mantenimiento y reformas']],
   ['Suministros', 'bombilla', '#F7B500', 'gasto', ['Luz', 'Agua', 'Fibra y móvil']],
   ['Alimentación', 'carrito', '#34C759', 'gasto', ['Supermercado', 'Mercado y tiendas']],
-  ['Restaurantes y ocio', 'cubiertos', '#FF3B30', 'gasto', ['Restaurantes', 'Cafeterías', 'Ocio', 'Cultura']],
+  ['Restaurantes', 'cubiertos', '#FF3B30', 'gasto', ['Restaurantes', 'Cafeterías', 'Comida rápida y a domicilio', 'Bares y copas']],
+  ['Ocio', 'entrada', '#FF6482', 'gasto', ['Planes y salidas', 'Cine y espectáculos', 'Cultura', 'Deporte', 'Juegos']],
   ['Transporte', 'coche', '#007AFF', 'gasto', ['Combustible', 'Peajes', 'Aparcamiento', 'Transporte público', 'Mantenimiento del coche']],
   ['Hijos', 'bebe', '#FF2D55', 'gasto', ['Colegio', 'Extraescolares', 'Ropa', 'Cuidado']],
   ['Salud', 'salud', '#30B0C7', 'gasto', ['Farmacia', 'Seguro médico', 'Consultas']],
   ['Compras', 'bolsa', '#AF52DE', 'gasto', ['Ropa', 'Hogar', 'Tecnología', 'Regalos']],
-  ['Suscripciones', 'repetir', '#5856D6', 'gasto', ['Plataformas', 'Software', 'Cuotas']],
+  ['Suscripciones', 'repetir', '#5856D6', 'gasto', [...PLATAFORMAS, 'Otras plataformas', 'Software', 'Cuotas']],
   ['Viajes', 'avion', '#32ADE6', 'gasto', ['Alojamiento', 'Transporte', 'Actividades']],
   ['Seguros', 'escudo', '#8E8E93', 'gasto', ['Coche', 'Vida', 'Otros']],
   ['Comisiones e intereses', 'banco', '#636366', 'gasto', ['Comisiones bancarias', 'Intereses de tarjeta']],
@@ -276,6 +280,59 @@ export function borrarMovimientos(db: BaseDatos, ids: Set<string>): BaseDatos {
     movimientos: db.movimientos.filter((m) => !ids.has(m.id)),
     conciliaciones: db.conciliaciones.filter((c) => !ids.has(c.gasto_id) && !ids.has(c.reembolso_id)),
   }
+}
+
+/**
+ * Catálogo de la v0.10.0 sobre unos datos anteriores, sin cambiar ningún identificador (los
+ * movimientos, reglas y presupuestos conservan su categoría):
+ *   - «Restaurantes y ocio» pasa a «Restaurantes», con Comida rápida y a domicilio y Bares y copas.
+ *   - Nueva categoría «Ocio»: se le mueven las subcategorías Ocio (que pasa a «Planes y salidas») y
+ *     Cultura, y se añaden Cine y espectáculos, Deporte y Juegos.
+ *   - Suscripciones: una subcategoría por plataforma; «Plataformas» pasa a «Otras plataformas».
+ * Si el usuario ya cambió esos nombres, no se toca lo que no se reconoce.
+ */
+export function actualizarCatalogo(categorias: Categoria[]): Categoria[] {
+  let cats = categorias.map((c) => ({ ...c }))
+  const igual = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+  const raiz = (nombre: string) => cats.find((c) => !c.padre_id && igual(c.nombre, nombre))
+  const hijas = (id: string) => cats.filter((c) => c.padre_id === id)
+  const anadir = (padre: Categoria, nombres: string[], alPrincipio = false) => {
+    const existentes = hijas(padre.id)
+    const nuevas = nombres.filter((n) => !existentes.some((c) => igual(c.nombre, n)))
+    if (!nuevas.length) return
+    if (alPrincipio) cats = cats.map((c) => (c.padre_id === padre.id ? { ...c, orden: c.orden + nuevas.length } : c))
+    const base = alPrincipio ? 0 : Math.max(0, ...existentes.map((c) => c.orden))
+    nuevas.forEach((nombre, i) =>
+      cats.push({ id: nuevoId(), padre_id: padre.id, nombre, icono: null, color: padre.color, naturaleza: padre.naturaleza, activa: true, orden: base + i + 1 }),
+    )
+  }
+
+  const restOcio = raiz('Restaurantes y ocio')
+  if (restOcio && !raiz('Restaurantes')) {
+    restOcio.nombre = 'Restaurantes'
+    let ocio = raiz('Ocio')
+    if (!ocio) {
+      cats = cats.map((c) => (!c.padre_id && c.orden > restOcio.orden ? { ...c, orden: c.orden + 1 } : c))
+      ocio = { id: nuevoId(), padre_id: null, nombre: 'Ocio', icono: 'entrada', color: '#FF6482', naturaleza: 'gasto', activa: true, orden: restOcio.orden + 1 }
+      cats.push(ocio)
+    }
+    const destino = ocio
+    cats = cats.map((c) => {
+      if (c.padre_id !== restOcio.id) return c
+      if (igual(c.nombre, 'Ocio')) return { ...c, padre_id: destino.id, nombre: 'Planes y salidas', color: destino.color, orden: 1 }
+      if (igual(c.nombre, 'Cultura')) return { ...c, padre_id: destino.id, color: destino.color, orden: 3 }
+      return c
+    })
+    anadir(restOcio, ['Comida rápida y a domicilio', 'Bares y copas'])
+    anadir(destino, ['Cine y espectáculos', 'Deporte', 'Juegos'])
+  }
+
+  const susc = raiz('Suscripciones')
+  if (susc) {
+    cats = cats.map((c) => (c.padre_id === susc.id && igual(c.nombre, 'Plataformas') ? { ...c, nombre: 'Otras plataformas' } : c))
+    anadir(susc, PLATAFORMAS, true)
+  }
+  return cats
 }
 
 /** Borra importaciones con sus movimientos y las conciliaciones de esos movimientos */

@@ -87,6 +87,12 @@ export function cambiarTipo(db: BaseDatos, ids: string[], tipo: TipoMovimiento):
   }
 }
 
+/** El usuario confirma la categoría que ya tienen: pasan a ser decisión suya y no se vuelve a proponer cambiarla */
+export function fijarCategoria(db: BaseDatos, ids: string[]): BaseDatos {
+  const set = exigirMovimientos(db, ids)
+  return { ...db, movimientos: db.movimientos.map((m) => (set.has(m.id) && m.categoria_id ? { ...m, origen_categoria: 'manual' as const } : m)) }
+}
+
 /** Revisado como personal en la detección de gastos de empleado: no se vuelve a proponer y enseña al comercio */
 export function marcarPersonal(db: BaseDatos, ids: string[]): BaseDatos {
   const set = exigirMovimientos(db, ids)

@@ -1,4 +1,4 @@
-import { ChartColumn, ChevronLeft, ChevronRight, FileText, FlaskConical, HardDriveDownload, Landmark, Sheet, Tag, Upload } from 'lucide-react'
+import { ChartColumn, ChevronLeft, ChevronRight, FileText, FlaskConical, HardDriveDownload, Landmark, Sheet, Sparkles, Tag, Upload } from 'lucide-react'
 import { useMemo } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Aviso, Encabezado } from '../componentes/Encabezado'
@@ -15,6 +15,7 @@ import { hoyIso, mesLargo, sumarMeses } from '../lib/fechas'
 import { formatearImporte } from '../lib/formato'
 import { porcentaje, textoComparacion, type Tono } from '../lib/resumen'
 import { cuadrarCuenta } from '../lib/saldos'
+import { propuestasRecategorizacion } from '../datos/categorizar'
 import { cuadrarLiquidaciones } from '../lib/tarjeta'
 
 const TONO: Record<Tono, string> = {
@@ -32,6 +33,7 @@ export function Extracto() {
   const e = useMemo(() => calcularExtracto(db, mes, hoyIso()), [db, mes])
   const prueba = contarDatosPrueba(db)
   const porRevisar = useMemo(() => candidatosEmpleado(db).length, [db])
+  const mejoras = useMemo(() => propuestasRecategorizacion(db).reduce((s, p) => s + p.movimientos.length, 0), [db])
   const descuadradas = useMemo(
     () =>
       db.cuentas.filter((c) => c.activa && c.tipo === 'cuenta' && !cuadrarCuenta(db.movimientos.filter((x) => x.cuenta_id === c.id)).cuadra).length +
@@ -150,13 +152,21 @@ export function Extracto() {
               ))}
             </div>
 
-            {(e.sinCategoria > 0 || e.pendientesEmpleado > 0 || porRevisar > 0 || descuadradas > 0) && (
+            {(e.sinCategoria > 0 || e.pendientesEmpleado > 0 || porRevisar > 0 || descuadradas > 0 || mejoras > 0) && (
               <div className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
                 {descuadradas > 0 && (
                   <Link to="/ajustes/cuentas" className="fila">
                     <Baldosa glifo={Landmark} color="#FF9500" tamano="sm" />
                     <span className="flex-1 text-[15px]">Revisar el cuadre con el banco</span>
                     <span className="text-[15px] text-zinc-500">{descuadradas}</span>
+                    <ChevronRight className="size-4 text-zinc-400" />
+                  </Link>
+                )}
+                {mejoras > 0 && (
+                  <Link to="/movimientos/categorizar" className="fila">
+                    <Baldosa glifo={Sparkles} color="#5856D6" tamano="sm" />
+                    <span className="flex-1 text-[15px]">Mejoras de categoría para revisar</span>
+                    <span className="text-[15px] text-zinc-500">{mejoras}</span>
                     <ChevronRight className="size-4 text-zinc-400" />
                   </Link>
                 )}

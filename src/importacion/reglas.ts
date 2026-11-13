@@ -32,37 +32,60 @@ const REGLAS_BASE: ReglaBase[] = [
   { nombre: 'Pago a la familia', patron: '\\b(transferencia|transf|trf|bizum)\\b.*\\bfamilia\\b', tipo: 'pago_deuda', sugerencia: true, signo: 'gasto', prioridad: 30 },
   { nombre: 'Viajes de trabajo: alojamiento', patron: '\\b(hotel|hoteles|nh|melia|ac hotel|booking|hostal|ibis)\\b', tipo: 'gasto_empleado', sugerencia: true, signo: 'gasto', prioridad: 40 },
   { nombre: 'Viajes de trabajo: transporte', patron: '\\b(renfe|ouigo|iryo|iberia|vueling|ryanair|air europa|taxi|cabify|uber|bolt|freenow)\\b', tipo: 'gasto_empleado', sugerencia: true, signo: 'gasto', prioridad: 40 },
-  { nombre: 'Alojamiento', patron: '\\b(hotel|hoteles|nh|melia|ac hotel|booking|hostal|ibis|airbnb)\\b', ruta: 'Viajes > Alojamiento', signo: 'gasto' },
-  { nombre: 'Transporte de viaje', patron: '\\b(renfe|ouigo|iryo|iberia|vueling|ryanair|air europa|taxi|cabify|uber|bolt|freenow)\\b', ruta: 'Viajes > Transporte', signo: 'gasto' },
+  { nombre: 'Alojamiento', patron: '\\b(hotel|hoteles|nh|melia|ac hotel|booking|hostal|hostel|ibis|airbnb|expedia|hotels com|vrbo|parador|paradores|barcelo|iberostar|riu|hesperia|catalonia hotels|eurostars|apartamentos)\\b', ruta: 'Viajes > Alojamiento', signo: 'gasto' },
+  { nombre: 'Transporte de viaje', patron: '\\b(renfe|ouigo|iryo|iberia|vueling|ryanair|air europa|easyjet|volotea|binter|transavia|air nostrum|taxi|cabify|uber|bolt|freenow|blablacar|balearia|trasmed|aena|aeropuerto)\\b', ruta: 'Viajes > Transporte', signo: 'gasto' },
+  { nombre: 'Actividades de viaje', patron: '\\b(civitatis|getyourguide|tiqets|freetour)\\b', ruta: 'Viajes > Actividades', signo: 'gasto' },
   { nombre: 'Hipoteca', patron: '\\b(prestamo hipotecario|hipoteca|prestamo)\\b', ruta: 'Vivienda > Hipoteca', signo: 'gasto', mesSiguiente: true },
-  { nombre: 'Comunidad', patron: '\\bcomunidad\\b', ruta: 'Vivienda > Comunidad', signo: 'gasto' },
-  { nombre: 'IBI', patron: '\\b(ibi|impuesto bienes inmuebles|tasa basura)\\b', ruta: 'Vivienda > IBI y tasas', signo: 'gasto' },
-  { nombre: 'Seguro de hogar', patron: '\\bseguro (de )?hogar\\b', ruta: 'Vivienda > Seguro de hogar', signo: 'gasto' },
-  { nombre: 'Luz', patron: '\\b(energia electrica|iberdrola|endesa|naturgy|holaluz|electricidad)\\b', ruta: 'Suministros > Luz', signo: 'gasto' },
-  { nombre: 'Agua', patron: '\\b(aguas?|emivasa|canal de isabel)\\b', ruta: 'Suministros > Agua', signo: 'gasto' },
-  { nombre: 'Fibra y móvil', patron: '\\b(movistar|vodafone|orange|digi|o2|yoigo|fibra|telefonica)\\b', ruta: 'Suministros > Fibra y móvil', signo: 'gasto' },
-  { nombre: 'Supermercado', patron: '\\b(mercadona|consum|lidl|carrefour|alcampo|eroski|aldi|dia|hipercor|supercor|caprabo|bonpreu|condis|bonarea|ametller|esclat|sorli|spar|coviran|keisy|charter|plusfresc|masymas)\\b', ruta: 'Alimentación > Supermercado', signo: 'gasto' },
-  { nombre: 'Cafeterías', patron: '\\b(cafeteria|cafe|cafes|horno|forn|starbucks|granja|xurreria|pastisseria|pasteleria)\\b', ruta: 'Restaurantes y ocio > Cafeterías', signo: 'gasto', prioridad: 95 },
-  { nombre: 'Mercado y tiendas', patron: '\\b(fruteria|fruiteria|carniceria|carnisseria|panaderia|mercado|mercat|pescaderia|peixateria|xarcuteria)\\b', ruta: 'Alimentación > Mercado y tiendas', signo: 'gasto' },
-  { nombre: 'Restaurantes', patron: '\\b(rest|restaurante|restaurant|bar|pizzeria|taberna|sushi|burger|meson|asador|casa lucio|braseria|tapes|tapas|cerveseria|cerveceria)\\b', ruta: 'Restaurantes y ocio > Restaurantes', signo: 'gasto' },
-  { nombre: 'Ocio', patron: '\\b(cines?|teatro|teatre|entradas|entrades|ticketmaster|museo|museu|concierto|concert)\\b', ruta: 'Restaurantes y ocio > Ocio', signo: 'gasto' },
-  { nombre: 'Combustible', patron: '\\b(estacion de servicio|repsol|cepsa|galp|bp|shell|gasolinera)\\b', ruta: 'Transporte > Combustible', signo: 'gasto' },
-  { nombre: 'Aparcamiento', patron: '\\b(parking|aparcamiento|aparca|ora)\\b', ruta: 'Transporte > Aparcamiento', signo: 'gasto' },
-  { nombre: 'Peajes', patron: '\\b(peaje|autopista|ap 7|via t)\\b', ruta: 'Transporte > Peajes', signo: 'gasto' },
-  { nombre: 'Transporte público', patron: '\\b(metro|emt|metrovalencia|tmb|bus|cercanias)\\b', ruta: 'Transporte > Transporte público', signo: 'gasto' },
-  { nombre: 'Librerías', patron: '\\b(libreria|llibreria|casa del libro|abacus)\\b', ruta: 'Restaurantes y ocio > Cultura', signo: 'gasto' },
-  { nombre: 'Colegio', patron: '\\b(colegio|escola|escuela infantil)\\b', ruta: 'Hijos > Colegio', signo: 'gasto' },
-  { nombre: 'Extraescolares', patron: '\\b(escuela de musica|academia|extraescolar|conservatorio)\\b', ruta: 'Hijos > Extraescolares', signo: 'gasto' },
-  { nombre: 'Farmacia', patron: '\\bfarmacia\\b', ruta: 'Salud > Farmacia', signo: 'gasto' },
-  { nombre: 'Seguro médico', patron: '\\b(seguro medico|sanitas|adeslas|asisa|dkv|mapfre salud)\\b', ruta: 'Salud > Seguro médico', signo: 'gasto' },
-  { nombre: 'Ropa', patron: '\\b(zara|primark|mango|h m|pull bear|massimo dutti|decathlon|zeeman|tezenis|calzedonia|intimissimi|lefties|stradivarius|bershka|oysho|kiabi|springfield|cortefiel)\\b', ruta: 'Compras > Ropa', signo: 'gasto' },
-  { nombre: 'Compras online', patron: '\\b(amazon|aliexpress|el corte ingles|ikea|leroy merlin)\\b', ruta: 'Compras > Hogar', signo: 'gasto' },
-  { nombre: 'Plataformas', patron: '\\b(netflix|spotify|hbo|max|disney|prime video|apple com|youtube|dazn|movistar plus)\\b', ruta: 'Suscripciones > Plataformas', signo: 'gasto', prioridad: 90 },
-  { nombre: 'Seguro del coche', patron: '\\bseguro (del )?coche\\b|\\b(linea directa|mutua madrilena)\\b', ruta: 'Seguros > Coche', signo: 'gasto' },
+  { nombre: 'Comunidad', patron: '\\b(comunidad|comunidad de propietarios|cdad prop)\\b', ruta: 'Vivienda > Comunidad', signo: 'gasto' },
+  { nombre: 'IBI', patron: '\\b(ibi|impuesto bienes inmuebles|tasa basura|tasa residuos)\\b', ruta: 'Vivienda > IBI y tasas', signo: 'gasto' },
+  { nombre: 'Seguro de hogar', patron: '\\bseguro (de )?hogar\\b|\\bmultirriesgo hogar\\b', ruta: 'Vivienda > Seguro de hogar', signo: 'gasto' },
+  { nombre: 'Mantenimiento del hogar', patron: '\\b(fontanero|fontaneria|electricista|cerrajero|reformas|pintor|lampista)\\b', ruta: 'Vivienda > Mantenimiento y reformas', signo: 'gasto' },
+  { nombre: 'Luz', patron: '\\b(energia electrica|iberdrola|endesa|naturgy|holaluz|electricidad|totalenergies|octopus energy|octopus|lucera|som energia|factor energia|curenergia|energia xxi|edp|repsol luz|gas natural|nedgia)\\b', ruta: 'Suministros > Luz', signo: 'gasto' },
+  { nombre: 'Agua', patron: '\\b(aguas?|aigues|agbar|aqualia|canal de isabel|canal isabel|emivasa|emasesa|emaya|global omnium)\\b', ruta: 'Suministros > Agua', signo: 'gasto' },
+  { nombre: 'Fibra y móvil', patron: '\\b(movistar|vodafone|orange|digi|o2|yoigo|fibra|telefonica|masmovil|pepephone|lowi|simyo|jazztel|finetwork|avatel|adamo|euskaltel|r cable|telecable|amena)\\b', ruta: 'Suministros > Fibra y móvil', signo: 'gasto' },
+  { nombre: 'Supermercado', patron: '\\b(mercadona|consum|lidl|carrefour|alcampo|eroski|aldi|dia|hipercor|supercor|caprabo|bonpreu|condis|bonarea|ametller|esclat|sorli|spar|coviran|keisy|charter|plusfresc|masymas|bm supermercados|gadis|froiz|ahorramas|hiperdino|supersol|simply|el arbol|lupa|family cash|alimerka|vegalsa|costco|makro|supermercado|supermercat|hiper|hipermercado)\\b', ruta: 'Alimentación > Supermercado', signo: 'gasto' },
+  { nombre: 'Mercado y tiendas', patron: '\\b(fruteria|fruiteria|carniceria|carnisseria|panaderia|mercado|mercat|pescaderia|peixateria|xarcuteria|charcuteria|queseria|herbolario|ultramarinos|alimentacion|verduleria|polleria)\\b', ruta: 'Alimentación > Mercado y tiendas', signo: 'gasto' },
+  { nombre: 'Comida rápida y a domicilio', patron: '\\b(mcdonalds|mc donalds|mcdonald s|burger king|kfc|telepizza|dominos|domino s|pizza hut|papa johns|five guys|taco bell|subway|popeyes|tgb|the good burger|just eat|glovo|uber eats|deliveroo|foodoo|100 montaditos|montaditos)\\b', ruta: 'Restaurantes > Comida rápida y a domicilio', signo: 'gasto', prioridad: 80 },
+  { nombre: 'Cafeterías', patron: '\\b(cafeteria|cafe|cafes|coffee|horno|forn|starbucks|granja|xurreria|churreria|pastisseria|pasteleria|heladeria|gelateria|dunkin|granier|panaria|rodilla|santagloria|pans company|costa coffee|tim hortons|manolo bakes)\\b', ruta: 'Restaurantes > Cafeterías', signo: 'gasto', prioridad: 95 },
+  { nombre: 'Bares y copas', patron: '\\b(pub|cocteleria|coctel|discoteca|vermuteria|copas|cerveceria|cerveseria)\\b', ruta: 'Restaurantes > Bares y copas', signo: 'gasto', prioridad: 97 },
+  { nombre: 'Restaurantes', patron: '\\b(rest|restaurante|restaurant|rte|bar|pizzeria|pizza|taberna|sushi|burger|meson|asador|braseria|marisqueria|arroceria|pulperia|sidreria|trattoria|ristorante|wok|ramen|kebab|taqueria|tacos|creperia|hamburgueseria|tapes|tapas|bodega|vips|ginos|foster s|goiko|la tagliatella|lizarran|casa lucio)\\b', ruta: 'Restaurantes > Restaurantes', signo: 'gasto', prioridad: 98 },
+  { nombre: 'Ocio', patron: '\\b(cines?|yelmo|cinesa|kinepolis|ocine|odeon|teatro|teatre|ticketmaster|entradas|entrades|eventbrite|fever|concierto|concert|festival|atrapalo)\\b', ruta: 'Ocio > Cine y espectáculos', signo: 'gasto' },
+  { nombre: 'Librerías', patron: '\\b(libreria|llibreria|casa del libro|abacus|museo|museu|exposicion)\\b', ruta: 'Ocio > Cultura', signo: 'gasto' },
+  { nombre: 'Deporte', patron: '\\b(gimnasio|gym|basic fit|mcfit|vivagym|altafit|holmes place|go fit|padel|playtomic|piscina|polideportivo|club de tenis|crossfit|yoga|pilates)\\b', ruta: 'Ocio > Deporte', signo: 'gasto' },
+  { nombre: 'Juegos y apuestas', patron: '\\b(loterias|loteria|apuestas|bet365|codere|sportium|game stop|gamestop)\\b', ruta: 'Ocio > Juegos', signo: 'gasto' },
+  { nombre: 'Planes y salidas', patron: '\\b(bolera|karting|parque de atracciones|port aventura|portaventura|zoo|aquarium|oceanografic|escape room|tibidabo|warner|bioparc)\\b', ruta: 'Ocio > Planes y salidas', signo: 'gasto' },
+  { nombre: 'Netflix', patron: '\\b(netflix)\\b', ruta: 'Suscripciones > Netflix', signo: 'gasto', prioridad: 80 },
+  { nombre: 'Disney+', patron: '\\b(disney|disneyplus|disney plus)\\b', ruta: 'Suscripciones > Disney+', signo: 'gasto', prioridad: 80 },
+  { nombre: 'HBO Max', patron: '\\b(hbo|hbomax|hbo max|max com)\\b', ruta: 'Suscripciones > HBO Max', signo: 'gasto', prioridad: 80 },
+  { nombre: 'Amazon Prime', patron: '\\b(amazon|amzn) (prime|digital|video)\\b|\\bprime ?video\\b|\\bamazon prm\\b', ruta: 'Suscripciones > Amazon Prime', signo: 'gasto', prioridad: 80 },
+  { nombre: 'Spotify', patron: '\\b(spotify)\\b', ruta: 'Suscripciones > Spotify', signo: 'gasto', prioridad: 80 },
+  { nombre: 'Claude', patron: '\\b(claude|claude ai|anthropic)\\b', ruta: 'Suscripciones > Claude', signo: 'gasto', prioridad: 80 },
+  { nombre: 'PlayStation', patron: '\\b(playstation|play station|ps store|psn|sony interactive|sony entertainment)\\b', ruta: 'Suscripciones > PlayStation', signo: 'gasto', prioridad: 80 },
+  { nombre: 'Nintendo', patron: '\\b(nintendo)\\b', ruta: 'Suscripciones > Nintendo', signo: 'gasto', prioridad: 80 },
+  { nombre: 'Plataformas', patron: '\\b(apple com|itunes|youtube|dazn|movistar plus|filmin|skyshowtime|atresplayer|crunchyroll|audible|twitch|xbox|steam|google play)\\b', ruta: 'Suscripciones > Otras plataformas', signo: 'gasto', prioridad: 90 },
+  { nombre: 'Software', patron: '\\b(icloud|google one|google storage|dropbox|microsoft 365|office 365|microsoft|adobe|chatgpt|openai|github|notion|canva)\\b', ruta: 'Suscripciones > Software', signo: 'gasto', prioridad: 90 },
+  { nombre: 'Cuotas', patron: '\\b(cuota socio|cuota de socio|afiliacion|asociacion|colegio oficial)\\b', ruta: 'Suscripciones > Cuotas', signo: 'gasto' },
+  { nombre: 'Combustible', patron: '\\b(estacion de servicio|estacion servicio|repsol|cepsa|galp|bp|shell|gasolinera|ballenoil|plenoil|petronor|avia|petroprix|esclatoil|meroil|disa|carburantes|moeve)\\b', ruta: 'Transporte > Combustible', signo: 'gasto' },
+  { nombre: 'Aparcamiento', patron: '\\b(parking|aparcamiento|aparcament|aparca|ora|saba|empark|interparking|telpark|easypark|elparking|parkia|zona azul)\\b', ruta: 'Transporte > Aparcamiento', signo: 'gasto' },
+  { nombre: 'Peajes', patron: '\\b(peaje|autopista|autopistas|ap 7|via t|abertis|audasa|aucat|bip drive)\\b', ruta: 'Transporte > Peajes', signo: 'gasto' },
+  { nombre: 'Transporte público', patron: '\\b(metro|emt|metrovalencia|tmb|bus|cercanias|fgc|fgv|alsa|avanza|tram|tranvia|bicing|valenbisi|bicimad|t mobilitat|monbus|lime|dott)\\b', ruta: 'Transporte > Transporte público', signo: 'gasto' },
+  { nombre: 'Mantenimiento del coche', patron: '\\b(taller|talleres|neumaticos|norauto|feu vert|midas|euromaster|itv|lavado|elefante azul|recambios|autolavado)\\b', ruta: 'Transporte > Mantenimiento del coche', signo: 'gasto' },
+  { nombre: 'Colegio', patron: '\\b(colegio|escola|escuela infantil|guarderia|escoleta|ampa|afa)\\b', ruta: 'Hijos > Colegio', signo: 'gasto' },
+  { nombre: 'Extraescolares', patron: '\\b(escuela de musica|academia|extraescolar|extraescolares|conservatorio|campus|casal|campamento)\\b', ruta: 'Hijos > Extraescolares', signo: 'gasto' },
+  { nombre: 'Farmacia', patron: '\\b(farmacia|parafarmacia|dosfarma|promofarma)\\b', ruta: 'Salud > Farmacia', signo: 'gasto' },
+  { nombre: 'Seguro médico', patron: '\\b(seguro medico|sanitas|adeslas|asisa|dkv|mapfre salud|cigna)\\b', ruta: 'Salud > Seguro médico', signo: 'gasto' },
+  { nombre: 'Consultas', patron: '\\b(clinica|dental|dentista|fisioterapia|fisio|optica|opticas|general optica|multiopticas|afflelou|hospital|quiron|vithas|hm hospitales|psicologo|psicologa|podologo|laboratorio|analisis clinicos|medico)\\b', ruta: 'Salud > Consultas', signo: 'gasto' },
+  { nombre: 'Ropa', patron: '\\b(zara|primark|mango|h m|pull bear|pull and bear|massimo dutti|decathlon|zeeman|tezenis|calzedonia|intimissimi|lefties|stradivarius|bershka|oysho|kiabi|springfield|cortefiel|uniqlo|sfera|women secret|womens secret|skechers|foot locker|jd sports|nike|adidas|shein|zalando|vinted|asos|desigual|el ganso|scalpers|levis)\\b', ruta: 'Compras > Ropa', signo: 'gasto' },
+  { nombre: 'Tecnología', patron: '\\b(media markt|mediamarkt|fnac|pc componentes|pccomponentes|apple store|worten|xiaomi|phone house|backmarket|back market)\\b', ruta: 'Compras > Tecnología', signo: 'gasto' },
+  { nombre: 'Regalos', patron: '\\b(jugueteria|juguetes|toys|imaginarium|floristeria|flores|interflora|smartbox|wonderbox)\\b', ruta: 'Compras > Regalos', signo: 'gasto' },
+  { nombre: 'Compras online', patron: '\\b(amazon|amzn|aliexpress|el corte ingles|ikea|leroy merlin|bauhaus|brico depot|bricomart|conforama|maisons du monde|zara home|jysk|tiger|temu)\\b', ruta: 'Compras > Hogar', signo: 'gasto', prioridad: 100 },
+  { nombre: 'Seguro del coche', patron: '\\bseguro (del )?coche\\b|\\b(linea directa|mutua madrilena|verti|genesis|qualitas|regal)\\b', ruta: 'Seguros > Coche', signo: 'gasto' },
   { nombre: 'Seguro de vida', patron: '\\bseguro (de )?vida\\b', ruta: 'Seguros > Vida', signo: 'gasto' },
-  { nombre: 'Comisiones', patron: '\\b(comision|comisiones|mantenimiento cuenta)\\b', ruta: 'Comisiones e intereses > Comisiones bancarias', signo: 'gasto' },
-  { nombre: 'Intereses de tarjeta', patron: '\\bintereses\\b', ruta: 'Comisiones e intereses > Intereses de tarjeta', signo: 'gasto' },
+  { nombre: 'Seguros', patron: '\\b(mapfre|axa|allianz|generali|zurich|reale|pelayo|santalucia|ocaso|catalana occidente|mutua|seguro|seguros)\\b', ruta: 'Seguros > Otros', signo: 'gasto', prioridad: 110 },
+  { nombre: 'Comisiones', patron: '\\b(comision|comisiones|mantenimiento cuenta|cuota tarjeta|cuota anual)\\b', ruta: 'Comisiones e intereses > Comisiones bancarias', signo: 'gasto' },
+  { nombre: 'Intereses de tarjeta', patron: '\\b(intereses)\\b', ruta: 'Comisiones e intereses > Intereses de tarjeta', signo: 'gasto' },
   { nombre: 'Impuestos', patron: '\\b(aeat|hacienda|irpf|agencia tributaria)\\b', ruta: 'Impuestos > IRPF', signo: 'gasto' },
+  { nombre: 'Tasas y multas', patron: '\\b(ayuntamiento|ajuntament|dgt|multa|multas|generalitat|diputacion|tributs|notaria|registro de la propiedad)\\b', ruta: 'Impuestos > Otros', signo: 'gasto' },
 ]
 
 /** Reglas de la app, con las categorías del catálogo de este dispositivo (se omiten las que no existan) */
@@ -107,18 +130,29 @@ export interface TextoRegla {
   importe: number
 }
 
+/** Expresiones ya compiladas: se revisan cientos de movimientos contra decenas de reglas */
+const EXPRESIONES = new Map<string, RegExp | null>()
+function expresion(patron: string): RegExp | null {
+  if (!EXPRESIONES.has(patron)) {
+    try {
+      EXPRESIONES.set(patron, new RegExp(patron, 'i'))
+    } catch {
+      EXPRESIONES.set(patron, null)
+    }
+  }
+  return EXPRESIONES.get(patron)!
+}
+
 export function coincide(r: Regla, m: TextoRegla): boolean {
   if (!r.activa) return false
   if (r.cuenta_id && r.cuenta_id !== m.cuenta_id) return false
   if (r.importe_min !== null && m.importe < r.importe_min) return false
   if (r.importe_max !== null && m.importe > r.importe_max) return false
   switch (r.tipo_patron) {
-    case 'regex':
-      try {
-        return new RegExp(r.patron, 'i').test(m.texto)
-      } catch {
-        return false
-      }
+    case 'regex': {
+      const re = expresion(r.patron)
+      return !!re && re.test(m.texto)
+    }
     case 'exacto': {
       const p = normalizarConcepto(r.patron)
       return m.clave === p || m.texto === p

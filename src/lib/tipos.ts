@@ -157,7 +157,7 @@ export interface Ajustes {
   version_logica: string | null
 }
 
-export const VERSION_ESQUEMA = 5
+export const VERSION_ESQUEMA = 6
 
 export interface BaseDatos {
   esquema: number

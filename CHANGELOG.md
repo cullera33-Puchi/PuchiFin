@@ -2,6 +2,14 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.10.0. Categorización eficiente (13 de noviembre de 2026)
+
+- Catálogo: Restaurantes y Ocio por separado y suscripciones por plataforma. `actualizarCatalogo` (esquema 6) renombra y recoloca sin cambiar identificadores: «Restaurantes y ocio» pasa a Restaurantes; sus subcategorías Ocio («Planes y salidas») y Cultura pasan a la nueva Ocio; «Plataformas» pasa a «Otras plataformas».
+- Diccionario: 63 reglas de la app con unos 650 comercios y palabras clave (supermercados, comida rápida y a domicilio, cafeterías, bares, cines, gimnasios, plataformas, software, gasolineras, aparcamientos, peajes, transporte, talleres, colegios, farmacias, clínicas, ropa, tecnología, hogar, regalos, suministros, telefonía, seguros, impuestos y multas). Caché de expresiones regulares.
+- `propuestasRecategorizacion` y `fijarCategoria`: mejoras para lo categorizado por regla, con Sí, No y «Aplicar todas» con confirmación; avisos en el Extracto y en Movimientos.
+- Scroll: sin `transform` ni opacidad en reposo en `FilaDeslizable` y `Deslizable`; cabeceras fijas con `translateZ(0)`.
+- Pruebas: 286 tests (45 conceptos del diccionario, catálogo nuevo y adaptación, mejoras propuestas).
+
 ## v0.9.0. Categorización rápida de lo pendiente (13 de noviembre de 2026)
 
 - `src/datos/categorizar.ts`: `gruposPendientes` (pendientes por comercio y signo, ordenados por número de movimientos e importe), `sugerirPorParecido` (mismo comercio, misma primera palabra o índice de palabras en común con lo ya categorizado, ponderando lo manual; respeta la naturaleza gasto o ingreso), sugerencia por reglas de la app si no hay parecido, `categoriasRapidas` y `similares` (pendientes del mismo comercio, parecidos y ya categorizados por separado).

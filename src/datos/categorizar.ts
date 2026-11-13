@@ -147,3 +147,31 @@ export function similares(db: BaseDatos, ids: string[], categoria: string | null
   }
   return res
 }
+
+export interface PropuestaCambio {
+  clave: string
+  nombre: string
+  desde: string
+  hacia: string
+  movimientos: Movimiento[]
+}
+
+/**
+ * Mejoras para lo ya categorizado por la app: movimientos que categorizó una regla y que las reglas
+ * de ahora (o lo que el usuario ha corregido después en el mismo comercio) llevarían a otra categoría.
+ * Lo categorizado a mano nunca se propone. Se agrupan por comercio y cambio.
+ */
+export function propuestasRecategorizacion(db: BaseDatos): PropuestaCambio[] {
+  const aprendidas = categoriasAprendidas(db)
+  const grupos = new Map<string, PropuestaCambio>()
+  for (const m of db.movimientos) {
+    if (m.tipo !== 'normal' || !m.categoria_id || m.origen_categoria !== 'regla') continue
+    const c = clasificar({ texto: normalizarConcepto(m.concepto_original), clave: claveDe(m), cuenta_id: m.cuenta_id, importe: m.importe }, db.reglas, aprendidas)
+    if (c.tipo !== 'normal' || !c.categoria_id || c.categoria_id === m.categoria_id) continue
+    const k = `${claveDe(m)}|${m.categoria_id}|${c.categoria_id}`
+    const g = grupos.get(k) ?? { clave: claveDe(m), nombre: m.concepto_limpio, desde: m.categoria_id, hacia: c.categoria_id, movimientos: [] }
+    g.movimientos.push(m)
+    grupos.set(k, g)
+  }
+  return [...grupos.values()].sort((a, b) => b.movimientos.length - a.movimientos.length)
+}

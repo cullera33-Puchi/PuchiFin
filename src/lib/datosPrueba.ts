@@ -201,15 +201,15 @@ export function generarDatosPrueba(opciones: {
     if (diaSemana === 1 || diaSemana === 4 || (diaSemana === 6 && r.probable(0.6)))
       tarj(r.elegir(SUPERMERCADOS), -r.entre(28, 135), 'Alimentación > Supermercado')
     if (diaSemana === 6 && r.probable(0.5)) tarj('FRUTERIA EL HUERTO', -r.entre(12, 30), 'Alimentación > Mercado y tiendas')
-    if (laborable && r.probable(0.35)) tarj(r.elegir(CAFETERIAS), -r.entre(2.1, 6.5), 'Restaurantes y ocio > Cafeterías')
-    if ((diaSemana === 5 || diaSemana === 6) && r.probable(0.55)) tarj(r.elegir(RESTAURANTES), -r.entre(32, 95), 'Restaurantes y ocio > Restaurantes')
-    if (diaSemana === 0 && r.probable(0.3)) tarj('CINES ABC', -r.entre(18, 32), 'Restaurantes y ocio > Ocio')
+    if (laborable && r.probable(0.35)) tarj(r.elegir(CAFETERIAS), -r.entre(2.1, 6.5), 'Restaurantes > Cafeterías')
+    if ((diaSemana === 5 || diaSemana === 6) && r.probable(0.55)) tarj(r.elegir(RESTAURANTES), -r.entre(32, 95), 'Restaurantes > Restaurantes')
+    if (diaSemana === 0 && r.probable(0.3)) tarj('CINES ABC', -r.entre(18, 32), 'Ocio > Cine y espectáculos')
     if ((d === 9 || d === 23) && r.probable(0.9)) tarj('ESTACION DE SERVICIO', -r.entre(55, 78), 'Transporte > Combustible')
     if (r.probable(0.04)) tarj('FARMACIA', -r.entre(6, 32), 'Salud > Farmacia')
     if (r.probable(0.05)) tarj('AMAZON MARKETPLACE', -r.entre(15, 85), 'Compras > Hogar')
     if (r.probable(0.02)) tarj('ZARA', -r.entre(25, 90), 'Compras > Ropa')
-    if (d === 4) tarj('NETFLIX', -13.99, 'Suscripciones > Plataformas')
-    if (d === 11) tarj('SPOTIFY', -10.99, 'Suscripciones > Plataformas')
+    if (d === 4) tarj('NETFLIX', -13.99, 'Suscripciones > Netflix')
+    if (d === 11) tarj('SPOTIFY', -10.99, 'Suscripciones > Spotify')
     if (d === 18) tarj('PARKING CENTRO', -r.entre(4, 14), 'Transporte > Aparcamiento')
     if (dia.slice(5) === '11-19') tarj('DEVOLUCION AMAZON MARKETPLACE', 24.99, 'Compras > Hogar')
     if (d === 14 && r.probable(0.6)) tarj('BIZUM A Otros', -r.entre(10, 40), null) // queda sin categoría
@@ -219,7 +219,7 @@ export function generarDatosPrueba(opciones: {
       tarj('RENFE VIAJEROS', -r.entre(58, 96), 'Viajes > Transporte', 'gasto_empleado')
       tarj('HOTEL NH MADRID', -r.entre(118, 196), 'Viajes > Alojamiento', 'gasto_empleado')
       tarj('CABIFY', -r.entre(12, 28), 'Viajes > Transporte', 'gasto_empleado')
-      tarj('REST CASA LUCIO', -r.entre(28, 46), 'Restaurantes y ocio > Restaurantes', 'gasto_empleado')
+      tarj('REST CASA LUCIO', -r.entre(28, 46), 'Restaurantes > Restaurantes', 'gasto_empleado')
     }
   }
 
