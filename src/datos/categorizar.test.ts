@@ -155,6 +155,14 @@ describe('PayPal: cargos repartidos por importe', () => {
     expect(similares(base, [base.movimientos[1].id], JUEGOS).mismoComercio.map((m) => m.id)).toEqual([base.movimientos[2].id])
   })
 
+  it('al corregir un cargo de PayPal se ofrecen también los de otros importes para revisarlos', () => {
+    const s = similares(base, [base.movimientos[3].id], JUEGOS)
+    expect(s.otrosPasarela.map((m) => m.importe).sort()).toEqual([-12.99, -12.99, -12.99, -4.99])
+    // Lo que ya está en esa categoría no se ofrece
+    const conJuegos = { ...base, movimientos: base.movimientos.map((m, i) => (i === 4 ? { ...m, categoria_id: JUEGOS } : m)) }
+    expect(similares(conJuegos, [base.movimientos[3].id], JUEGOS).otrosPasarela).toHaveLength(3)
+  })
+
   it('la regla que se crea es del importe exacto', () => {
     const r = cambiarCategoria(base, [base.movimientos[3].id], JUEGOS, { crearRegla: true })
     const regla = r.reglas.find((x) => x.origen === 'manual')!

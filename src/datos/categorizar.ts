@@ -131,7 +131,12 @@ export interface Similares {
   parecidos: Movimiento[]
   /** Del mismo comercio pero ya categorizados de otra forma: solo si el usuario lo pide */
   yaCategorizados: Movimiento[]
+  /** PayPal: los demás cargos de PayPal (otros importes) que no están ya en esa categoría */
+  otrosPasarela: Movimiento[]
 }
+
+/** Si conviene revisar más movimientos antes de aplicar una categoría */
+export const haySimilares = (s: Similares) => !!(s.mismoComercio.length || s.parecidos.length || s.yaCategorizados.length || s.otrosPasarela.length)
 
 /** Movimientos que conviene categorizar a la vez que los elegidos */
 export function similares(db: BaseDatos, ids: string[], categoria: string | null): Similares {
@@ -140,10 +145,15 @@ export function similares(db: BaseDatos, ids: string[], categoria: string | null
   const claves = new Set(elegidos.map(claveDe).filter(Boolean))
   const primeras = new Set(elegidos.filter((m) => !esPasarela(claveDe(m))).map((m) => primeraPalabra(claveDe(m))).filter((p): p is string => !!p))
   const signos = new Set(elegidos.map(signoDe))
-  const res: Similares = { mismoComercio: [], parecidos: [], yaCategorizados: [] }
+  const pasarelas = new Set(elegidos.map(claveBase).filter(esPasarela))
+  const res: Similares = { mismoComercio: [], parecidos: [], yaCategorizados: [], otrosPasarela: [] }
   for (const m of db.movimientos) {
     if (set.has(m.id) || !signos.has(signoDe(m))) continue
     const k = claveDe(m)
+    if (!claves.has(k) && pasarelas.has(claveBase(m))) {
+      if (m.tipo === 'normal' && (m.categoria_id !== categoria || !m.categoria_id)) res.otrosPasarela.push(m)
+      continue
+    }
     if (claves.has(k)) {
       if (esPendiente(m)) res.mismoComercio.push(m)
       else if (m.tipo === 'normal' && m.categoria_id !== categoria) res.yaCategorizados.push(m)

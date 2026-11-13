@@ -101,29 +101,32 @@ Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (po
 - Entidad de cada cuenta y cuenta desde la que se paga la hipoteca.
 - El repositorio es público. No contiene datos personales. El usuario lo deja pendiente. Ojo: GitHub Pages en un repositorio privado exige un plan de pago de GitHub; si se hace privado, habría que publicar en otro servicio gratuito (por ejemplo, Vercel).
 
-## Hoja de ruta de mejoras (desde la v0.8.0)
+## Hoja de ruta de mejoras (revisada en la v0.20.0)
 
-Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alta (varias y con decisiones). Tipo: F (funcionalidad), CV (calidad de vida), T (calidad técnica). Cada versión se valida con datos reales antes de pasar a la siguiente.
+Ordenada por esfuerzo, de menos a más, con prioridad para la usabilidad y el reporting. Esfuerzo: bajo (una sesión), medio (dos o tres), alto (varias y con decisiones). Lo hecho de la hoja anterior (v0.9 a v0.20) está en el apartado Estado. Cada versión se valida con datos reales antes de pasar a la siguiente.
 
-| Versión | Mejora | Tipo | Prioridad | Complejidad |
-| --- | --- | --- | --- | --- |
-| v0.11 (hecha) | Hoja de movimiento rediseñada (Listo, cierre arrastrando desde el contenido, guardado al momento), interruptores Liquid Glass y categorizar la primera carga con Claude en el chat (resumen anonimizado e importación de reglas) | CV | Muy alta | Media |
-| v0.10 (hecha) | Categorización eficiente: diccionario de unos 650 comercios y palabras clave, Restaurantes y Ocio por separado, suscripciones por plataforma y mejoras propuestas para lo ya categorizado por la app (Sí o No) | F | Muy alta | Media |
-| v0.9 (hecha) | Categorización rápida de lo pendiente: pantalla por comercio con sugerencias, categorías de un toque, sugerencias claras en bloque y similares pendientes al corregir | CV | Muy alta | Media |
-| v0.12 | Ajustes con los primeros datos reales pegados: formato de la tarjeta, Bizum y periodo de liquidación | F | Muy alta | Baja |
-| v0.12 | Cierre de mes guiado: lista de pasos (pegar cuenta principal, cuenta 2 y tarjeta; cuadre en verde; sin categoría a cero) | CV | Muy alta | Baja |
-| v0.12 | Pruebas de navegador (Playwright) en GitHub antes de publicar, con archivos de cada esquema anterior | T | Alta | Media |
-| v0.13 | Gastos hormiga: compras pequeñas y frecuentes (cafés, snacks, apps) por comercio y categoría, total del mes y proyección anual, en Informes | F | Alta | Baja |
-| v0.13 | Gastos fijos y recurrentes: detección por comercio, periodicidad e importe estable (suscripciones, recibos, seguros, hipoteca); fijo frente a variable, próximos cargos y subidas de precio | F | Alta | Media |
-| v0.14 | Optimizar con Claude: gastos fijos, recurrentes y hormiga con un prompt preparado (comparar tarifas de luz, fibra y seguros, suscripciones duplicadas o sin uso), por enlace a claude.ai o archivo con la hoja de compartir. Sin API ni coste | F | Alta | Media |
-| v0.14 | Avisos de recurrentes: cargo nuevo, subida de importe o cargo esperado que no llega | F | Media | Media |
-| v0.20 | Fase 4: presupuesto por categoría, plan de pagos de la deuda familiar con simulación y «Analizar con Claude» en el resto de vistas | F | Media | Alta |
-| Continua | Hojas con campos: la hoja sube con el teclado (guía 6.4); las acciones en la cabecera ya están (v0.11.0) | CV | Media | Media |
-| Continua | Menú de pulsación larga en las filas (guía 7) y búsqueda con «Cancelar» | CV | Media | Media |
-| Continua | Cambiar de pestaña deslizando y recolocación animada de las listas (guía 4.1 y 5) | CV | Baja | Media |
-| Más adelante | Fase 5: previsiones (cierre de mes, estacionalidad, gastos atípicos). La carga de Fintonic se descarta: el histórico entra con los Excel de BBVA | F | Baja | Alta |
-| Más adelante | Fase 6: Face ID, notificaciones, importación de PDF, otras entidades (la sugerencia por similitud ya está, v0.9.0) | F | Baja | Media |
-| Decisión | Historial de git y descripciones de PR con datos de las primeras versiones; repositorio privado (exige otro alojamiento gratuito) | T | Pendiente del usuario | Baja |
+| Orden | Mejora | Tipo | Esfuerzo |
+| --- | --- | --- | --- |
+| 1 | Resumen del mes en una frase arriba del Extracto: lo gastado hasta hoy frente a la media y la categoría que más se desvía | Reporting | Bajo |
+| 2 | Comparativa con el mismo mes del año anterior en el Extracto y en Informes, además de la media | Reporting | Bajo |
+| 3 | Ranking de comercios en Informes: dónde más se gasta y con qué frecuencia, por mes y por año | Reporting | Bajo |
+| 4 | Gastos hormiga: compras pequeñas y frecuentes por comercio, total del mes y proyección anual | Reporting | Bajo |
+| 5 | Filtro rápido por cuenta en Movimientos (chips por cuenta) y búsqueda con «Cancelar» | Usabilidad | Bajo |
+| 6 | Cierre de mes guiado: importar las tres fuentes, cuadre en verde, sin categoría a cero y PayPal repartido | Usabilidad | Bajo |
+| 7 | Evolución del capital en Informes: posición a final de cada mes y ahorro real frente al del extracto | Reporting | Bajo |
+| 8 | Gastos fijos y recurrentes: detección por comercio, periodicidad e importe; próximos cargos y subidas de precio | Reporting | Medio |
+| 9 | Previsión de cierre de mes según el ritmo de gasto y los recurrentes que faltan | Reporting | Medio |
+| 10 | Presupuesto por categoría con barra de consumo en el Extracto (parte de la fase 4) | Reporting | Medio |
+| 11 | Menú de pulsación larga en las filas: categoría, no cuenta, nota y ver parecidos (guía 7) | Usabilidad | Medio |
+| 12 | La hoja sube con el teclado al escribir (guía 6.4) | Usabilidad | Medio |
+| 13 | Avisos de recurrentes: cargo nuevo, subida de importe o cargo esperado que no llega | Reporting | Medio |
+| 14 | Optimizar con Claude: prompt preparado con fijos, recurrentes y hormiga, por enlace o archivo. Sin API ni coste | Reporting | Medio |
+| 15 | Pruebas de navegador (Playwright) en GitHub antes de publicar, con archivos de cada esquema anterior | Técnica | Medio |
+| 16 | Cambiar de pestaña deslizando y recolocación animada de las listas (guía 4.1 y 5) | Usabilidad | Medio |
+| 17 | Fase 4: plan de pagos de la deuda familiar con simulación y «Analizar con Claude» en el resto de vistas | Reporting | Alto |
+| 18 | Fase 5: estacionalidad y gastos atípicos | Reporting | Alto |
+| 19 | Fase 6: Face ID e importación de PDF. Las notificaciones exigen un servidor de envío, fuera del alcance sin coste | Usabilidad | Alto |
+| Decisión | Repositorio privado (exige otro alojamiento gratuito) | Técnica | Pendiente del usuario |
 
 ## Estado
 
@@ -135,6 +138,7 @@ Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alt
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.20.0 (13/11/2026): reclasificar en bloque revisando la lista: al cambiar la categoría, la hoja muestra cada movimiento parecido con su casilla (pendientes y PayPal marcados; lo elegido a mano, sin marcar) y, en PayPal, todos los demás cargos de PayPal. Hoja de ruta revisada, por esfuerzo.
 - v0.19.1 (13/11/2026): con una hoja abierta, la pantalla de detrás ya no se desplaza (bloqueo del gesto fuera de las zonas desplazables de la hoja y en sus extremos).
 - v0.19.0 (13/11/2026): «Tu posición» arriba del Extracto: capital (cuentas según el banco menos lo pendiente de la tarjeta), saldo por cuenta, variación del mes, evolución y ojo para ocultar las cifras (`calcularPosicion`, `pendienteTarjeta`).
 - v0.18.0 (13/11/2026): tira de periodos con botones grandes en el Extracto e Informes (`TiraPeriodos`); aviso de 5 días sin importar por cuenta (`avisoImportacion`); registro saneado (sin comercios, importes ni categorías), con repeticiones agrupadas y «Borrar» a la vista.
@@ -356,6 +360,7 @@ La app trae un catálogo predeterminado de categorías que se puede ampliar, y l
 - Al corregir, la app pregunta si aplicar el cambio a todos los movimientos con el mismo concepto y si crear la regla para los futuros.
 - Bandeja de movimientos sin categoría siempre visible con su contador.
 - PayPal no dice el comercio: sus cargos se reparten por importe en su propia pantalla (Repartir PayPal), y lo aprendido y las reglas van por importe exacto.
+- Al cambiar la categoría, la app lista los movimientos parecidos para revisarlos uno a uno antes de aplicar (casilla por movimiento, «Todos» y «Ninguno»). En PayPal incluye el histórico completo de cargos de PayPal; lo que el usuario categorizó a mano viene sin marcar.
 
 **Más adelante:** sugerencia de categoría para conceptos nuevos por similitud con los ya categorizados, calculada en la propia app y sin coste.
 

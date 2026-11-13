@@ -2,6 +2,13 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.20.0. Reclasificar en bloque revisando la lista (13 de noviembre de 2026)
+
+- `HojaCorreccion` (`src/componentes/movimientos.tsx`): en lugar de interruptores con un recuento, `GrupoMarcable` lista cada movimiento (fecha, concepto, categoría actual, importe) con su casilla y «Todos» o «Ninguno» por grupo. Marcados de entrada: pendientes del mismo comercio y parecidos; en PayPal, también lo del mismo importe y el resto de cargos de PayPal que no eligió el usuario a mano. Lo ya categorizado de otros comercios, sin marcar. El botón dice a cuántos movimientos se aplica.
+- `similares` añade `otrosPasarela` (los demás cargos de PayPal, de cualquier importe, que no están ya en la categoría) y `haySimilares`. En PayPal la regla se crea solo para el importe del movimiento elegido.
+- Hoja de ruta de CLAUDE.md revisada: ordenada por esfuerzo, con prioridad para la usabilidad y el reporting.
+- Pruebas: 339 tests.
+
 ## v0.19.1. La pantalla de detrás no se mueve con una hoja abierta (13 de noviembre de 2026)
 
 - `Interfaz.tsx`: mientras haya una hoja abierta, un `touchmove` no pasivo en el documento anula el gesto si no hay una zona desplazable de la hoja bajo el dedo (cabecera, velo, contenido que cabe entero) o si esa zona ya está en su principio o su final en la dirección del gesto. Safari en el iPhone pasaba ese desplazamiento a la página aunque el contenido tuviera `overscroll-behavior: contain`. Los gestos laterales y el cierre arrastrando no cambian.

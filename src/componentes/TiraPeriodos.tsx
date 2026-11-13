@@ -10,6 +10,7 @@ export interface OpcionPeriodo {
 }
 
 /** Meses de «desde» a «hasta» (AAAA-MM), ambos incluidos, como opciones de la tira */
+// oxlint-disable-next-line react/only-export-components
 export function opcionesMeses(desde: string, hasta: string): OpcionPeriodo[] {
   const res: OpcionPeriodo[] = []
   let [a, m] = desde.split('-').map(Number)
@@ -27,6 +28,7 @@ export function opcionesMeses(desde: string, hasta: string): OpcionPeriodo[] {
 }
 
 /** Años de «desde» a «hasta», ambos incluidos */
+// oxlint-disable-next-line react/only-export-components
 export function opcionesAnios(desde: string, hasta: string): OpcionPeriodo[] {
   const res: OpcionPeriodo[] = []
   for (let a = Number(desde.slice(0, 4)); a <= Number(hasta.slice(0, 4)); a++) res.push({ clave: String(a), arriba: String(a) })

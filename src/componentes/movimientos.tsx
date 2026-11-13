@@ -2,7 +2,7 @@
 import { Briefcase, Check, ChevronRight, Plus, Search, Tag } from 'lucide-react'
 import { FormCrearCategoria } from './CrearCategoria'
 import { useEffect, useMemo, useState } from 'react'
-import { similares } from '../datos/categorizar'
+import { haySimilares, similares } from '../datos/categorizar'
 import { cambiarCategoria, cambiarTipo, guardarNota, imputarMesSiguiente } from '../datos/movimientos'
 import { mesSiguiente } from '../lib/imputacion'
 import { obtenerDatos } from '../datos/almacen'
@@ -150,10 +150,75 @@ export function SelectorCategoria({
   )
 }
 
+/** Un grupo de movimientos que se pueden incluir en la corrección, cada uno con su casilla */
+function GrupoMarcable({
+  titulo,
+  nota,
+  movs,
+  marcados,
+  onCambio,
+  pasarela,
+}: {
+  titulo: string
+  nota?: string
+  movs: Movimiento[]
+  marcados: Set<string>
+  onCambio: (ids: string[], incluir: boolean) => void
+  pasarela: boolean
+}) {
+  const db = useDatos()
+  if (!movs.length) return null
+  const n = movs.filter((m) => marcados.has(m.id)).length
+  const todos = n === movs.length
+  return (
+    <section>
+      <div className="mb-1.5 flex items-end gap-2 px-1">
+        <span className="min-w-0 flex-1">
+          <span className="block text-[13px] font-medium text-zinc-500 uppercase">{titulo}</span>
+          {nota && <span className="block text-[12px] text-zinc-500">{nota}</span>}
+        </span>
+        <span className="shrink-0 text-[13px] text-zinc-500 tabular-nums">
+          {n} de {movs.length}
+        </span>
+        <button type="button" className="boton-texto shrink-0 px-1" onClick={() => onCambio(movs.map((m) => m.id), !todos)}>
+          {todos ? 'Ninguno' : 'Todos'}
+        </button>
+      </div>
+      <ul className="lista divide-y divide-zinc-200/70 border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+        {movs.map((m) => {
+          const dentro = marcados.has(m.id)
+          return (
+            <li key={m.id}>
+              <button type="button" className="flex min-h-12 w-full items-center gap-3 px-3 py-1.5 text-left active:bg-zinc-100 dark:active:bg-zinc-800" onClick={() => onCambio([m.id], !dentro)}>
+                <span className={`grid size-[22px] shrink-0 place-items-center rounded-full border-2 ${dentro ? 'border-marca-600 bg-marca-600 text-white' : 'border-zinc-300 dark:border-zinc-600'}`}>
+                  {dentro && <Check className="size-3.5" strokeWidth={3} />}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[15px]">{pasarela ? formatearFecha(m.fecha_operacion) : m.concepto_limpio}</span>
+                  <span className={`block truncate text-[12px] ${m.categoria_id ? 'text-zinc-500' : 'text-[#FF9500]'}`}>
+                    {pasarela ? '' : `${formatearFecha(m.fecha_operacion)}, `}
+                    {nombreCategoria(db, m.categoria_id)}
+                    {m.origen_categoria === 'manual' ? ', elegida por ti' : ''}
+                  </span>
+                </span>
+                <span className="shrink-0 text-[15px] tabular-nums">{formatearImporte(m.importe)}</span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
+  )
+}
+
+const recientes = (movs: Movimiento[]) => [...movs].sort((a, b) => b.fecha_operacion.localeCompare(a.fecha_operacion))
+
 /**
- * Corrección de categoría: además de los elegidos, propone a la vez los similares PENDIENTES (mismo
- * comercio y comercios que empiezan igual) y crear la regla para las próximas importaciones. Lo ya
- * categorizado de otra forma solo cambia si se activa a mano. Todo con «Deshacer».
+ * Corrección de categoría: además de los elegidos, lista para revisar los parecidos, cada uno con su
+ * casilla: pendientes del mismo comercio y parecidos (marcados), ya categorizados del mismo comercio
+ * (sin marcar, salvo en PayPal lo que puso una regla) y, en PayPal, el resto de cargos de PayPal (marcados
+ * salvo los que elegiste tú). Así se reclasifica el histórico de golpe desmarcando lo que no aplique.
+ * Crea la regla para las próximas importaciones. Todo con «Deshacer».
  */
 export function HojaCorreccion({
   ids,
@@ -168,9 +233,6 @@ export function HojaCorreccion({
 }) {
   const db = useDatos()
   const hacer = useHacer()
-  const [mismo, setMismo] = useState(true)
-  const [parecidos, setParecidos] = useState(true)
-  const [yaHechos, setYaHechos] = useState(false)
   const [regla, setRegla] = useState(true)
   const s = useMemo(() => (ids ? similares(db, ids, categoria) : null), [db, ids, categoria])
   // En PayPal, «el mismo comercio» es el mismo importe
@@ -178,60 +240,100 @@ export function HojaCorreccion({
     const m = db.movimientos.find((x) => x.id === id)
     return !!m && esPasarela(claveComercio(m.concepto_limpio))
   })
-  const nombres = (movs: Movimiento[]) => {
-    const unicos = [...new Set(movs.map((m) => m.concepto_limpio))]
-    return unicos.slice(0, 4).join(', ') + (unicos.length > 4 ? ` y ${unicos.length - 4} más` : '')
+  // Lo que se marca de entrada; se recalcula al abrir la hoja para otros movimientos o categoría
+  const clave = `${ids?.join(',')}|${categoria}`
+  const [marcados, setMarcados] = useState<{ clave: string; ids: Set<string> } | null>(null)
+  const iniciales = useMemo(() => {
+    if (!s) return new Set<string>()
+    const noManual = (m: Movimiento) => m.origen_categoria !== 'manual'
+    return new Set(
+      [...s.mismoComercio, ...s.parecidos, ...(pasarela ? s.yaCategorizados.filter(noManual) : []), ...s.otrosPasarela.filter(noManual)].map((m) => m.id),
+    )
+  }, [s, pasarela])
+  const actuales = marcados?.clave === clave ? marcados.ids : iniciales
+  const cambiar = (lista: string[], incluir: boolean) => {
+    const n = new Set(actuales)
+    lista.forEach((id) => (incluir ? n.add(id) : n.delete(id)))
+    setMarcados({ clave, ids: n })
   }
+
   const aplicar = async () => {
     if (!ids || !s) return
-    const todos = [...ids, ...(mismo ? s.mismoComercio : []), ...(parecidos ? s.parecidos : []), ...(yaHechos ? s.yaCategorizados : [])].map((x) => (typeof x === 'string' ? x : x.id))
+    const extras = [...actuales].filter((id) => !ids.includes(id))
+    const total = ids.length + extras.length
     const ok = await hacer(
-      (d) => cambiarCategoria(d, todos, categoria, { crearRegla: regla && !!categoria }),
-      `${plural(todos.length, 'movimiento', 'movimientos')}: ${nombreCategoria(db, categoria)}`,
+      (d) =>
+        // En PayPal la regla es solo para el importe del elegido; el resto se cambia sin crear reglas
+        pasarela
+          ? cambiarCategoria(extras.length ? cambiarCategoria(d, extras, categoria) : d, ids, categoria, { crearRegla: regla && !!categoria })
+          : cambiarCategoria(d, [...ids, ...extras], categoria, { crearRegla: regla && !!categoria }),
+      `${plural(total, 'movimiento', 'movimientos')}: ${nombreCategoria(obtenerDatos(), categoria)}`,
     )
-    if (ok) onHecho?.(todos.length)
+    if (ok) {
+      setMarcados(null)
+      onHecho?.(total)
+    }
   }
+  const total = (ids?.length ?? 0) + [...actuales].filter((id) => !ids?.includes(id)).length
   return (
     <Hoja
       abierta={!!ids}
       titulo={`Cambiar a ${nombreCategoria(db, categoria)}`}
-      onCerrar={onCerrar}
+      onCerrar={() => {
+        setMarcados(null)
+        onCerrar()
+      }}
       acciones={
         <>
           <button className="boton-secundario" onClick={onCerrar}>
             Cancelar
           </button>
           <button className="boton-primario" onClick={aplicar}>
-            Aplicar
+            Aplicar a {plural(total, 'movimiento', 'movimientos')}
           </button>
         </>
       }
     >
-      <div className="space-y-4">
-        {s && s.mismoComercio.length > 0 && (
-          <FilaInterruptor
-            texto={`También ${plural(s.mismoComercio.length, 'pendiente', 'pendientes')} ${pasarela ? 'de PayPal con el mismo importe' : 'del mismo comercio'}`}
-            activo={mismo}
-            onCambio={setMismo}
-          />
+      <div className="space-y-5">
+        <p className="px-1 text-[13px] text-zinc-500">Revisa la lista y desmarca lo que no sea de {nombreCategoria(db, categoria)}. El movimiento que elegiste se cambia siempre.</p>
+        {s && (
+          <>
+            <GrupoMarcable
+              titulo={pasarela ? 'PayPal del mismo importe, sin categoría' : 'Del mismo comercio, sin categoría'}
+              movs={recientes(s.mismoComercio)}
+              marcados={actuales}
+              onCambio={cambiar}
+              pasarela={pasarela}
+            />
+            <GrupoMarcable titulo="Parecidos, sin categoría" movs={recientes(s.parecidos)} marcados={actuales} onCambio={cambiar} pasarela={false} />
+            <GrupoMarcable
+              titulo={pasarela ? 'PayPal del mismo importe, ya categorizados' : 'Del mismo comercio, ya categorizados'}
+              nota={pasarela ? undefined : 'Sin marcar: lo ya categorizado solo cambia si lo marcas'}
+              movs={recientes(s.yaCategorizados)}
+              marcados={actuales}
+              onCambio={cambiar}
+              pasarela={pasarela}
+            />
+            <GrupoMarcable
+              titulo="Otros cargos de PayPal"
+              nota="De otros importes. Los que categorizaste tú vienen sin marcar"
+              movs={recientes(s.otrosPasarela)}
+              marcados={actuales}
+              onCambio={cambiar}
+              pasarela
+            />
+          </>
         )}
-        {s && s.parecidos.length > 0 && (
-          <FilaInterruptor
-            texto={`También ${plural(s.parecidos.length, 'pendiente parecido', 'pendientes parecidos')}`}
-            nota={nombres(s.parecidos)}
-            activo={parecidos}
-            onCambio={setParecidos}
-          />
+        {categoria && (
+          <div className="lista bg-zinc-100/70 dark:bg-zinc-800/50">
+            <FilaInterruptor
+              texto="Crear la regla para las próximas importaciones"
+              nota={pasarela ? 'Los próximos cargos de PayPal con el importe del elegido se categorizarán solos' : 'Los movimientos nuevos de estos comercios se categorizarán solos'}
+              activo={regla}
+              onCambio={setRegla}
+            />
+          </div>
         )}
-        {s && s.yaCategorizados.length > 0 && (
-          <FilaInterruptor
-            texto={`Cambiar también ${plural(s.yaCategorizados.length, 'ya categorizado', 'ya categorizados')} de otra forma`}
-            nota={`${pasarela ? 'De PayPal con el mismo importe' : 'Del mismo comercio'}. Desactivado: lo que ya categorizaste no se toca`}
-            activo={yaHechos}
-            onCambio={setYaHechos}
-          />
-        )}
-        {categoria && <FilaInterruptor texto="Crear la regla para las próximas importaciones" nota={pasarela ? 'Los próximos cargos de PayPal con este mismo importe se categorizarán solos' : 'Los movimientos nuevos de estos comercios se categorizarán solos'} activo={regla} onCambio={setRegla} />}
       </div>
     </Hoja>
   )
@@ -258,7 +360,7 @@ export function useElegirCategoria(ids: string[], alAbrirCorreccion: (cat: strin
   const hacer = useHacer()
   return async (cat: string | null) => {
     const s = similares(db, ids, cat)
-    if (s.mismoComercio.length || s.parecidos.length || s.yaCategorizados.length) return alAbrirCorreccion(cat)
+    if (haySimilares(s)) return alAbrirCorreccion(cat)
     await hacer(
       (d) => cambiarCategoria(d, ids, cat, { crearRegla: !!cat }),
       cat ? `${nombreCategoria(obtenerDatos(), cat)}${ids.length > 1 ? ` en ${ids.length} movimientos` : ''}. Regla creada para las próximas` : 'Sin categoría',

@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.20.0",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Al cambiar la categoría de un movimiento, ves la lista de los parecidos que también se pueden cambiar, cada uno con su casilla. Desmarca los que no apliquen y pulsa «Aplicar».",
+      "En PayPal la lista incluye todos tus cargos de PayPal, para reclasificar el histórico de golpe. Los que categorizaste tú vienen sin marcar.",
+      "«Todos» y «Ninguno» en cada grupo, y el botón dice cuántos movimientos vas a cambiar."
+    ]
+  },
+  {
     "version": "0.19.1",
     "fecha": "2026-11-13",
     "cambios": [
