@@ -1,4 +1,4 @@
-import { ArrowLeft, Briefcase, ChartPie, ChevronsLeftRight, List, ReceiptText, Settings, Tag } from 'lucide-react'
+import { ArrowLeft, ChartPie, ChevronsLeftRight, EyeOff, List, ReceiptText, Settings, Tag } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { registrar } from '../lib/registro'
@@ -7,13 +7,12 @@ import { Hoja } from './Interfaz'
 
 /**
  * Estructura de la app del iPhone: contenido en una columna y barra de pestañas de iOS abajo,
- * translúcida, con cinco secciones. Solo móvil: el diseño de escritorio queda para más adelante.
+ * translúcida, con cuatro secciones. Solo móvil: el diseño de escritorio queda para más adelante.
  */
 const SECCIONES = [
   { a: '/', texto: 'Extracto', icono: ReceiptText, fin: true },
   { a: '/movimientos', texto: 'Movimientos', icono: List, fin: false },
   { a: '/informes', texto: 'Informes', icono: ChartPie, fin: false },
-  { a: '/empleado', texto: 'Empleado', icono: Briefcase, fin: false },
   { a: '/ajustes', texto: 'Ajustes', icono: Settings, fin: false },
 ]
 
@@ -101,8 +100,8 @@ function Bienvenida() {
     setAbierta(false)
   }
   const gestos = [
-    { icono: Briefcase, color: '#5856D6', texto: 'Desliza un movimiento a la izquierda para marcarlo como gasto de empleado.' },
-    { icono: Tag, color: '#FF9500', texto: 'Desliza a la derecha para cambiar su categoría.' },
+    { icono: EyeOff, color: '#5856D6', texto: 'Desliza un movimiento hacia la derecha para que no cuente: un gasto de empleado o un reembolso.' },
+    { icono: Tag, color: '#FF9500', texto: 'Desliza hacia la izquierda para cambiar su categoría.' },
     { icono: ChevronsLeftRight, color: '#007AFF', texto: 'Desliza a los lados en el Extracto o en Informes para cambiar de mes.' },
     { icono: ArrowLeft, color: '#8E8E93', texto: 'Desde el borde izquierdo, vuelves a la pantalla anterior. Las hojas se cierran arrastrándolas hacia abajo.' },
   ]

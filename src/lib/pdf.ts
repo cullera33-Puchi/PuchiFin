@@ -267,7 +267,7 @@ export function generarPdfResumen(r: Resumen, opciones: OpcionesPdf): jsPDF {
 
   // Lo que no computa (solo en la versión completa)
   const lineas = reducida ? [] : lineasFueraDelExtracto(r)
-  if (!reducida) titulo('Fuera del extracto')
+  if (lineas.length) titulo('Fuera del extracto')
   doc.setTextColor(...TINTA).setFont('helvetica', 'normal').setFontSize(8.5)
   if (lineas.length) y += 3
   for (const l of lineas) {
@@ -286,7 +286,7 @@ export function generarPdfResumen(r: Resumen, opciones: OpcionesPdf): jsPDF {
     doc.setPage(i)
     doc.setDrawColor(228, 228, 231).line(MARGEN, 286, ANCHO - MARGEN, 286)
     doc.setTextColor(...GRIS).setFont('helvetica', 'normal').setFontSize(7)
-    doc.text(`PuchiFin v${APP_VERSION}. Totales con los movimientos de tipo Normal; sin gastos de empleado, reembolsos ni traspasos.`, MARGEN, 290)
+    doc.text(`PuchiFin v${APP_VERSION}. Totales con los movimientos de tipo Normal; sin lo marcado como gasto de empleado o reembolso ni los traspasos.`, MARGEN, 290)
     doc.text(`Página ${i} de ${paginas}`, ANCHO - MARGEN, 290, { align: 'right' })
   }
   return doc

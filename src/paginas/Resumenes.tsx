@@ -63,8 +63,8 @@ export function Resumenes() {
 
   const periodo: Periodo = useMemo(() => desplazarPeriodo(periodoDe(tipo, hoyIso()), desplazamiento), [tipo, desplazamiento])
   const resumen: Resumen = useMemo(
-    () => calcularResumen(periodo, db.movimientos, categorias, db.conciliaciones, 10, hoyIso()),
-    [periodo, db.movimientos, categorias, db.conciliaciones],
+    () => calcularResumen(periodo, db.movimientos, categorias, 10, hoyIso()),
+    [periodo, db.movimientos, categorias],
   )
 
   const cambiarConceptos = (v: boolean) => {
@@ -134,7 +134,7 @@ export function Resumenes() {
             </div>
           </div>
           {reducida ? (
-            <p className="text-xs text-zinc-500">Solo ingresos, gastos, ahorro y gasto por categoría, sin movimientos ni gastos de empleado.</p>
+            <p className="text-xs text-zinc-500">Solo ingresos, gastos, ahorro y gasto por categoría, sin movimientos ni lo que queda fuera del extracto.</p>
           ) : (
             <FilaInterruptor texto="Incluir los conceptos" nota="Sin ellos, solo fechas, categorías e importes" activo={conceptos} onCambio={cambiarConceptos} />
           )}
@@ -294,7 +294,7 @@ function VistaPrevia({ r, conceptos, reducida, categorias }: { r: Resumen; conce
         </section>
       )}
 
-      {!reducida && (
+      {!reducida && lineasFueraDelExtracto(r).length > 0 && (
       <section className="tarjeta">
         <h2 className="mb-2 text-sm font-semibold">Fuera del extracto</h2>
         <ul className="space-y-1 text-sm text-zinc-600 dark:text-zinc-400">

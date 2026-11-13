@@ -6,21 +6,26 @@
  *   - Esas reglas, y lo aprendido de las correcciones, se aplican SOLO a lo pendiente: movimientos de
  *     tipo Normal sin categoría que nadie ha tocado. Lo ya categorizado (a mano, por regla o aprendido),
  *     los gastos de empleado, los reembolsos y los traspasos no se tocan.
- *   - Las sugerencias (gasto de empleado, reembolso, pago de deuda) no se aplican: siguen pidiendo
- *     confirmación en su pantalla.
+ *   - Las sugerencias (pago de deuda) no se aplican: siguen pidiendo confirmación.
+ *   - Las reglas de la app retiradas en una versión se quitan del dispositivo.
  */
 import { ErrorDatos } from '../datos/operaciones'
 import { claveComercio, normalizarConcepto } from '../lib/conceptos'
 import { finDeMes, mesSiguiente } from '../lib/imputacion'
 import type { BaseDatos, Movimiento, Regla } from '../lib/tipos'
-import { categoriasAprendidas, clasificar, reglasPredeterminadas } from './reglas'
+import { categoriasAprendidas, clasificar, REGLAS_RETIRADAS, reglasPredeterminadas } from './reglas'
 
 /** Pendiente de categorizar: Normal, sin categoría y sin decisión del usuario */
 export const esPendiente = (m: Movimiento) => m.tipo === 'normal' && !m.categoria_id && m.origen_categoria === null
 
-/** Pone al día las reglas de la app (origen «sistema») con las de esta versión */
+/** Pone al día las reglas de la app (origen «sistema») con las de esta versión y quita las retiradas */
 export function sincronizarReglasApp(db: BaseDatos): { db: BaseDatos; nuevas: number; actualizadas: number } {
   const base = reglasPredeterminadas(db.categorias)
+  const retiradas = new Set(REGLAS_RETIRADAS)
+  if (db.reglas.some((r) => r.origen === 'sistema' && retiradas.has(r.nombre ?? ''))) {
+    const r = sincronizarReglasApp({ ...db, reglas: db.reglas.filter((x) => !(x.origen === 'sistema' && retiradas.has(x.nombre ?? ''))) })
+    return { ...r, actualizadas: r.actualizadas + 1 }
+  }
   const porNombre = new Map(db.reglas.filter((r) => r.origen === 'sistema').map((r) => [r.nombre, r]))
   let nuevas = 0
   let actualizadas = 0

@@ -49,7 +49,7 @@ export function SeccionEmpezarDeCero() {
       <Hoja abierta={abierta} titulo="Empezar de cero" listo="Cancelar" onCerrar={() => setAbierta(false)}>
         <div className="space-y-4">
           <p className="text-[15px] text-zinc-600 dark:text-zinc-400">
-            Se borran {plural(n, 'movimiento', 'movimientos')}, sus importaciones y las conciliaciones de reembolsos. Se conservan las cuentas, las categorías y los ajustes, como el
+            Se borran {plural(n, 'movimiento', 'movimientos')} y sus importaciones. Se conservan las cuentas, las categorías y los ajustes, como el
             nombre de tu empresa.
           </p>
           <div className="lista divide-y divide-zinc-200/70 bg-zinc-100/70 dark:divide-zinc-800 dark:bg-zinc-800/50">

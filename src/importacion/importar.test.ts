@@ -194,30 +194,33 @@ describe('importación completa con los Excel de prueba', () => {
     expect(traspasos.every((m) => m.tipo === 'traspaso_interno')).toBe(true)
   })
 
-  it('categoriza con las reglas de la app y sugiere los gastos de empleado y el reembolso', () => {
+  it('categoriza con las reglas de la app y no propone gastos de empleado ni reembolsos', () => {
     const nomina = db.movimientos.find((m) => m.concepto_normalizado.includes('nomina'))!
     expect(db.categorias.find((c) => c.id === nomina.categoria_id)?.nombre).toBe('Nómina')
     expect(nomina.tipo).toBe('normal')
-    const sugeridos = tarjeta.p.nuevos.filter((m) => m.sugerencia?.tipo === 'gasto_empleado')
-    expect(sugeridos.length).toBeGreaterThan(4)
-    expect(db.movimientos.filter((m) => m.tipo === 'gasto_empleado').length).toBe(sugeridos.length)
-    const reembolso = principal.p.nuevos.find((m) => m.sugerencia?.tipo === 'reembolso_empresa')
-    expect(reembolso).toBeDefined()
+    const sugeridos = [...tarjeta.p.nuevos, ...principal.p.nuevos].filter((m) => m.sugerencia?.tipo === 'gasto_empleado' || m.sugerencia?.tipo === 'reembolso_empresa')
+    expect(sugeridos).toEqual([])
+    expect(db.movimientos.some((m) => m.tipo === 'gasto_empleado' || m.tipo === 'reembolso_empresa')).toBe(false)
     const sinCategoria = db.movimientos.filter((m) => m.tipo === 'normal' && !m.categoria_id)
     expect(sinCategoria.length).toBeLessThan(db.movimientos.length * 0.15)
   })
 
   it('las sugerencias descartadas no cambian el tipo y debilitan la regla', () => {
     const base = { ...datosIniciales(), ajustes: db.ajustes }
-    const { db: sinAceptar } = importar(base, 'tarjeta', false)
-    expect(sinAceptar.movimientos.some((m) => m.tipo === 'gasto_empleado')).toBe(false)
-    expect(sinAceptar.reglas.some((r) => r.descartes > 0)).toBe(true)
+    const lectura = leerFichero(fichero('cuenta principal'))
+    const p = proponer(base, lectura, cuentaSugerida(base, lectura)!.id)
+    const regla = base.reglas.find((r) => r.nombre === 'Pago a la familia')!
+    const m = p.nuevos.find((x) => x.importe < 0 && x.tipo === 'normal')!
+    m.sugerencia = { tipo: 'pago_deuda', motivo: 'Pago a la familia', regla_id: regla.id, confianza: 0.9 }
+    const sinAceptar = confirmarImportacion(base, p, { aceptadas: new Set() })
+    expect(sinAceptar.movimientos.find((x) => x.id === m.id)!.tipo).toBe('normal')
+    expect(sinAceptar.reglas.find((r) => r.id === regla.id)!.descartes).toBe(1)
   })
 
   it('el resumen de noviembre sale coherente con lo importado (con la nómina del 30 de octubre)', () => {
-    const r = calcularResumen(periodoMes('2026-11-01'), db.movimientos, db.categorias, db.conciliaciones)
+    const r = calcularResumen(periodoMes('2026-11-01'), db.movimientos, db.categorias)
     expect(r.totales.ingresos).toBeGreaterThan(4000)
-    expect(r.empleado.gastos).toBeGreaterThan(0)
+    expect(r.empleado.gastosNumero).toBe(0)
   })
 
   it('deshacer una importación la quita entera y devuelve los traspasos emparejados', () => {

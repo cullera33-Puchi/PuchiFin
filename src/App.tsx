@@ -9,14 +9,12 @@ import { Categorias } from './paginas/ajustes/Categorias'
 import { Cuentas } from './paginas/ajustes/Cuentas'
 import { General } from './paginas/ajustes/General'
 import { Herramientas } from './paginas/ajustes/Herramientas'
-import { Empleado } from './paginas/Empleado'
 import { Extracto } from './paginas/Extracto'
 import { CategoriaMes } from './paginas/CategoriaMes'
 import { Importaciones } from './paginas/Importaciones'
 import { Movimientos } from './paginas/Movimientos'
 import { Categorizar } from './paginas/Categorizar'
 import { Reglas } from './paginas/ajustes/Reglas'
-import { RevisarEmpleado } from './paginas/RevisarEmpleado'
 import { Resumenes } from './paginas/Resumenes'
 
 // Pantallas pesadas (gráficos y lectura de Excel): se cargan al abrirlas
@@ -44,8 +42,7 @@ export function App() {
                 <Route path="movimientos/importaciones" element={<Importaciones />} />
                 <Route path="movimientos/categorizar" element={<Categorizar />} />
                 <Route path="ajustes/reglas" element={<Reglas />} />
-                <Route path="empleado" element={<Empleado />} />
-                <Route path="empleado/revisar" element={<RevisarEmpleado />} />
+                <Route path="empleado/*" element={<Navigate to="/" replace />} />
                 <Route path="resumenes" element={<Resumenes />} />
                 <Route path="ajustes" element={<Ajustes />}>
                   <Route index element={<Navigate to="cuentas" replace />} />

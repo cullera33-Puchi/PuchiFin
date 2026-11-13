@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.15.0",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Fuera la pestaña Empleado y las propuestas automáticas de gastos de empleado y reembolsos.",
+      "Desliza un movimiento hacia la derecha y pulsa «No cuenta»: un gasto queda como gasto de empleado y un ingreso como reembolso. Ninguno cuenta en el extracto.",
+      "Deslizando otra vez hacia la derecha vuelve a contar. Para cambiar la categoría, ahora se desliza hacia la izquierda.",
+      "En Movimientos, con varios seleccionados, el botón del ojo tachado hace lo mismo en bloque."
+    ]
+  },
+  {
     "version": "0.14.1",
     "fecha": "2026-11-13",
     "cambios": [

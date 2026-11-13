@@ -8,7 +8,6 @@ import {
   periodoComparable,
   textoEnCurso,
   textoComparacion,
-  pendienteEmpleado,
   periodoMes,
   periodoSemana,
   semanasDelMes,
@@ -155,7 +154,7 @@ describe('calcularResumen', () => {
         { tipo: 'traspaso_interno', importe: -1200, movimientos: 1 },
       ]),
     )
-    expect(r.empleado).toMatchObject({ gastos: 300, gastosNumero: 1, reembolsos: 300 })
+    expect(r.empleado).toMatchObject({ gastos: 300, gastosNumero: 1, reembolsos: 300, reembolsosNumero: 1 })
   })
 
   it('lista los mayores gastos del periodo, solo Normal', () => {
@@ -164,21 +163,6 @@ describe('calcularResumen', () => {
 
   it('los ingresos se ven por subcategoría', () => {
     expect(r.ingresosPorCategoria).toEqual([{ id: 'ing-nom', nombre: 'Nómina', importe: 3100 }])
-  })
-})
-
-describe('pendienteEmpleado', () => {
-  const g1 = { ...mov('2026-10-05', -200, 'via-hotel', 'gasto_empleado') }
-  const g2 = { ...mov('2026-10-20', -80, 'via-hotel', 'gasto_empleado') }
-  const g3 = { ...mov('2026-11-02', -40, 'via-hotel', 'gasto_empleado'), reembolso_cerrado: true }
-
-  it('resta lo conciliado y omite los cerrados a mano', () => {
-    const p = pendienteEmpleado([g1, g2, g3], [{ gasto_id: g1.id, importe_aplicado: 150 }], '2026-11-30')
-    expect(p).toEqual({ importe: 130, numero: 2 })
-  })
-
-  it('solo cuenta los gastos hasta la fecha indicada', () => {
-    expect(pendienteEmpleado([g1, g2], [], '2026-10-10')).toEqual({ importe: 200, numero: 1 })
   })
 })
 
@@ -206,8 +190,7 @@ describe('textos de comparación', () => {
   it('resume lo que queda fuera del extracto', () => {
     const r = calcularResumen(periodoMes('2026-11-01'), [mov('2026-11-12', -300, 'via-hotel', 'gasto_empleado'), mov('2026-11-25', -900, null, 'traspaso_interno')], CATEGORIAS)
     expect(lineasFueraDelExtracto(r)).toEqual([
-      'Gastos de empleado: 300,00 € en 1 movimiento. Reembolsos de la empresa: 0,00 €.',
-      'Pendiente de reembolso al cierre del periodo: 300,00 € (1 gasto).',
+      'Gastos de empleado: 300,00 € en 1 movimiento.',
       'Traspasos internos y liquidaciones de tarjeta: 1 movimiento, sin efecto en el gasto.',
     ])
   })
@@ -235,7 +218,7 @@ describe('periodo en curso', () => {
 
   it('el resumen en curso no cuenta lo posterior del mes anterior ni las semanas futuras', () => {
     const movs = [mov('2026-10-05', -100, 'ali'), mov('2026-10-25', -900, 'ali'), mov('2026-11-03', -120, 'ali')]
-    const r = calcularResumen(periodoMes('2026-11-01'), movs, CATEGORIAS, [], 10, '2026-11-13')
+    const r = calcularResumen(periodoMes('2026-11-01'), movs, CATEGORIAS, 10, '2026-11-13')
     expect(r.totalesAnterior.gastos).toBe(100)
     expect(r.semanas.map((x) => x.periodo.inicio)).toEqual(['2026-11-01', '2026-11-02', '2026-11-09'])
     expect(textoEnCurso(r)).toBe('Mes en curso: datos hasta el 13 de noviembre. La comparación es con los mismos días de octubre.')

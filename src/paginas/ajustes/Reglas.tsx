@@ -14,7 +14,7 @@ export function Reglas() {
   const hacer = useHacer()
   const grupos: [string, string, Regla[]][] = [
     ['Tus reglas', 'Se crean al corregir una categoría con «Crear una regla». Se aplican antes que las de la app.', db.reglas.filter((r) => r.origen !== 'sistema')],
-    ['Sugerencias', 'Proponen gastos de empleado, reembolsos y pagos de deuda en la revisión de cada importación. Con 3 descartes sin ninguna confirmación se desactivan solas.', db.reglas.filter((r) => r.origen === 'sistema' && r.es_sugerencia)],
+    ['Sugerencias', 'Proponen los pagos de la deuda familiar en la revisión de cada importación. Con 3 descartes sin ninguna confirmación se desactivan solas.', db.reglas.filter((r) => r.origen === 'sistema' && r.es_sugerencia)],
     ['Reglas de la app', 'Comercios y recibos habituales. Se pueden desactivar.', db.reglas.filter((r) => r.origen === 'sistema' && !r.es_sugerencia)],
   ]
 

@@ -1,28 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { generarDatosPrueba } from '../lib/datosPrueba'
 import { calcularExtracto, cierreAnual, evolucionMensual, movimientosDeCategoria, serieCategoria } from '../lib/extracto'
-import type { BaseDatos, Movimiento } from '../lib/tipos'
-import {
-  alternarEmpleado,
-  cambiarCategoria,
-  cambiarTipo,
-  cerrarReembolso,
-  conciliar,
-  desconciliar,
-  gastosPendientes,
-  guardarNota,
-  indicadoresEmpleado,
-  mismoConcepto,
-  proponerConciliacion,
-} from './movimientos'
+import type { BaseDatos } from '../lib/tipos'
+import { alternarFuera, cambiarCategoria, cambiarTipo, guardarNota, marcarFuera, mismoConcepto } from './movimientos'
 import { comprobarBaseDatos, datosIniciales } from './operaciones'
 import { clasificar, categoriasAprendidas } from '../importacion/reglas'
 
 function base(hasta = '2026-11-13'): BaseDatos {
   const db = datosIniciales()
   const p = generarDatosPrueba({ cuentas: db.cuentas, categorias: db.categorias, desde: '2026-10-01', hasta })
-  // Sin las conciliaciones generadas, para probar la conciliación a mano
-  return { ...db, ...p, conciliaciones: [] }
+  return { ...db, ...p }
 }
 const cat = (db: BaseDatos, nombre: string) => db.categorias.find((c) => c.nombre === nombre)!
 
@@ -55,13 +42,33 @@ describe('corrección de categorías', () => {
   })
 })
 
-describe('tipos y empleado', () => {
-  it('deslizar marca y desmarca gasto de empleado', () => {
+describe('fuera del extracto', () => {
+  it('deslizar saca un gasto como gasto de empleado y lo devuelve a Normal', () => {
     const db = base()
     const m = db.movimientos.find((x) => x.tipo === 'normal' && x.importe < 0)!
-    const a = alternarEmpleado(db, m.id)
+    const a = alternarFuera(db, m.id)
     expect(a.movimientos.find((x) => x.id === m.id)!.tipo).toBe('gasto_empleado')
-    expect(alternarEmpleado(a, m.id).movimientos.find((x) => x.id === m.id)!.tipo).toBe('normal')
+    expect(alternarFuera(a, m.id).movimientos.find((x) => x.id === m.id)!.tipo).toBe('normal')
+  })
+
+  it('un ingreso sale como reembolso', () => {
+    const db = base()
+    const m = db.movimientos.find((x) => x.tipo === 'normal' && x.importe > 0)!
+    expect(alternarFuera(db, m.id).movimientos.find((x) => x.id === m.id)!.tipo).toBe('reembolso_empresa')
+  })
+
+  it('en bloque, cada uno según su signo; los traspasos no se tocan', () => {
+    const db = base()
+    const gasto = db.movimientos.find((x) => x.tipo === 'normal' && x.importe < 0)!
+    const ingreso = db.movimientos.find((x) => x.tipo === 'normal' && x.importe > 0)!
+    const traspaso = db.movimientos.find((x) => x.tipo === 'traspaso_interno')!
+    const r = marcarFuera(db, [gasto.id, ingreso.id, traspaso.id], true)
+    const tipo = (id: string) => r.movimientos.find((x) => x.id === id)!.tipo
+    expect([tipo(gasto.id), tipo(ingreso.id), tipo(traspaso.id)]).toEqual(['gasto_empleado', 'reembolso_empresa', 'traspaso_interno'])
+    expect(() => alternarFuera(db, traspaso.id)).toThrow(/traspaso/i)
+    const vuelta = marcarFuera(r, [gasto.id, ingreso.id], false)
+    expect(vuelta.movimientos.find((x) => x.id === gasto.id)!.tipo).toBe('normal')
+    expect(cambiarTipo(vuelta, [gasto.id], 'pago_deuda').movimientos.find((x) => x.id === gasto.id)!.tipo).toBe('pago_deuda')
   })
 
   it('notas sin datos identificativos', () => {
@@ -69,63 +76,6 @@ describe('tipos y empleado', () => {
     const id = db.movimientos[0].id
     expect(guardarNota(db, id, 'Cena con el cliente').movimientos[0].nota).toBe('Cena con el cliente')
     expect(() => guardarNota(db, id, 'DNI 12345678Z')).toThrow(/DNI/)
-  })
-})
-
-describe('conciliación de reembolsos', () => {
-  it('propone los gastos pendientes que suman el reembolso, del más antiguo al más reciente', () => {
-    const db = base()
-    const reembolso = db.movimientos.find((m) => m.tipo === 'reembolso_empresa')!
-    const octubre = db.movimientos.filter((m) => m.tipo === 'gasto_empleado' && m.fecha_operacion.startsWith('2026-10'))
-    const p = proponerConciliacion(db, reembolso.id)
-    expect(p.exacta).toBe(true)
-    expect(p.gastos.sort()).toEqual(octubre.map((m) => m.id).sort())
-
-    const c = conciliar(db, reembolso.id, p.gastos)
-    const ind = indicadoresEmpleado(c, '2026-11-13')
-    const noviembre = db.movimientos.filter((m) => m.tipo === 'gasto_empleado' && m.fecha_operacion.startsWith('2026-11'))
-    expect(ind.pendienteNumero).toBe(noviembre.length)
-    expect(ind.reembolsadoAnio).toBeCloseTo(reembolso.importe)
-    expect(ind.reembolsosDeMas).toEqual([])
-    expect(gastosPendientes(c).every((p) => p.gasto.fecha_operacion.startsWith('2026-11'))).toBe(true)
-    expect(desconciliar(c, reembolso.id).conciliaciones).toHaveLength(0)
-  })
-
-  it('si no cuadra, la diferencia queda visible', () => {
-    const db = base()
-    const reembolso = db.movimientos.find((m) => m.tipo === 'reembolso_empresa')!
-    const [g1, g2] = gastosPendientes(db)
-    // Reembolso de más: solo un gasto
-    const deMas = conciliar(db, reembolso.id, [g1.gasto.id])
-    expect(indicadoresEmpleado(deMas, '2026-11-13').reembolsosDeMas[0].sinAplicar).toBeCloseTo(reembolso.importe - g1.pendiente)
-    // Gasto cerrado sin reembolso completo
-    const cerrado = cerrarReembolso(db, g2.gasto.id, true)
-    expect(indicadoresEmpleado(cerrado, '2026-11-13').diferencias[0].noReembolsado).toBeCloseTo(g2.pendiente)
-  })
-
-  it('reparte un reembolso menor que los gastos y deja el resto pendiente', () => {
-    const db = base()
-    const pend = gastosPendientes(db)
-    const total = pend.slice(0, 2).reduce((s, p) => s + p.pendiente, 0)
-    const reembolso: Movimiento = { ...db.movimientos[0], id: 'r1', tipo: 'reembolso_empresa', importe: Math.round((total - 10) * 100) / 100, fecha_operacion: '2026-11-12', ocurrencia: 7 }
-    const db2 = { ...db, movimientos: [...db.movimientos, reembolso] }
-    const c = conciliar(db2, 'r1', [pend[0].gasto.id, pend[1].gasto.id])
-    const restante = gastosPendientes(c).find((p) => p.gasto.id === pend[1].gasto.id)!
-    expect(restante.pendiente).toBeCloseTo(10)
-  })
-
-  it('al dejar de ser reembolso se quitan sus conciliaciones', () => {
-    const db = base()
-    const reembolso = db.movimientos.find((m) => m.tipo === 'reembolso_empresa')!
-    const c = conciliar(db, reembolso.id, proponerConciliacion(db, reembolso.id).gastos)
-    expect(cambiarTipo(c, [reembolso.id], 'normal').conciliaciones).toHaveLength(0)
-  })
-
-  it('antigüedad y gastos atrasados', () => {
-    const db = base()
-    const ind = indicadoresEmpleado(db, '2026-12-20')
-    expect(ind.antiguedad).toBeGreaterThan(60)
-    expect(ind.atrasados).toBeGreaterThan(0)
   })
 })
 

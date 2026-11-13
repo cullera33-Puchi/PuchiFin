@@ -54,7 +54,6 @@ export interface Extracto {
   mesesMedia: number
   categorias: LineaExtracto[]
   sinCategoria: number
-  pendientesEmpleado: number
   hayAnterior: boolean
   haySiguiente: boolean
   /** Mes en curso: la media se calcula con los mismos días (del 1 a diaCorte) de los meses anteriores */
@@ -113,7 +112,6 @@ export function calcularExtracto(db: BaseDatos, mes: string, hoy?: string): Extr
     mesesMedia: previos.length,
     categorias,
     sinCategoria: db.movimientos.filter((m) => m.tipo === 'normal' && !m.categoria_id).length,
-    pendientesEmpleado: db.movimientos.filter((m) => m.tipo === 'gasto_empleado' && !m.reembolso_cerrado && !db.conciliaciones.some((c) => c.gasto_id === m.id)).length,
     hayAnterior: meses.some((m) => m < mes),
     haySiguiente: meses.some((m) => m > mes),
     enCurso,

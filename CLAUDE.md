@@ -61,10 +61,9 @@ Fases 1 a 3 de la hoja de ruta. Las fases 4 a 6 quedan fuera hasta nueva indicac
 ### Fase 3. Extracto y gastos de empleado
 
 - Extracto mensual, lista de movimientos con búsqueda y filtros, corrección de categorías individual y en bloque.
-- Marcado rápido de gastos de empleado: deslizar sobre el movimiento y selección múltiple.
-- Conciliación de reembolsos y vista de gastos de empleado.
+- Marcado rápido de lo que no cuenta: deslizar sobre el movimiento y selección múltiple (un gasto queda como gasto de empleado y un ingreso como reembolso). Sin conciliación ni vista de empleado (retiradas en la v0.15.0 a petición del usuario).
 - Exportación a Excel de cualquier vista.
-- Se cierra cuando octubre y noviembre están cerrados con los reembolsos conciliados.
+- Se cierra cuando octubre y noviembre están cerrados.
 
 ### Herramientas comunes (traídas de PuchiTask, v0.2.0)
 
@@ -98,7 +97,6 @@ Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (po
 
 - Formato del Excel de la tarjeta de crédito: el resumen de un año (13/11/2026) muestra que la columna Movimiento trae la categoría de BBVA y que el pago llega como «Rebut mes anterior»; falta confirmar columnas y signo con un Excel. El de cuenta está confirmado con un Excel real del 13/11/2026 («Informe BBVA»: Fecha valor, Fecha, Concepto, Movimiento, Importe, Divisa, Disponible, Divisa, Observaciones). Para la tarjeta se supone el mismo sin Disponible; falta un Excel real (columnas y signo de las compras).
 - Bizum: la columna Movimiento trae el mensaje («Recibido: …», «ENVIADO: …», «COMPRA: …»), que se conserva aplicando los alias. Confirmar si en algún caso trae el nombre de la persona y debe quitarse.
-- Ordenante y concepto de la transferencia de reembolso de la empresa. Hoy: se sugiere como reembolso cualquier ingreso con el alias Empresa que no sea nómina; el usuario añade el nombre de la empresa al alias Empresa en Ajustes, General.
 - Si la deuda familiar tiene intereses y si el colchón se mide sobre el saldo conjunto de las dos cuentas (afecta a la fase 4).
 - Entidad de cada cuenta y cuenta desde la que se paga la hipoteca.
 - El repositorio es público. No contiene datos personales. El usuario lo deja pendiente. Ojo: GitHub Pages en un repositorio privado exige un plan de pago de GitHub; si se hace privado, habría que publicar en otro servicio gratuito (por ejemplo, Vercel).
@@ -112,14 +110,14 @@ Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alt
 | v0.11 (hecha) | Hoja de movimiento rediseñada (Listo, cierre arrastrando desde el contenido, guardado al momento), interruptores Liquid Glass y categorizar la primera carga con Claude en el chat (resumen anonimizado e importación de reglas) | CV | Muy alta | Media |
 | v0.10 (hecha) | Categorización eficiente: diccionario de unos 650 comercios y palabras clave, Restaurantes y Ocio por separado, suscripciones por plataforma y mejoras propuestas para lo ya categorizado por la app (Sí o No) | F | Muy alta | Media |
 | v0.9 (hecha) | Categorización rápida de lo pendiente: pantalla por comercio con sugerencias, categorías de un toque, sugerencias claras en bloque y similares pendientes al corregir | CV | Muy alta | Media |
-| v0.12 | Ajustes con los primeros datos reales pegados: formato de la tarjeta, Bizum, reembolso de la empresa y periodo de liquidación | F | Muy alta | Baja |
-| v0.12 | Cierre de mes guiado: lista de pasos (pegar cuenta principal, cuenta 2 y tarjeta; cuadre en verde; sin categoría a cero; empleado revisado) | CV | Muy alta | Baja |
+| v0.12 | Ajustes con los primeros datos reales pegados: formato de la tarjeta, Bizum y periodo de liquidación | F | Muy alta | Baja |
+| v0.12 | Cierre de mes guiado: lista de pasos (pegar cuenta principal, cuenta 2 y tarjeta; cuadre en verde; sin categoría a cero) | CV | Muy alta | Baja |
 | v0.12 | Pruebas de navegador (Playwright) en GitHub antes de publicar, con archivos de cada esquema anterior | T | Alta | Media |
 | v0.13 | Gastos hormiga: compras pequeñas y frecuentes (cafés, snacks, apps) por comercio y categoría, total del mes y proyección anual, en Informes | F | Alta | Baja |
 | v0.13 | Gastos fijos y recurrentes: detección por comercio, periodicidad e importe estable (suscripciones, recibos, seguros, hipoteca); fijo frente a variable, próximos cargos y subidas de precio | F | Alta | Media |
 | v0.14 | Optimizar con Claude: gastos fijos, recurrentes y hormiga con un prompt preparado (comparar tarifas de luz, fibra y seguros, suscripciones duplicadas o sin uso), por enlace a claude.ai o archivo con la hoja de compartir. Sin API ni coste | F | Alta | Media |
 | v0.14 | Avisos de recurrentes: cargo nuevo, subida de importe o cargo esperado que no llega | F | Media | Media |
-| v0.15 | Fase 4: presupuesto por categoría, plan de pagos de la deuda familiar con simulación y «Analizar con Claude» en el resto de vistas | F | Media | Alta |
+| v0.16 | Fase 4: presupuesto por categoría, plan de pagos de la deuda familiar con simulación y «Analizar con Claude» en el resto de vistas | F | Media | Alta |
 | Continua | Hojas con campos: la hoja sube con el teclado (guía 6.4); las acciones en la cabecera ya están (v0.11.0) | CV | Media | Media |
 | Continua | Menú de pulsación larga en las filas (guía 7) y búsqueda con «Cancelar» | CV | Media | Media |
 | Continua | Cambiar de pestaña deslizando y recolocación animada de las listas (guía 4.1 y 5) | CV | Baja | Media |
@@ -137,6 +135,7 @@ Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alt
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.15.0 (13/11/2026): fuera la gestión de gastos de empleado (decisión del usuario: no la usa). Sin pestaña Empleado, sin propuestas automáticas, sin conciliación ni pendiente de reembolso. Queda el marcado rápido: deslizar hacia la derecha, «No cuenta» (gasto a gasto de empleado, ingreso a reembolso) o «Cuenta»; la categoría pasa a deslizar hacia la izquierda. Reglas de la app retiradas con `REGLAS_RETIRADAS`. Sin cambio de esquema.
 - v0.14.1 (13/11/2026): el cuadre de la tarjeta cuenta los abonos de compras fraccionadas o financiadas y excluye solo el pago de la liquidación; «Dar por buena» una liquidación que no cuadra (esquema 9, `cuadre_confirmado`).
 - v0.14.0 (13/11/2026): sin fecha de inicio ni corte con Fintonic (decisión del usuario): entra todo lo que traen los Excel. Esquema 8 (se quitan `fecha_inicio` y `fecha_corte_fintonic` de los ajustes). El cuadre de la tarjeta toma como referencia la primera compra importada; los datos y Excel de prueba cubren el mes en curso y los dos anteriores.
 - v0.13.0 (13/11/2026): respuestas del usuario a la revisión del año. Esquema 7 (`actualizarCatalogo`, mismos identificadores): Transporte > Taxi y VTC (los taxis siguen proponiéndose como posible gasto de empleado), IBI y tasas pasa de Vivienda a Impuestos, y categorías nuevas Cuidado personal, Mascotas, Formación y Efectivo, con sus reglas. Fraccionamiento de gastos como traspaso; PayPal a Compras > Hogar por defecto.
@@ -197,7 +196,7 @@ App web privada que sustituye a Fintonic. Importa los movimientos de BBVA (dos c
 - Sin fecha de inicio: entra todo lo que traen los Excel de BBVA, también el histórico (decisión del usuario, v0.14.0).
 - Importación periódica de los Excel de BBVA, cuenta y tarjeta por separado.
 - Categorías predeterminadas ampliables, categorización automática por reglas y corrección manual.
-- Gastos de empleado y sus reembolsos, que se marcan rápido y no computan.
+- Gastos de empleado y reembolsos, que el usuario marca rápido deslizando y no computan.
 - Extracto mensual, evolución por categoría, presupuesto mensual por categoría y plan de pagos de la deuda familiar.
 
 **Fuera de la v1**
@@ -254,8 +253,8 @@ La app solo importa de BBVA (la carga de Fintonic se descarta). Cada origen tien
 3. Anonimización según el apartado anterior.
 4. Normalización: fecha, importe con signo, concepto limpio, saldo tras la operación y cuenta de origen.
 5. Deduplicación contra lo ya cargado.
-6. Categorización automática por reglas y sugerencia de gastos de empleado.
-7. Pantalla de revisión: nuevos, duplicados descartados, sin categoría y candidatos a gasto de empleado. Se confirma o se ajusta en bloque.
+6. Categorización automática por reglas.
+7. Pantalla de revisión: nuevos, duplicados descartados y sin categoría. Se confirma o se ajusta en bloque.
 8. Verificación final de datos identificativos.
 9. Confirmación y registro de la importación (fecha, origen, número de movimientos), con opción de deshacerla completa.
 
@@ -352,36 +351,12 @@ La app trae un catálogo predeterminado de categorías que se puede ampliar, y l
 
 ## 6. Gastos de empleado y reembolsos
 
-Los gastos de trabajo pagados con la tarjeta y su reembolso por transferencia aparte quedan fuera del extracto, y la app controla lo pendiente de cobrar.
+Los gastos de trabajo y su reembolso quedan fuera del extracto. El usuario los marca a mano; la app no propone nada ni controla lo pendiente de cobrar (decisión del usuario, v0.15.0).
 
-**Marcado rápido**
-
-- En la lista de movimientos, deslizar a la izquierda marca el gasto como de empleado. En escritorio, atajo de teclado y selección múltiple.
-- En la revisión de cada importación aparece un bloque de posibles gastos de empleado para confirmar o descartar de una vez.
-- El gasto conserva su categoría (Viajes, Restaurantes) para analizar lo adelantado por tipo.
-
-**Sugerencias automáticas**
-
-- Reglas iniciales que se ajustan con el uso: hoteles, Renfe, aerolíneas, taxis y VTC, restaurantes en día laborable fuera de la zona de casa (configurable).
-- Toda sugerencia requiere confirmación; nada se excluye sin pasar por el usuario.
-- Cada confirmación o descarte refuerza o debilita la regla.
-
-**Reembolsos**
-
-- La transferencia de la empresa se identifica por el ordenante y el concepto, y se marca como reembolso con una regla fija.
-- Al marcarla, la app propone los gastos de empleado pendientes que suman ese importe, del más antiguo al más reciente.
-- Si no cuadra exacto, se vinculan manualmente y la diferencia queda visible (gasto no reembolsado o reembolso de más).
-
-**Vista de gastos de empleado**
-
-| Indicador | Cálculo |
-| --- | --- |
-| Pendiente de reembolso | Gastos de empleado sin vincular a un reembolso |
-| Antigüedad | Días desde el gasto pendiente más antiguo |
-| Reembolsado en el año | Suma de reembolsos del año natural |
-| Diferencias | Gastos cerrados con reembolso parcial o sin reembolso |
-
-Un gasto pendiente más de 60 días (umbral configurable) se destaca en la vista.
+- **Marcado rápido:** en cualquier lista de movimientos, deslizar hacia la derecha y «No cuenta». Un gasto queda como Gasto de empleado y un ingreso como Reembolso de empresa. «Cuenta» lo devuelve a Normal. Los traspasos y pagos de deuda se cambian en el detalle.
+- **En bloque:** selección múltiple en Movimientos y el botón «Que no cuenten».
+- El movimiento conserva su categoría (Viajes, Restaurantes).
+- Sin conciliación de reembolsos, vista de empleado ni sugerencias automáticas. La colección `conciliaciones` se mantiene en el modelo para leer archivos anteriores.
 
 ## 7. Tarjeta de crédito y traspasos internos
 
@@ -401,7 +376,7 @@ El extracto mensual es la pantalla de inicio y solo cuenta movimientos de tipo N
 - Cabecera: ingresos, gastos, ahorro del mes y tasa de ahorro, con la variación frente a la media de los meses anteriores disponibles, hasta un máximo de 12.
 - Desglose por categoría con importe, peso sobre el gasto total y comparativa con la media.
 - Al tocar una categoría se abren sus movimientos del mes.
-- Aviso visible si hay movimientos sin categoría o gastos de empleado pendientes.
+- Aviso visible si hay movimientos sin categoría, mejoras de categoría o descuadres con el banco.
 - Navegación mes a mes con gesto lateral.
 
 **Vistas de análisis**
@@ -412,7 +387,6 @@ El extracto mensual es la pantalla de inicio y solo cuenta movimientos de tipo N
 | Categorías | Evolución de una categoría concreta y su media móvil |
 | Anual | Cierre por año natural y comparativa entre años |
 | Movimientos | Lista completa con búsqueda y filtros por cuenta, categoría, tipo e importe |
-| Gastos de empleado | La vista descrita en el apartado 6 |
 
 **Exportación:** cualquier vista se exporta a Excel con los movimientos que la componen.
 
@@ -422,7 +396,7 @@ Pantalla Resúmenes (en el móvil, desde el Extracto; en escritorio, en el menú
 
 - **Periodos:** semana de lunes a domingo y mes natural. La comparativa es siempre con el periodo anterior (semana anterior o mes anterior). Si el periodo está en curso, se compara con los mismos días del anterior y se indica en pantalla y en el PDF.
 - **Cálculo:** solo computan los movimientos de tipo Normal. En una categoría de gasto, una devolución resta gasto; sin categoría, se clasifica por el signo.
-- **Contenido común:** ingresos, gastos, ahorro y tasa de ahorro con su variación; gasto por categoría con peso, importe del periodo anterior y diferencia; bloque «Fuera del extracto» con gastos de empleado, reembolsos, pendiente de reembolso al cierre, traspasos y pagos de deuda.
+- **Contenido común:** ingresos, gastos, ahorro y tasa de ahorro con su variación; gasto por categoría con peso, importe del periodo anterior y diferencia; bloque «Fuera del extracto» con gastos de empleado, reembolsos, traspasos y pagos de deuda (solo lo que haya).
 - **Semanal:** todos los movimientos de la semana por día, con los que no computan en gris.
 - **Mensual:** subcategorías, ingresos por concepto, tabla semana a semana (semanas recortadas al mes) y los diez mayores gastos.
 - **Para compartir (v0.3.0):** versión reducida del PDF con indicadores y gasto por categoría, sin subcategorías, movimientos ni gastos de empleado, en una página. Pensada para compartir con quien no tiene acceso a la app.
@@ -463,7 +437,7 @@ La app proyecta el ahorro mes a mes, calcula cuánto se podrá transferir cada v
 **Proyección del ahorro**
 
 1. Saldo de partida: saldo conjunto de las dos cuentas, menos lo pendiente de liquidar en la tarjeta.
-2. Más los gastos de empleado pendientes de reembolso, que son dinero adelantado que volverá.
+2. Más los gastos de empleado pendientes de reembolso, si el usuario los indica (la app ya no los calcula).
 3. Más los ingresos previstos de cada mes: media de nóminas y pagas extra en su mes.
 4. Menos los gastos previstos: presupuesto por categoría o, si no lo hay, la media de la categoría.
 5. Menos los gastos puntuales conocidos, registrados como eventos previstos (IBI, seguros anuales, vacaciones, colegio).
@@ -495,12 +469,12 @@ El móvil es para consultar y marcar rápido; el escritorio, para importar, revi
 | Función | Móvil | Escritorio |
 | --- | --- | --- |
 | Extracto mensual | Pantalla de inicio, una columna | Extracto y gráfico de evolución en paralelo |
-| Marcar gasto de empleado | Deslizar sobre el movimiento | Selección múltiple y atajo de teclado |
+| Marcar que no cuenta | Deslizar hacia la derecha | Selección múltiple y atajo de teclado |
 | Importar | Desde Archivos o la hoja de compartir de iOS | Arrastrar el fichero |
 | Revisión de importación | Tarjetas por bloque | Tabla editable |
 | Categorizar | Detalle del movimiento | Edición en línea en la tabla |
 
-Navegación con barra inferior de cinco pestañas: Extracto, Movimientos, Informes, Empleado y Ajustes (Informes desde la v0.7.0). Tema Automático, Claro u Oscuro, a elegir en Ajustes, General.
+Navegación con barra inferior de cuatro pestañas: Extracto, Movimientos, Informes y Ajustes (Informes desde la v0.7.0; Empleado retirada en la v0.15.0). Tema Automático, Claro u Oscuro, a elegir en Ajustes, General.
 
 **Escritorio: en pausa (13/11/2026).** La columna de escritorio de la tabla y el menú lateral se retoman solo cuando el usuario lo indique. Hoy la app es solo para el iPhone.
 
@@ -513,7 +487,7 @@ La v1 trabaja solo con BBVA desde octubre de 2026 y queda completa al cerrar la 
 | 0. Preparación | Excel de octubre de las cuentas y la tarjeta de BBVA, plantillas de lectura, repositorio en GitHub y CLAUDE.md | El mapeo de BBVA está cerrado |
 | 1. Base | Almacenamiento en el dispositivo, exportación e importación, modelo de datos, cuentas por alias y catálogo de categorías | Almacenamiento, modelo y catálogo operativos |
 | 2. Importación BBVA | Cuentas y tarjeta, anonimización, deduplicación, reglas, revisión y traspasos internos | Octubre y noviembre importados sin duplicados, sin datos identificativos y sin doble cómputo de la tarjeta |
-| 3. Extracto y gastos de empleado | Extracto mensual, marcado rápido, conciliación de reembolsos y vistas de análisis | Octubre y noviembre cerrados con los reembolsos conciliados |
+| 3. Extracto y gastos de empleado | Extracto mensual, marcado rápido y vistas de análisis | Octubre y noviembre cerrados |
 | 4. Presupuestos, plan de pagos y Claude | Presupuesto por categoría, plan de pagos de la deuda familiar con proyección y simulación, y botón Analizar con Claude | Presupuesto de diciembre definido, pago del verano de 2027 proyectado y primer análisis hecho en Claude |
 | 5. Análisis predictivo | Marcado a posteriori de gastos de empleado del histórico. Proyección de cierre de mes, gastos recurrentes (suscripciones, seguros, IBI), previsión de gastos anuales por estacionalidad y alerta de gastos atípicos | Previsiones contrastadas con el real de tres meses |
 | 6. Mejoras | Importación de PDF, Face ID, sugerencia de categoría por similitud, notificaciones, otras entidades | Según uso |
@@ -522,7 +496,7 @@ La v1 trabaja solo con BBVA desde octubre de 2026 y queda completa al cerrar la 
 
 - [x] Excel de cuenta de BBVA para fijar la plantilla (recibido el 13/11/2026).
 - [ ] Excel de la tarjeta de crédito de BBVA para fijar su plantilla.
-- [ ] Confirmar el ordenante y el concepto con los que llega la transferencia de reembolso.
+- [x] Transferencia de reembolso: ya no hace falta, el usuario marca los reembolsos a mano (v0.15.0).
 - [ ] Confirmar si la deuda familiar tiene intereses y si el colchón se mide sobre el saldo conjunto.
 - [ ] Confirmar la entidad de cada cuenta y de la hipoteca, y desde qué cuenta se paga la cuota.
 - [ ] Comprobar que claude.ai sigue admitiendo el prompt prellenado por enlace.

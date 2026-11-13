@@ -2,6 +2,14 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.15.0. Fuera la gestión de gastos de empleado; solo el marcado rápido (13 de noviembre de 2026)
+
+- Se retiran la pestaña Empleado (`Empleado.tsx`, `RevisarEmpleado.tsx`; `/empleado` redirige al Extracto), la puntuación de posibles gastos de empleado (`importacion/empleado.ts`), la conciliación de reembolsos (`aplicado`, `gastosPendientes`, `proponerConciliacion`, `conciliar`, `desconciliar`, `indicadoresEmpleado`, `cerrarReembolso`, `marcarPersonal`), los avisos del Extracto, el pendiente de reembolso de los resúmenes y el PDF, y en Ajustes, General, la zona de casa y el aviso de días.
+- Reglas de la app retiradas (`REGLAS_RETIRADAS`): «Reembolso de la empresa» y «Viajes de trabajo» (alojamiento y transporte). `sincronizarReglasApp` las quita del dispositivo al actualizar. Queda la sugerencia «Pago a la familia».
+- Marcado rápido (`marcarFuera`, `alternarFuera`): un gasto pasa a gasto de empleado y un ingreso a reembolso; los traspasos y pagos de deuda no se tocan. Deslizar hacia la derecha muestra «No cuenta» o «Cuenta»; la categoría pasa a deslizar hacia la izquierda. En la selección múltiple de Movimientos, botón «Que no cuenten». La hoja Tipo del detalle ofrece el tipo que corresponde al signo.
+- Sin cambio de esquema: los tipos, `conciliaciones` y los ajustes antiguos se conservan para leer los archivos anteriores. Barra de pestañas con cuatro secciones.
+- Pruebas: 321 tests.
+
 ## v0.14.1. Cuadre de la tarjeta con compras fraccionadas y «Dar por buena» (13 de noviembre de 2026)
 
 - `cuadrarLiquidaciones`: suma todo lo que pasa por la tarjeta (también los abonos de compras fraccionadas o financiadas, que son traspaso pero hacen que BBVA cobre menos) y excluye solo el pago de la propia liquidación («Rebut mes anterior», abono de la liquidación). Antes excluía todos los traspasos y las liquidaciones con compras fraccionadas salían como «no cuadra».

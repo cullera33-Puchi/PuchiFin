@@ -74,7 +74,7 @@ describe('copias', () => {
 
   it('una copia guarda absolutamente todo y restaurarla lo deja idéntico', async () => {
     await iniciarAlmacen()
-    // Movimientos, conciliaciones, importaciones, reglas tuyas e importadas, saldo confirmado y ajustes
+    // Movimientos, importaciones, reglas tuyas e importadas, saldo confirmado y ajustes
     await cambiar((d) => {
       const p = generarDatosPrueba({ cuentas: d.cuentas, categorias: d.categorias, desde: '2026-10-01', hasta: '2026-11-30' })
       const conMovs = { ...d, ...p, movimientos: p.movimientos.map((m, i) => (i === 2 ? { ...m, nota: 'nota', mes_imputacion: '2026-12' } : m)) }
@@ -86,7 +86,6 @@ describe('copias', () => {
     await esperarGuardado()
     const completo = structuredClone(obtenerDatos())
     expect(completo.reglas.filter((r) => r.origen === 'manual')).toHaveLength(2)
-    expect(completo.conciliaciones.length).toBeGreaterThan(0)
 
     const meta = await hacerCopia('manual')
     expect(meta).toMatchObject({ movimientos: completo.movimientos.length, reglas: completo.reglas.length })

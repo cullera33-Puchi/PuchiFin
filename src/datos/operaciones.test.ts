@@ -23,7 +23,7 @@ const cat = (db: BaseDatos, nombre: string, padre?: string) => {
 
 const conPrueba = (db: BaseDatos, hasta = '2026-11-30') => {
   const d = generarDatosPrueba({ cuentas: db.cuentas, categorias: db.categorias, desde: '2026-10-01', hasta })
-  return { ...db, importaciones: d.importaciones, movimientos: d.movimientos, conciliaciones: d.conciliaciones }
+  return { ...db, importaciones: d.importaciones, movimientos: d.movimientos }
 }
 
 describe('datosIniciales', () => {
@@ -112,11 +112,10 @@ describe('ajustes', () => {
 })
 
 describe('datos de prueba', () => {
-  it('se cuentan y se borran con sus conciliaciones, sin tocar lo demás', () => {
+  it('se cuentan y se borran, sin tocar lo demás', () => {
     const base = datosIniciales()
     const a = conPrueba(base)
     expect(contarDatosPrueba(a)).toBe(a.movimientos.length)
-    expect(a.conciliaciones.length).toBeGreaterThan(0)
     expect(comprobarBaseDatos(a)).toEqual([])
     const b = borrarDatosPrueba(a)
     expect([b.movimientos.length, b.importaciones.length, b.conciliaciones.length, contarDatosPrueba(b)]).toEqual([0, 0, 0, 0])

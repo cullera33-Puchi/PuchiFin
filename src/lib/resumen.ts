@@ -33,12 +33,6 @@ export interface MovimientoResumen {
   importe: number
   tipo: TipoMovimiento
   categoria_id: string | null
-  reembolso_cerrado?: boolean
-}
-
-export interface ConciliacionResumen {
-  gasto_id: string
-  importe_aplicado: number
 }
 
 export interface LineaCategoria {
@@ -76,7 +70,7 @@ export interface Resumen {
   mayoresGastos: MovimientoResumen[]
   movimientos: MovimientoResumen[] // todos los del periodo, de cualquier tipo, por fecha
   fueraDelExtracto: { tipo: TipoMovimiento; importe: number; movimientos: number }[]
-  empleado: { gastos: number; gastosNumero: number; reembolsos: number; pendiente: number; pendienteNumero: number }
+  empleado: { gastos: number; gastosNumero: number; reembolsos: number; reembolsosNumero: number }
   sinCategoria: number
 }
 
@@ -169,34 +163,6 @@ function gastoPorCategoria(movs: MovimientoResumen[], porId: Map<string, Categor
 }
 
 /**
- * Gastos de empleado pendientes de reembolso hasta una fecha: importe de cada gasto menos lo
- * conciliado, salvo los cerrados a mano.
- */
-export function pendienteEmpleado(
-  movs: MovimientoResumen[],
-  conciliaciones: ConciliacionResumen[],
-  hasta: string,
-): { importe: number; numero: number } {
-  const aplicado = new Map<string, number>()
-  for (const c of conciliaciones) aplicado.set(c.gasto_id, (aplicado.get(c.gasto_id) ?? 0) + c.importe_aplicado)
-  let importe = 0
-  let numero = 0
-  for (const m of movs) {
-    if (m.tipo !== 'gasto_empleado' || m.reembolso_cerrado || m.fecha_operacion > hasta) continue
-    const resto = redondear(-m.importe - (aplicado.get(m.id) ?? 0))
-    if (resto > 0) {
-      importe += resto
-      numero++
-    }
-  }
-  return { importe: redondear(importe), numero }
-}
-
-/**
- * movs: los movimientos del periodo y del anterior (y, para el pendiente de empleado, los gastos de
- * empleado anteriores que sigan abiertos). Los que caen fuera de ambos periodos solo cuentan para el pendiente.
- */
-/**
  * Periodo anterior comparable. Si el actual está en curso (incluye hoy), se recorta a los mismos
  * días: del 1 al 13 de octubre frente al 1 al 13 de noviembre, o de lunes a viernes.
  */
@@ -219,7 +185,6 @@ export function calcularResumen(
   periodo: Periodo,
   movs: MovimientoResumen[],
   categorias: Categoria[],
-  conciliaciones: ConciliacionResumen[] = [],
   topGastos = 10,
   hoy?: string,
 ): Resumen {
@@ -293,7 +258,7 @@ export function calcularResumen(
   const fueraDelExtracto = [...fuera.entries()].map(([tipo, f]) => ({ tipo, importe: redondear(f.importe), movimientos: f.movimientos }))
 
   const gastosEmp = actuales.filter((m) => m.tipo === 'gasto_empleado')
-  const pendiente = pendienteEmpleado(movs, conciliaciones, periodo.fin)
+  const reembolsos = actuales.filter((m) => m.tipo === 'reembolso_empresa')
 
   return {
     periodo,
@@ -311,9 +276,8 @@ export function calcularResumen(
     empleado: {
       gastos: redondear(-gastosEmp.reduce((s, m) => s + m.importe, 0)),
       gastosNumero: gastosEmp.length,
-      reembolsos: redondear(actuales.filter((m) => m.tipo === 'reembolso_empresa').reduce((s, m) => s + m.importe, 0)),
-      pendiente: pendiente.importe,
-      pendienteNumero: pendiente.numero,
+      reembolsos: redondear(reembolsos.reduce((s, m) => s + m.importe, 0)),
+      reembolsosNumero: reembolsos.length,
     },
     sinCategoria: actuales.filter((m) => m.tipo === 'normal' && !m.categoria_id).length,
   }
@@ -380,16 +344,13 @@ export function textoEnCurso(r: Resumen): string | null {
   return `${que}: datos hasta el ${diaLargo(r.corte)}. La comparación es con los mismos días de ${r.periodo.tipo === 'mes' ? r.anterior.etiqueta.split(' de ')[0].toLowerCase() : 'la semana anterior'}.`
 }
 
-/** Frases del bloque «Fuera del extracto»: gastos de empleado, reembolsos, traspasos y deuda */
+/** Frases del bloque «Fuera del extracto»: gastos de empleado, reembolsos, traspasos y deuda (solo lo que hay) */
 export function lineasFueraDelExtracto(r: Resumen): string[] {
   const e = r.empleado
   const eur = formatearImporte
-  const lineas = [
-    `Gastos de empleado: ${eur(e.gastos)} en ${e.gastosNumero} ${e.gastosNumero === 1 ? 'movimiento' : 'movimientos'}. Reembolsos de la empresa: ${eur(e.reembolsos)}.`,
-    e.pendienteNumero
-      ? `Pendiente de reembolso al cierre del periodo: ${eur(e.pendiente)} (${e.pendienteNumero} ${e.pendienteNumero === 1 ? 'gasto' : 'gastos'}).`
-      : 'Sin gastos de empleado pendientes de reembolso al cierre del periodo.',
-  ]
+  const lineas: string[] = []
+  if (e.gastosNumero) lineas.push(`Gastos de empleado: ${eur(e.gastos)} en ${e.gastosNumero} ${e.gastosNumero === 1 ? 'movimiento' : 'movimientos'}.`)
+  if (e.reembolsosNumero) lineas.push(`Reembolsos: ${eur(e.reembolsos)} en ${e.reembolsosNumero} ${e.reembolsosNumero === 1 ? 'movimiento' : 'movimientos'}.`)
   const traspasos = r.fueraDelExtracto.find((f) => f.tipo === 'traspaso_interno')
   if (traspasos) lineas.push(`Traspasos internos y liquidaciones de tarjeta: ${traspasos.movimientos} ${traspasos.movimientos === 1 ? 'movimiento' : 'movimientos'}, sin efecto en el gasto.`)
   const deuda = r.fueraDelExtracto.find((f) => f.tipo === 'pago_deuda')

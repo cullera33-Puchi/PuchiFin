@@ -60,11 +60,11 @@ describe('formato real «Informe BBVA»', () => {
     expect(t.tipo).toBe('traspaso_interno')
   })
 
-  it('usa el alias de la empresa en la transferencia y propone el reembolso', () => {
+  it('usa el alias de la empresa en la transferencia y no propone nada', () => {
     const r = por('transferencia')
     expect(r.concepto_limpio).toBe('Transferencia recibida Empresa Gastos')
     expect(r.concepto_original).not.toContain('ACME')
-    expect(r.sugerencia?.tipo).toBe('reembolso_empresa')
+    expect(r.sugerencia).toBeNull()
     expect(contieneIdentificativo(r.concepto_original)).toBe(false)
   })
 
@@ -85,9 +85,9 @@ describe('formato real «Informe BBVA»', () => {
     expect(r.movimientos.find((m) => m.id === nomina.id)!.mes_imputacion).toBeNull()
   })
 
-  it('propone como gasto de empleado el taxi en día laborable', () => {
-    expect(por('taxi').sugerencia).toMatchObject({ tipo: 'gasto_empleado' })
-    expect(por('mercadona').sugerencia).toBeNull()
+  it('el taxi va a Taxi y VTC, sin proponer gasto de empleado', () => {
+    expect(por('taxi').sugerencia).toBeNull()
+    expect(db.categorias.find((c) => c.id === por('taxi').categoria_id)?.nombre).toBe('Taxi y VTC')
   })
 })
 

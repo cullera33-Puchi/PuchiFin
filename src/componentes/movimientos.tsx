@@ -2,7 +2,7 @@
 import { Briefcase, Check, ChevronRight, Search, Tag } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { similares } from '../datos/categorizar'
-import { aplicado, cambiarCategoria, cambiarTipo, cerrarReembolso, guardarNota, imputarMesSiguiente } from '../datos/movimientos'
+import { cambiarCategoria, cambiarTipo, guardarNota, imputarMesSiguiente } from '../datos/movimientos'
 import { mesSiguiente } from '../lib/imputacion'
 import { intentar, useDatos } from '../datos/ProveedorDatos'
 import { normalizarConcepto } from '../lib/conceptos'
@@ -31,8 +31,8 @@ export function ContenidoMovimiento({ m, seleccion, conFecha }: { m: Movimiento;
           {seleccion && <Check className="size-3.5" strokeWidth={3} />}
         </span>
       )}
-      {m.tipo === 'gasto_empleado' ? (
-        <Baldosa glifo={Briefcase} color={COLOR_TIPO.gasto_empleado} />
+      {m.tipo === 'gasto_empleado' || m.tipo === 'reembolso_empresa' ? (
+        <Baldosa glifo={Briefcase} color={COLOR_TIPO[m.tipo]} />
       ) : raiz ? (
         <Baldosa icono={raiz.icono} color={raiz.color} />
       ) : (
@@ -206,11 +206,12 @@ export function HojaCorreccion({
   )
 }
 
-const TIPOS: TipoMovimiento[] = ['normal', 'gasto_empleado', 'reembolso_empresa', 'traspaso_interno', 'pago_deuda']
+/** Tipos que se ofrecen según el signo: gasto de empleado para un gasto y reembolso para un ingreso */
+const tiposPara = (m: Movimiento): TipoMovimiento[] => ['normal', m.importe < 0 ? 'gasto_empleado' : 'reembolso_empresa', 'traspaso_interno', 'pago_deuda']
 const NOTA_TIPO: Record<TipoMovimiento, string> = {
   normal: 'Computa en el extracto',
-  gasto_empleado: 'Lo adelantas tú y te lo reembolsa la empresa',
-  reembolso_empresa: 'Lo que te devuelve la empresa',
+  gasto_empleado: 'Un gasto de trabajo: no cuenta',
+  reembolso_empresa: 'Lo que te devuelve la empresa: no cuenta',
   traspaso_interno: 'Entre tus cuentas o liquidación de la tarjeta',
   pago_deuda: 'Reduce la deuda familiar',
 }
@@ -234,7 +235,7 @@ export function useElegirCategoria(ids: string[], alAbrirCorreccion: (cat: strin
   }
 }
 
-/** Detalle de un movimiento: categoría, tipo, mes, nota y reembolso. Todo se guarda al momento */
+/** Detalle de un movimiento: categoría, tipo, mes y nota. Todo se guarda al momento */
 export function DetalleMovimiento({ id, onCerrar }: { id: string | null; onCerrar: () => void }) {
   const db = useDatos()
   const hacer = useHacer()
@@ -261,8 +262,6 @@ export function DetalleMovimiento({ id, onCerrar }: { id: string | null; onCerra
   const cuenta = db.cuentas.find((c) => c.id === m.cuenta_id)
   const cat = db.categorias.find((c) => c.id === m.categoria_id)
   const raiz = raizDe(db, m.categoria_id)
-  const { gastos, reembolsos } = aplicado(db)
-  const conciliados = db.conciliaciones.filter((c) => c.gasto_id === m.id || c.reembolso_id === m.id)
   const cerrar = async () => {
     if (nota && nota.id === m.id && nota.texto !== (m.nota ?? '')) await intentar((d) => guardarNota(d, m.id, nota.texto), 'Nota guardada')
     setNota(null)
@@ -276,7 +275,7 @@ export function DetalleMovimiento({ id, onCerrar }: { id: string | null; onCerra
         <div className="space-y-5">
           <div className="flex flex-col items-center text-center">
             {m.tipo !== 'normal' ? (
-              <Baldosa glifo={m.tipo === 'gasto_empleado' ? Briefcase : Tag} color={COLOR_TIPO[m.tipo]} tamano="lg" />
+              <Baldosa glifo={m.tipo === 'gasto_empleado' || m.tipo === 'reembolso_empresa' ? Briefcase : Tag} color={COLOR_TIPO[m.tipo]} tamano="lg" />
             ) : cat ? (
               <Baldosa icono={raiz?.icono ?? null} color={cat.color} tamano="lg" />
             ) : (
@@ -313,25 +312,6 @@ export function DetalleMovimiento({ id, onCerrar }: { id: string | null; onCerra
           </div>
           {m.tipo !== 'normal' && <p className="-mt-3 px-4 text-[13px] text-zinc-500">No computa en el extracto ni en los totales.</p>}
 
-          {m.tipo === 'gasto_empleado' && (
-            <div className="lista space-y-2 bg-zinc-100/70 px-4 py-3 dark:bg-zinc-800/50">
-              <p className="text-[15px] text-zinc-600 dark:text-zinc-400">
-                Reembolsado: {formatearImporte(gastos.get(m.id) ?? 0)} de {formatearImporte(-m.importe)}
-              </p>
-              <FilaInterruptor
-                texto="Cerrado sin reembolso completo"
-                nota="Deja de contar como pendiente; la diferencia queda visible"
-                activo={m.reembolso_cerrado}
-                onCambio={(v) => hacer((d) => cerrarReembolso(d, m.id, v), v ? 'Gasto cerrado' : 'Gasto reabierto')}
-              />
-            </div>
-          )}
-          {m.tipo === 'reembolso_empresa' && (
-            <p className="lista bg-zinc-100/70 px-4 py-3 text-[15px] text-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-400">
-              Aplicado a gastos: {formatearImporte(reembolsos.get(m.id) ?? 0)} de {formatearImporte(m.importe)} ({plural(conciliados.length, 'gasto', 'gastos')}). Se concilia en la pestaña Empleado.
-            </p>
-          )}
-
           <div>
             <div className="mb-1.5 flex items-baseline justify-between px-4">
               <span className="text-[13px] text-zinc-500 uppercase">Nota</span>
@@ -358,7 +338,7 @@ export function DetalleMovimiento({ id, onCerrar }: { id: string | null; onCerra
 
       <Hoja abierta={tipos} titulo="Tipo" listo="Listo" onCerrar={() => setTipos(false)}>
         <ul className="lista divide-y divide-zinc-200/70 bg-zinc-100/70 dark:divide-zinc-800 dark:bg-zinc-800/50">
-          {TIPOS.map((t) => (
+          {[...new Set([...tiposPara(m), m.tipo])].map((t) => (
             <li key={t}>
               <button
                 className="fila min-h-14 active:bg-zinc-200/60 dark:active:bg-zinc-700/60"

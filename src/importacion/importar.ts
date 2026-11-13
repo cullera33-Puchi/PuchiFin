@@ -12,7 +12,6 @@ import { detectarIdentificativos, NOMBRE_TIPO } from '../lib/identificativos'
 import type { BaseDatos, Cuenta, Importacion, Movimiento, TipoMovimiento } from '../lib/tipos'
 import { anonimizarConcepto, aplicarAlias, conservarDesde } from './anonimizar'
 import { cuadrarLiquidaciones } from '../lib/tarjeta'
-import { contextoEmpleado, puntuarEmpleado, UMBRAL_EMPLEADO } from './empleado'
 import type { FilaBruta, Lectura } from './lector'
 import { categoriasAprendidas, clasificar, type Sugerencia } from './reglas'
 
@@ -221,23 +220,6 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
     })
   }
 
-  // Gastos de empleado: puntuación por tipo de gasto, tarjeta, día, lugar e historial del comercio
-  const ctx = contextoEmpleado(db, nuevos)
-  for (const m of nuevos) if (m.sugerencia?.tipo === 'gasto_empleado') ctx.diasViaje.add(m.fecha_operacion)
-  for (const m of nuevos) {
-    if (m.tipo !== 'normal' || m.importe >= 0 || (m.sugerencia && m.sugerencia.tipo !== 'gasto_empleado')) continue
-    const p = puntuarEmpleado(m, ctx)
-    if (p.puntuacion >= UMBRAL_EMPLEADO) {
-      const motivo = p.motivos.join(', ')
-      m.sugerencia = {
-        tipo: 'gasto_empleado',
-        motivo: m.sugerencia ? `${m.sugerencia.motivo}: ${motivo}` : motivo.charAt(0).toUpperCase() + motivo.slice(1),
-        regla_id: m.sugerencia?.regla_id ?? null,
-        confianza: Math.max(p.puntuacion, m.sugerencia?.confianza ?? 0),
-      }
-    } else if (m.sugerencia?.tipo === 'gasto_empleado' && !m.sugerencia.regla_id) m.sugerencia = null
-  }
-
   // Traspasos entre cuentas propias: importe opuesto en otra cuenta bancaria, hasta 3 días de diferencia
   const traspasos: Propuesta['traspasos'] = []
   const usados = new Set<string>()
@@ -361,11 +343,9 @@ export function confirmarImportacion(db: BaseDatos, p: Propuesta, decisiones: De
     if (imputar !== undefined) mov.mes_imputacion = imputar ? mesSiguiente(m.fecha_operacion) : null
     if (sugerencia) {
       const aceptada = decisiones.aceptadas.has(m.id)
-      // Solo es un descarte lo que venía aceptado (confianza alta) y se desactivó. Lo dudoso que no se
-      // aceptó queda sin revisar: aparece después en «Posibles gastos de empleado»
+      // Solo es un descarte lo que venía aceptado (confianza alta) y se desactivó
       const descartada = !aceptada && sugerencia.confianza >= 0.75
       if (aceptada) mov.tipo = sugerencia.tipo
-      else if (descartada && sugerencia.tipo === 'gasto_empleado') mov.revisado_empleado = true // enseña al comercio
       if (sugerencia.regla_id && (aceptada || descartada)) {
         const mapa = aceptada ? confirmaciones : descartes
         mapa.set(sugerencia.regla_id, (mapa.get(sugerencia.regla_id) ?? 0) + 1)
@@ -402,7 +382,7 @@ export function confirmarImportacion(db: BaseDatos, p: Propuesta, decisiones: De
   return { ...db, importaciones: [...db.importaciones, importacion], movimientos: [...movimientos, ...nuevos], reglas }
 }
 
-/** Deshace una importación completa: quita sus movimientos y conciliaciones y devuelve su tipo a lo que cambió */
+/** Deshace una importación completa: quita sus movimientos y devuelve su tipo a lo que cambió */
 export function deshacerImportacion(db: BaseDatos, id: string): BaseDatos {
   const imp = db.importaciones.find((i) => i.id === id)
   if (!imp) throw new ErrorDatos('Importación no encontrada')

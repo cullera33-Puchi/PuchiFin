@@ -49,6 +49,14 @@ describe('mejoras de una versión nueva sobre los datos que ya hay', () => {
     expect(sincronizarReglasApp(db)).toMatchObject({ nuevas: 0, actualizadas: 0 })
   })
 
+  it('quita las reglas de la app retiradas (sugerencias de gasto de empleado y reembolso)', () => {
+    const vieja = { ...db.reglas[0], id: 'vieja', nombre: 'Viajes de trabajo: transporte', tipo_movimiento: 'gasto_empleado' as const, es_sugerencia: true }
+    const r = sincronizarReglasApp({ ...db, reglas: [...db.reglas, vieja] })
+    expect(r.db.reglas.some((x) => x.id === 'vieja')).toBe(false)
+    expect(r.db.reglas).toHaveLength(db.reglas.length)
+    expect(r.actualizadas).toBe(1)
+  })
+
   it('se anota la versión y una segunda pasada no cambia nada', () => {
     const r = actualizarLogica(db, '0.8.0')
     expect(r.db.ajustes.version_logica).toBe('0.8.0')

@@ -18,7 +18,7 @@ const datos = generarDatosPrueba({ cuentas, categorias, desde: '2026-10-01', has
 describe('generarPdfResumen', () => {
   it('genera el PDF mensual y el semanal', () => {
     for (const periodo of [periodoMes('2026-11-01'), periodoSemana('2026-11-11')]) {
-      const r = calcularResumen(periodo, datos.movimientos, categorias, datos.conciliaciones)
+      const r = calcularResumen(periodo, datos.movimientos, categorias)
       const doc = generarPdfResumen(r, { incluirConceptos: true, hayDatosPrueba: true, categorias, generado: '2026-11-13' })
       const bytes = new Uint8Array(doc.output('arraybuffer'))
       expect(new TextDecoder().decode(bytes.slice(0, 5))).toBe('%PDF-')
@@ -33,7 +33,7 @@ describe('generarPdfResumen', () => {
   })
 
   it('la versión reducida ocupa una página y no lleva conceptos', () => {
-    const r = calcularResumen(periodoMes('2026-11-01'), datos.movimientos, categorias, datos.conciliaciones)
+    const r = calcularResumen(periodoMes('2026-11-01'), datos.movimientos, categorias)
     const completa = generarPdfResumen(r, { incluirConceptos: true, hayDatosPrueba: false, categorias })
     const reducida = generarPdfResumen(r, { incluirConceptos: true, hayDatosPrueba: false, categorias, reducida: true })
     expect(reducida.getNumberOfPages()).toBe(1)

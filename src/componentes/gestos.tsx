@@ -296,7 +296,7 @@ export function Deslizable({
 }
 
 /** Pantallas raíz de cada pestaña: desde ellas no se vuelve atrás */
-const RAICES = ['/', '/movimientos', '/informes', '/empleado', '/ajustes', '/ajustes/cuentas', '/ajustes/categorias', '/ajustes/general', '/ajustes/herramientas']
+const RAICES = ['/', '/movimientos', '/informes', '/ajustes', '/ajustes/cuentas', '/ajustes/categorias', '/ajustes/general', '/ajustes/herramientas']
 
 /**
  * Deslizar desde el borde izquierdo vuelve a la pantalla anterior, con la pantalla actual siguiendo

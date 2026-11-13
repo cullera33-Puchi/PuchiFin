@@ -1,12 +1,12 @@
 /**
- * Reglas de categorización (apartado 5) y sugerencias (apartado 6).
+ * Reglas de categorización (apartado 5) y sugerencias.
  * Orden en cada importación:
  *   1. Reglas manuales (creadas por el usuario al corregir), por prioridad.
  *   2. Aprendidas: si el mismo concepto ya se categorizó a mano, se repite la categoría.
  *   3. Reglas de la app (origen «sistema»): comercios y recibos habituales.
  *   4. Sin coincidencia: sin categoría, a la bandeja.
- * Las reglas de sugerencia (gasto de empleado, reembolso, pago de deuda) nunca se aplican solas:
- * aparecen en la revisión para confirmarlas o descartarlas.
+ * Las reglas de sugerencia (hoy, el pago de la deuda familiar) nunca se aplican solas: aparecen en la
+ * revisión para confirmarlas o descartarlas. Los gastos de empleado y reembolsos los marca el usuario.
  */
 import { claveComercio, normalizarConcepto, primeraPalabra } from '../lib/conceptos'
 import type { BaseDatos, Categoria, Movimiento, Regla, TipoMovimiento } from '../lib/tipos'
@@ -23,6 +23,9 @@ interface ReglaBase {
   mesSiguiente?: boolean
 }
 
+/** Reglas de la app de versiones anteriores que ya no existen: se quitan del dispositivo al actualizar */
+export const REGLAS_RETIRADAS = ['Reembolso de la empresa', 'Viajes de trabajo: alojamiento', 'Viajes de trabajo: transporte']
+
 const REGLAS_BASE: ReglaBase[] = [
   { nombre: 'Liquidación de tarjeta', patron: '\\b(liquidacion|liq)\\b.*\\btarj|\\bpago\\b.*\\btarjeta (de )?credito\\b|\\bcargo\\b.*\\btarjeta\\b|\\badeudo mensual de tarjeta\\b', tipo: 'traspaso_interno', signo: 'gasto', prioridad: 10 },
   { nombre: 'Abono de la liquidación en la tarjeta', patron: '\\b(liquidacion|liq)\\b.*\\btarj|\\babono\\b.*\\bliquidacion\\b|\\b(rebut|recibo) (del )?mes anterior\\b', tipo: 'traspaso_interno', signo: 'ingreso', prioridad: 10 },
@@ -31,10 +34,7 @@ const REGLAS_BASE: ReglaBase[] = [
   { nombre: 'Traspaso desde la tarjeta', patron: '\\b(abo|abono) por traspaso desde\\b|\\btraspaso (a|desde) tarjeta\\b|\\bingres des de compte\\b', tipo: 'traspaso_interno', prioridad: 12 },
   { nombre: 'Traspaso entre cuentas', patron: '^traspaso\\b|\\btraspaso (a|de|desde) (cuenta|cta)\\b', tipo: 'traspaso_interno', prioridad: 15 },
   { nombre: 'Nómina', patron: '\\b(nomina|pension)\\b', ruta: 'Ingresos > Nómina', signo: 'ingreso', prioridad: 20, mesSiguiente: true },
-  { nombre: 'Reembolso de la empresa', patron: '^(?!.*\\bnomina\\b).*\\bempresa\\b', tipo: 'reembolso_empresa', sugerencia: true, signo: 'ingreso', prioridad: 30 },
   { nombre: 'Pago a la familia', patron: '\\b(transferencia|transf|trf|bizum)\\b.*\\bfamilia\\b', tipo: 'pago_deuda', sugerencia: true, signo: 'gasto', prioridad: 30 },
-  { nombre: 'Viajes de trabajo: alojamiento', patron: '\\b(hotel|hoteles|nh|melia|ac hotel|booking|hostal|ibis)\\b', tipo: 'gasto_empleado', sugerencia: true, signo: 'gasto', prioridad: 40 },
-  { nombre: 'Viajes de trabajo: transporte', patron: '\\b(renfe|ouigo|iryo|iberia|vueling|ryanair|air europa|taxi|cabify|uber|bolt|freenow)\\b', tipo: 'gasto_empleado', sugerencia: true, signo: 'gasto', prioridad: 40 },
   { nombre: 'Alojamiento', patron: '\\b(camping|campings|hotel|hoteles|nh|melia|ac hotel|booking|hostal|hostel|ibis|airbnb|expedia|hotels com|vrbo|parador|paradores|barcelo|iberostar|riu|hesperia|catalonia hotels|eurostars|apartamentos)\\b', ruta: 'Viajes > Alojamiento', signo: 'gasto' },
   { nombre: 'Transporte de viaje', patron: '\\b(tfl|renfe|ouigo|iryo|iberia|vueling|ryanair|air europa|easyjet|volotea|binter|transavia|air nostrum|blablacar|balearia|trasmed|aena|aeropuerto)\\b', ruta: 'Viajes > Transporte', signo: 'gasto' },
   { nombre: 'Actividades de viaje', patron: '\\b(civitatis|getyourguide|tiqets|freetour)\\b', ruta: 'Viajes > Actividades', signo: 'gasto' },

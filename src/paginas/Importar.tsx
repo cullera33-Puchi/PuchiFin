@@ -162,7 +162,7 @@ export function Importar() {
         origen: propuesta.origen,
         nuevos: propuesta.nuevos.length,
         duplicados: propuesta.duplicados,
-        empleado: aceptadas.size,
+        sugerencias: aceptadas.size,
         traspasos: propuesta.traspasos.length,
         cuadra: cuadre?.conSaldo ? cuadre.cuadra : null,
       })
@@ -370,7 +370,7 @@ export function Importar() {
           ))}
 
           {sugeridas.length > 0 && (
-            <Bloque titulo={`Sugerencias (${sugeridas.length})`} icono={Briefcase} color="#5856D6" nota="Gastos de empleado, reembolsos y pagos de deuda que propone la app. Los muy probables vienen activados; revisa el resto. Lo que descartes también enseña a la app.">
+            <Bloque titulo={`Sugerencias (${sugeridas.length})`} icono={Briefcase} color="#5856D6" nota="Pagos de la deuda familiar que propone la app. Los muy probables vienen activados; revisa el resto. Lo que descartes también enseña a la app.">
               <div className="mb-2 flex gap-3 px-1">
                 <button className="boton-texto" onClick={() => setRechazadas(new Set())}>
                   Aceptar todas

@@ -184,7 +184,7 @@ export function Herramientas() {
     const ok = await confirmar({
       titulo: 'Generar datos de prueba',
       texto:
-        'Se crean movimientos inventados desde la fecha de inicio hasta hoy en tus cuentas: nómina, recibos, compras con tarjeta, gastos de empleado con su reembolso y traspasos. Se ven en toda la app y en los resúmenes, marcados como datos de prueba, y se eliminan de una vez.',
+        'Se crean movimientos inventados del mes en curso y los dos anteriores en tus cuentas: nómina, recibos, compras con tarjeta, gastos de empleado con su reembolso y traspasos. Se ven en toda la app y en los resúmenes, marcados como datos de prueba, y se eliminan de una vez.',
       aceptar: 'Generar',
     })
     if (!ok) return
@@ -197,7 +197,6 @@ export function Herramientas() {
         ...d,
         importaciones: [...d.importaciones, ...p.importaciones],
         movimientos: [...d.movimientos, ...p.movimientos],
-        conciliaciones: [...d.conciliaciones, ...p.conciliaciones],
       }
     }, 'Datos de prueba generados')
     if (err) setError(err)
@@ -207,7 +206,7 @@ export function Herramientas() {
   const eliminarPrueba = async () => {
     const ok = await confirmar({
       titulo: 'Eliminar datos de prueba',
-      texto: `Se eliminan los ${prueba} movimientos de prueba y sus conciliaciones. Los datos reales no se tocan.`,
+      texto: `Se eliminan los ${prueba} movimientos de prueba. Los datos reales no se tocan.`,
       aceptar: 'Eliminar',
       peligro: true,
     })

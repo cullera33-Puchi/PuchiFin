@@ -1,4 +1,4 @@
-import { Briefcase, ChevronRight, History, Search, SlidersHorizontal, Sparkles, Tag, Upload, X } from 'lucide-react'
+import { ChevronRight, EyeOff, History, Search, SlidersHorizontal, Sparkles, Tag, Upload, X } from 'lucide-react'
 import { Baldosa } from '../componentes/Icono'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -8,7 +8,7 @@ import { FilaDeslizable } from '../componentes/gestos'
 import { useHacer } from '../componentes/acciones'
 import { Flotante, Hoja, useInterfaz } from '../componentes/Interfaz'
 import { ContenidoMovimiento, DetalleMovimiento, HojaCorreccion, SelectorCategoria } from '../componentes/movimientos'
-import { cambiarTipo } from '../datos/movimientos'
+import { cambiarTipo, marcarFuera } from '../datos/movimientos'
 import { obtenerDatos } from '../datos/almacen'
 import { useDatos } from '../datos/ProveedorDatos'
 import { aplicarReglasAPendientes } from '../importacion/pendientes'
@@ -224,7 +224,7 @@ export function Movimientos() {
         <p className="tarjeta text-center text-sm text-zinc-500">Ningún movimiento con estos filtros.</p>
       ) : (
         <div className="space-y-4">
-          {!seleccion && <p className="px-4 text-xs text-zinc-500">Desliza a la izquierda para marcar gasto de empleado; a la derecha, para cambiar la categoría.</p>}
+          {!seleccion && <p className="px-4 text-xs text-zinc-500">Desliza hacia la derecha para que un movimiento no cuente (gasto de empleado o reembolso); hacia la izquierda, para cambiar la categoría.</p>}
           {grupos.map(([dia, movs]) => (
             <section key={dia}>
               <h3 className="cabecera-grupo">
@@ -267,14 +267,14 @@ export function Movimientos() {
           </button>
           <button
             className="boton-icono"
-            aria-label="Marcar como gasto de empleado"
+            aria-label="Que no cuenten"
             disabled={!seleccion.size}
             onClick={async () => {
               const ids = [...seleccion]
-              if (await hacer((d) => cambiarTipo(d, ids, 'gasto_empleado'), `${plural(ids.length, 'gasto marcado', 'gastos marcados')} como de empleado`)) setSeleccion(new Set())
+              if (await hacer((d) => marcarFuera(d, ids, true), `${plural(ids.length, 'movimiento', 'movimientos')} fuera del extracto`)) setSeleccion(new Set())
             }}
           >
-            <Briefcase className="size-5" strokeWidth={1.75} />
+            <EyeOff className="size-5" strokeWidth={1.75} />
           </button>
           <button className="boton-texto px-2" disabled={!seleccion.size} onClick={() => setTipoBloque(true)}>
             Tipo

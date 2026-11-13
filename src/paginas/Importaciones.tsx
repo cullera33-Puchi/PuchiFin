@@ -51,7 +51,7 @@ export function Importaciones() {
                     onClick={async () => {
                       const ok = await confirmar({
                         titulo: 'Deshacer la importación',
-                        texto: `Se quitan sus ${i.movimientos_nuevos} movimientos, sus conciliaciones y los traspasos que emparejó vuelven a su tipo anterior. Se podrá volver a importar el fichero.`,
+                        texto: `Se quitan sus ${i.movimientos_nuevos} movimientos y los traspasos que emparejó vuelven a su tipo anterior. Se podrá volver a importar el fichero.`,
                         aceptar: 'Deshacer',
                         peligro: true,
                       })

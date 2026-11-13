@@ -6,7 +6,6 @@ import { Deslizable } from '../componentes/gestos'
 import { Baldosa } from '../componentes/Icono'
 import { useInterfaz } from '../componentes/Interfaz'
 import { contarDatosPrueba } from '../datos/operaciones'
-import { candidatosEmpleado } from '../importacion/empleado'
 import { useDatos } from '../datos/ProveedorDatos'
 import { avisoExportacion } from '../lib/avisos'
 import { calcularExtracto, mesDe } from '../lib/extracto'
@@ -32,7 +31,6 @@ export function Extracto() {
   const mes = params.get('mes') ?? mesDe(hoyIso())
   const e = useMemo(() => calcularExtracto(db, mes, hoyIso()), [db, mes])
   const prueba = contarDatosPrueba(db)
-  const porRevisar = useMemo(() => candidatosEmpleado(db).length, [db])
   const mejoras = useMemo(() => propuestasRecategorizacion(db).reduce((s, p) => s + p.movimientos.length, 0), [db])
   const descuadradas = useMemo(
     () =>
@@ -152,7 +150,7 @@ export function Extracto() {
               ))}
             </div>
 
-            {(e.sinCategoria > 0 || e.pendientesEmpleado > 0 || porRevisar > 0 || descuadradas > 0 || mejoras > 0) && (
+            {(e.sinCategoria > 0 || descuadradas > 0 || mejoras > 0) && (
               <div className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
                 {descuadradas > 0 && (
                   <Link to="/ajustes/cuentas" className="fila">
@@ -175,22 +173,6 @@ export function Extracto() {
                     <Baldosa glifo={Tag} color="#FF9500" tamano="sm" />
                     <span className="flex-1 text-[15px]">Movimientos sin categoría</span>
                     <span className="text-[15px] text-zinc-500">{e.sinCategoria}</span>
-                    <ChevronRight className="size-4 text-zinc-400" />
-                  </Link>
-                )}
-                {porRevisar > 0 && (
-                  <Link to="/empleado/revisar" className="fila">
-                    <Baldosa glifo={Sheet} color="#5856D6" tamano="sm" />
-                    <span className="flex-1 text-[15px]">Posibles gastos de empleado</span>
-                    <span className="text-[15px] text-zinc-500">{porRevisar}</span>
-                    <ChevronRight className="size-4 text-zinc-400" />
-                  </Link>
-                )}
-                {e.pendientesEmpleado > 0 && (
-                  <Link to="/empleado" className="fila">
-                    <Baldosa glifo={Sheet} color="#5856D6" tamano="sm" />
-                    <span className="flex-1 text-[15px]">Gastos de empleado pendientes</span>
-                    <span className="text-[15px] text-zinc-500">{e.pendientesEmpleado}</span>
                     <ChevronRight className="size-4 text-zinc-400" />
                   </Link>
                 )}

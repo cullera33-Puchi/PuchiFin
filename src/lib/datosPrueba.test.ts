@@ -64,14 +64,12 @@ describe('generarDatosPrueba', () => {
     expect(liquidacion.importe).toBeCloseTo(tarjetaOct, 2)
   })
 
-  it('el reembolso de noviembre cubre los gastos de empleado de octubre y queda conciliado', () => {
+  it('el reembolso de noviembre cubre los gastos de empleado de octubre', () => {
     const datos = generar('2026-11-30')
     const gastosOct = datos.movimientos.filter((m) => m.tipo === 'gasto_empleado' && m.fecha_operacion.startsWith('2026-10'))
     const reembolso = datos.movimientos.find((m) => m.tipo === 'reembolso_empresa')!
     expect(gastosOct.length).toBeGreaterThan(0)
     expect(reembolso.importe).toBeCloseTo(-gastosOct.reduce((s, m) => s + m.importe, 0), 2)
-    const conciliados = datos.conciliaciones.filter((x) => x.reembolso_id === reembolso.id)
-    expect(conciliados.map((x) => x.gasto_id).sort()).toEqual(gastosOct.map((m) => m.id).sort())
   })
 
   it('las cuentas bancarias llevan saldo y cuadran', () => {
@@ -84,21 +82,14 @@ describe('generarDatosPrueba', () => {
     expect(a).toEqual(b)
   })
 
-  it('hasta el reembolso, los gastos de empleado de octubre siguen pendientes', () => {
-    const datos = generar('2026-11-05')
-    const r = calcularResumen(periodoMes('2026-10-01'), datos.movimientos, CATEGORIAS, datos.conciliaciones)
-    expect(r.empleado.pendiente).toBeCloseTo(r.empleado.gastos)
-  })
-
   it('la nómina de fin de mes cuenta en el mes siguiente', () => {
     const datos = generar('2026-11-30')
     // La nómina del 30 de octubre cuenta en noviembre; octubre queda sin nómina
-    expect(calcularResumen(periodoMes('2026-10-01'), datos.movimientos, CATEGORIAS, datos.conciliaciones).totales.ingresos).toBe(0)
-    const r = calcularResumen(periodoMes('2026-11-01'), datos.movimientos, CATEGORIAS, datos.conciliaciones)
+    expect(calcularResumen(periodoMes('2026-10-01'), datos.movimientos, CATEGORIAS).totales.ingresos).toBe(0)
+    const r = calcularResumen(periodoMes('2026-11-01'), datos.movimientos, CATEGORIAS)
     expect(r.totales.ingresos).toBeCloseTo(4862.37 + 24.99) // nómina y la devolución de Amazon (sin la categoría Compras en esta prueba)
     expect(r.totales.gastos).toBeGreaterThan(1500)
     expect(r.empleado.gastos).toBeGreaterThan(0)
-    const oct = calcularResumen(periodoMes('2026-10-01'), datos.movimientos, CATEGORIAS, datos.conciliaciones)
-    expect(oct.empleado.pendiente).toBe(0) // reembolsado y conciliado el 10 de noviembre
+    expect(r.empleado.reembolsosNumero).toBe(1)
   })
 })

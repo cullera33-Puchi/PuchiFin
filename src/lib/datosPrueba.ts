@@ -9,12 +9,11 @@
 import { normalizarConcepto } from './conceptos'
 import { sumarDias, ultimoDeMes } from './fechas'
 import { mesSiguiente } from './imputacion'
-import type { Categoria, Conciliacion, Cuenta, Importacion, Movimiento, TipoMovimiento } from './tipos'
+import type { Categoria, Cuenta, Importacion, Movimiento, TipoMovimiento } from './tipos'
 
 export interface DatosPrueba {
   importaciones: Importacion[]
   movimientos: Movimiento[]
-  conciliaciones: Conciliacion[]
 }
 
 /** Generador pseudoaleatorio con semilla (mulberry32) */
@@ -97,7 +96,6 @@ export function generarDatosPrueba(opciones: {
   }
 
   const movimientos: Movimiento[] = []
-  const conciliaciones: Conciliacion[] = []
   const repeticiones = new Map<string, number>()
 
   const anadir = (cuenta: Cuenta, fecha: string, concepto: string, importe: number, ruta: string | null, tipo: TipoMovimiento = 'normal', alMesSiguiente = false) => {
@@ -181,10 +179,7 @@ export function generarDatosPrueba(opciones: {
       const mesAnterior = sumarDias(`${mes}-01`, -1).slice(0, 7)
       const gastos = empleadoPorMes.get(mesAnterior) ?? []
       const total = Math.round(-gastos.reduce((s, g) => s + g.importe, 0) * 100) / 100
-      if (total > 0) {
-        const reembolso = anadir(principal, dia, `TRANSFERENCIA DE Empresa GASTOS ${mesAnterior.slice(5)}/${mesAnterior.slice(0, 4)}`, total, null, 'reembolso_empresa')
-        if (reembolso) for (const g of gastos) conciliaciones.push({ id: nuevoId(), reembolso_id: reembolso.id, gasto_id: g.id, importe_aplicado: -g.importe, created_at: creado })
-      }
+      if (total > 0) anadir(principal, dia, `TRANSFERENCIA DE Empresa GASTOS ${mesAnterior.slice(5)}/${mesAnterior.slice(0, 4)}`, total, null, 'reembolso_empresa')
     }
     if (dia === ultimoLaborable(dia)) {
       // La nómina llega el último día laborable y es la del mes siguiente
@@ -234,5 +229,5 @@ export function generarDatosPrueba(opciones: {
       }
     })
 
-  return { importaciones: [...importaciones.values()], movimientos, conciliaciones }
+  return { importaciones: [...importaciones.values()], movimientos }
 }
