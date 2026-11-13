@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.4.0",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Tus datos se guardan solo en el dispositivo: sin cuentas, sin servidores y funcionando sin conexión.",
+      "«Exportar todos los datos» crea un archivo para guardar en Archivos o iCloud Drive. Al importarlo en el ordenador, todo queda exactamente igual que en el iPhone.",
+      "Antes de importar o restaurar se guarda una copia del estado actual, por si hay que volver atrás.",
+      "El Extracto te recuerda exportar si tienes datos reales sin exportar desde hace 14 días."
+    ]
+  },
+  {
     "version": "0.3.0",
     "fecha": "2026-11-13",
     "cambios": [

@@ -5,12 +5,12 @@ import { calcularResumen, periodoMes, periodoSemana } from './resumen'
 import type { Categoria, Cuenta } from './tipos'
 
 const cuentas: Cuenta[] = [
-  { id: 'c1', user_id: 'u', alias: 'Cuenta principal', entidad: null, tipo: 'cuenta', activa: true, orden: 1, created_at: '' },
-  { id: 't', user_id: 'u', alias: 'Tarjeta', entidad: null, tipo: 'tarjeta_credito', activa: true, orden: 2, created_at: '' },
+  { id: 'c1', alias: 'Cuenta principal', entidad: null, tipo: 'cuenta', activa: true, orden: 1, created_at: '' },
+  { id: 't', alias: 'Tarjeta', entidad: null, tipo: 'tarjeta_credito', activa: true, orden: 2, created_at: '' },
 ]
 const categorias: Categoria[] = [
-  { id: 'a', user_id: 'u', padre_id: null, nombre: 'Alimentación', icono: null, color: '#43A047', naturaleza: 'gasto', activa: true, orden: 1 },
-  { id: 'a1', user_id: 'u', padre_id: 'a', nombre: 'Supermercado', icono: null, color: '#43A047', naturaleza: 'gasto', activa: true, orden: 1 },
+  { id: 'a', padre_id: null, nombre: 'Alimentación', icono: null, color: '#43A047', naturaleza: 'gasto', activa: true, orden: 1 },
+  { id: 'a1', padre_id: 'a', nombre: 'Supermercado', icono: null, color: '#43A047', naturaleza: 'gasto', activa: true, orden: 1 },
 ]
 let n = 0
 const datos = generarDatosPrueba({ cuentas, categorias, desde: '2026-10-01', hasta: '2026-11-30', nuevoId: () => `id${++n}` })

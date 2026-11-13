@@ -2,6 +2,16 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.4.0. Datos solo en el dispositivo (13 de noviembre de 2026)
+
+- Decisión del usuario: sin Supabase ni base de datos fuera del móvil. Se retiran el acceso con Google, el cliente `@supabase/supabase-js` y las pantallas de acceso y configuración. `supabase/` queda en pausa como referencia (`supabase/README.md`), fuera de las pruebas de GitHub.
+- Almacén local (`src/datos/almacen.ts`): todo el modelo en un documento (`BaseDatos`) en IndexedDB (`puchifin`), cargado en memoria, guardado en cada cambio y con petición de almacenamiento persistente. `useDatos()` para las pantallas e `intentar()` para aplicar operaciones con su mensaje de error.
+- Operaciones puras (`src/datos/operaciones.ts`) con las reglas que antes aplicaba Postgres: datos identificativos campo a campo, alias únicos sin series largas de dígitos, nombres de categoría únicos por nivel, dos niveles con herencia de naturaleza, fusión de categorías (con subcategorías homónimas y suma de presupuestos), ajustes, borrado en cascada de importaciones y datos de prueba, y comprobación completa (`comprobarBaseDatos`) con referencias y duplicados.
+- Archivo (`src/datos/archivo.ts`): formato `{app, formato, version_app, exportado, datos}`, validación completa al importar, `VERSION_ESQUEMA` y `migrar()` para adaptar archivos antiguos. Importar y restaurar sustituyen todo y antes guardan una copia «antes de importar» o «antes de restaurar».
+- Corregido: la comprobación de datos identificativos de una copia se hacía sobre el JSON entero y podía tomar un identificador interno con forma de tarjeta por un dato real. Ahora se revisan solo los campos de texto.
+- Aviso de exportación pendiente en el Extracto (`src/lib/avisos.ts`) y última exportación en Herramientas.
+- Pruebas: 128 tests, entre ellos exportar e importar sin ninguna diferencia, persistencia en IndexedDB (`fake-indexeddb`) y copias con restauración. Prueba en navegador real: datos creados en un iPhone simulado, exportados e importados en un escritorio con almacenamiento propio, con el contenido idéntico.
+
 ## v0.3.0. Estilo iOS y PDF para compartir (13 de noviembre de 2026)
 
 - Iconos: catálogo propio de 50 glifos de trazo fino (`src/componentes/iconos.ts`, lucide) mostrados en baldosas de color con esquinas redondeadas (`Baldosa`), al estilo de Ajustes de iOS. Las categorías guardan la clave del icono en lugar de un emoji; un valor desconocido se muestra como etiqueta. Catálogo inicial con la paleta del sistema de iOS (migración `20261113000003` corregida antes de aplicarse en ningún proyecto). No se usan SF Symbols: su licencia los limita a apps de Apple.

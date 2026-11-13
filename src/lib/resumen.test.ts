@@ -18,7 +18,7 @@ import {
 import type { Categoria } from './tipos'
 
 const cat = (id: string, nombre: string, padre: string | null = null, naturaleza: 'gasto' | 'ingreso' = 'gasto'): Categoria => ({
-  id, user_id: 'u', padre_id: padre, nombre, icono: null, color: '#000000', naturaleza, activa: true, orden: 0,
+  id, padre_id: padre, nombre, icono: null, color: '#000000', naturaleza, activa: true, orden: 0,
 })
 
 const CATEGORIAS: Categoria[] = [

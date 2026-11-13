@@ -17,17 +17,17 @@ La especificación funcional completa está en la segunda parte de este document
 - Frontal: React, TypeScript y Vite. PWA instalable en el iPhone, responsive, una sola base de código para móvil y escritorio.
 - Estilos: Tailwind CSS. Tema claro y oscuro según el sistema.
 - Lectura de Excel: SheetJS, siempre en el navegador.
-- Backend: Supabase (Postgres, Auth con proveedor Google, Row Level Security).
+- Datos: solo en el dispositivo (IndexedDB), sin backend ni base de datos externa (decisión del usuario del 13/11/2026). Los datos pasan del iPhone al ordenador, o al revés, exportando e importando un archivo JSON que lo recupera todo exactamente igual. Supabase queda en pausa (`supabase/README.md`).
 - Gráficos: Recharts.
 - Despliegue: gratuito (Vercel o GitHub Pages).
 - Todos los servicios deben ser gratuitos. No usar la API de Anthropic ni ningún servicio de pago.
 
 ## Reglas que no se pueden saltar
 
-1. Ningún número de cuenta, IBAN, número de tarjeta ni DNI se guarda en Supabase ni en el repositorio. La anonimización se hace en el navegador antes de enviar nada.
-2. Los ficheros originales nunca se suben a Supabase ni se guardan en el repositorio.
+1. Ningún número de cuenta, IBAN, número de tarjeta ni DNI se guarda en el dispositivo, en las copias, en los archivos exportados ni en el repositorio. La anonimización se hace antes de guardar nada.
+2. Los ficheros originales de BBVA nunca se guardan: se leen, se anonimizan y se descartan. Tampoco van al repositorio.
 3. Antes de confirmar una importación, verificación final de lo que se va a guardar con patrones de IBAN, tarjeta y DNI. Si encuentra alguno, bloquea la importación y muestra la línea afectada.
-4. Row Level Security activo en todas las tablas. Registro de nuevos usuarios desactivado en Supabase Auth. La clave de servicio nunca va en el frontal.
+4. Los datos no salen del dispositivo salvo por una exportación que pide el usuario (archivo JSON o PDF). Sin servidores, cuentas ni bases de datos externas. Importar un archivo sustituye todo y antes guarda una copia del estado actual.
 5. Solo los movimientos de tipo Normal computan en el extracto, el presupuesto y los totales.
 6. Importes en euros con signo: negativo es gasto, positivo es ingreso. En pantalla, formato español (1.234,56 €).
 7. Interfaz en español.
@@ -43,11 +43,11 @@ Fases 1 a 3 de la hoja de ruta. Las fases 4 a 6 quedan fuera hasta nueva indicac
 
 ### Fase 1. Base
 
-- Proyecto Supabase con todas las tablas del modelo de datos, incluidas compromisos y eventos previstos. Migraciones versionadas en `supabase/migrations/`.
-- Acceso con Google restringido a una sola cuenta.
+- Almacenamiento en el dispositivo con el modelo de datos completo, incluidos compromisos y eventos previstos (`src/lib/tipos.ts`), y exportación e importación en un archivo JSON.
+- Sin acceso con cuenta: la app solo guarda datos en el dispositivo (cambio del 13/11/2026; antes, acceso con Google y Supabase).
 - Alta de cuentas por alias, sin números: Cuenta principal, Cuenta 2, Tarjeta e Hipoteca.
 - Catálogo predeterminado de categorías cargado como datos iniciales.
-- Se cierra cuando el acceso, el modelo y el catálogo están operativos.
+- Se cierra cuando el almacenamiento, el modelo, la exportación e importación y el catálogo están operativos.
 
 ### Fase 2. Importación BBVA
 
@@ -69,17 +69,19 @@ Fases 1 a 3 de la hoja de ruta. Las fases 4 a 6 quedan fuera hasta nueva indicac
 Se mantienen en todas las fases. Están en Ajustes, Herramientas.
 
 - **Versiones y novedades.** Cada versión publicada sube `version` en `package.json`, añade su entrada técnica a `CHANGELOG.md` y de 3 a 5 líneas para el usuario en `public/novedades.json` (la más reciente arriba, campos `version`, `fecha` y `cambios`). Sin ese cambio, los dispositivos no ven las novedades. Al detectar una versión nueva, la app avisa «Nueva versión disponible» y «Actualizar» muestra las novedades que faltan antes de aplicarla.
-- **Registro.** `registrar()` de `src/lib/registro.ts` anota errores y eventos en el dispositivo (400 entradas) para copiarlo al chat. Toda operación nueva relevante (importación, copia, restauración, PDF, errores de Supabase) se registra. Nunca conceptos, importes ni nombres: solo recuentos e identificadores internos. Si se cuela un IBAN, tarjeta o DNI, se enmascara.
-- **Copias de seguridad.** Copia diaria en el dispositivo (IndexedDB, 7 últimas), copia manual, exportar a archivo JSON y restaurar desde una copia local o un archivo. Restaurar sustituye todo en una sola transacción y antes guarda una copia del estado actual. Si cambia el modelo de datos, subir `esquema` en `exportar_copia()` y en `restaurar_copia()`.
-- **Datos de prueba.** Movimientos inventados desde la fecha de inicio hasta hoy, colgados de importaciones con origen `datos_prueba`: se eliminan de una vez sin tocar lo real. El extracto, los resúmenes y el PDF avisan cuando hay datos de prueba. Si se añaden reglas o tipos nuevos, el generador debe cubrirlos.
+- **Registro.** `registrar()` de `src/lib/registro.ts` anota errores y eventos en el dispositivo (400 entradas) para copiarlo al chat. Toda operación nueva relevante (importación, copia, restauración, exportación, PDF, errores al guardar) se registra. Nunca conceptos, importes ni nombres: solo recuentos e identificadores internos. Si se cuela un IBAN, tarjeta o DNI, se enmascara.
+- **Copias de seguridad y archivo.** Copia diaria en el dispositivo (IndexedDB, 7 últimas), copia manual, exportar a archivo JSON e importar o restaurar, que sustituye todo y antes guarda una copia del estado actual. Si cambia el modelo de datos, subir `VERSION_ESQUEMA` en `src/lib/tipos.ts` y añadir la adaptación en `migrar()` de `src/datos/archivo.ts`, para que los archivos antiguos se sigan importando.
+- **Datos de prueba.** Movimientos inventados desde la fecha de inicio hasta hoy, colgados de importaciones con origen `datos_prueba`: se eliminan de una vez sin tocar lo real. Viajan en el archivo exportado como el resto de datos. El extracto, los resúmenes y el PDF avisan cuando hay datos de prueba. Si se añaden reglas o tipos nuevos, el generador debe cubrirlos.
 - **Estilo iOS (v0.3.0).** Iconos de trazo fino; los de categorías y cuentas, en baldosas de color (`Baldosa`) con el catálogo de `src/componentes/iconos.ts`. Nada de emojis como iconos. Paleta del sistema de iOS, interruptores en lugar de casillas, controles segmentados, listas agrupadas con chevrón y botones de texto o de icono sin marco. Toda pantalla nueva sigue este estilo.
-- **Pruebas en GitHub.** `.github/workflows/pruebas.yml` ejecuta tests, build y pruebas de base de datos en cada envío.
+- **Pruebas en GitHub.** `.github/workflows/pruebas.yml` ejecuta los tests y el build en cada envío.
 
 ### Resúmenes en PDF (adelantado a petición del usuario, v0.2.0)
 
 Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (por ejemplo, con alguien de la familia que no tiene acceso a la app). Especificación en el apartado 8 bis de la segunda parte. El contenido se ajusta con el uso.
 
 ## Cómo trabajar
+
+- Todo cambio de datos pasa por una función pura de `src/datos/operaciones.ts`, aplicada con `cambiar()` o `intentar()`. Ahí van las comprobaciones (datos identificativos, unicidad, integridad), con sus tests.
 
 - Una fase cada vez. Al terminar cada fase, resume qué se ha hecho, qué queda pendiente y cómo probarlo.
 - Tests unitarios para el lector de Excel, la anonimización, la deduplicación y las reglas de categorización. Es donde un error no se ve en pantalla.
@@ -93,7 +95,6 @@ Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (po
 - Si la deuda familiar tiene intereses y si el colchón se mide sobre el saldo conjunto de las dos cuentas (afecta a la fase 4).
 - Entidad de cada cuenta y cuenta desde la que se paga la hipoteca.
 - El repositorio es público. No contiene datos personales, pero para una app de finanzas conviene hacerlo privado (Vercel funciona igual). el usuario lo deja pendiente.
-- Dónde se guarda el nombre del familiar que se sustituye por «Familia» (fase 2): en `ajustes` de Supabase o solo en el navegador de cada dispositivo.
 
 ## Estado
 
@@ -103,8 +104,9 @@ Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (po
   - Migraciones en `supabase/migrations/`: las nueve tablas más `ajustes`, RLS en todas, lista de correos autorizados que bloquea el alta de cualquier otra cuenta, comprobación en base de datos de IBAN, tarjeta y DNI en los textos, y función de carga inicial del catálogo de categorías, ajustes y compromiso de deuda.
   - Pantallas: acceso con Google, alta y edición de cuentas por alias, catálogo de categorías editable y ajustes generales. Extracto, Movimientos y Empleado quedan como marcadores de las fases 2 y 3.
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
-  - Pendiente: crear el proyecto Supabase, aplicar las migraciones, configurar el proveedor Google y dar de alta el correo autorizado (pasos en `README.md`).
+  - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.4.0 (13/11/2026): los datos pasan a guardarse solo en el dispositivo (IndexedDB), sin Supabase ni acceso con Google. Exportar e importar un archivo JSON deja otro dispositivo exactamente igual. Las reglas que comprobaba Postgres (datos identificativos, alias únicos, dos niveles de categoría, deduplicación, borrado en cascada) están en `src/datos/operaciones.ts`. Aviso en el Extracto si hay datos reales sin exportar en 14 días. El nombre del familiar (alias Familia) se guardará también en el dispositivo.
 - v0.3.0 (13/11/2026): estilo iOS (iconos en baldosas, barra de pestañas flotante, interruptores, listas agrupadas) y PDF reducido para compartir, ambos pedidos por el usuario.
 
 # Parte 2. Especificación funcional
@@ -130,22 +132,22 @@ App web privada que sustituye a Fintonic. Importa los movimientos de BBVA (dos c
 
 ## 2. Arquitectura, acceso y seguridad
 
-Frontal web responsive y Supabase como backend, con acceso mediante la cuenta de Google. Todo lo guardado está cifrado y anonimizado: ningún número de cuenta ni de tarjeta llega a Supabase.
+App web responsive que guarda los datos solo en el dispositivo (decisión del 13/11/2026). No hay servidor, cuenta ni base de datos externa: lo guardado está anonimizado y no sale del móvil salvo en una exportación que pide el usuario.
 
 | Capa | Decisión |
 | --- | --- |
-| Frontal | App web responsive (PWA instalable en el iPhone), una sola base de código para móvil y escritorio |
-| Backend | Supabase: Postgres. El procesado de las importaciones se hace en el navegador, antes de enviar nada |
-| Acceso | Supabase Auth con proveedor Google, restringido a una sola cuenta |
-| Autorización | Row Level Security en todas las tablas: cada fila ligada al usuario |
-| Cifrado | Estándar de Supabase sobre todas las tablas: en reposo (disco y copias) y en tránsito (TLS) |
+| Frontal | App web responsive (PWA instalable en el iPhone), una sola base de código para móvil y escritorio. Funciona sin conexión |
+| Datos | IndexedDB del dispositivo: un único documento con todas las colecciones del modelo. El procesado de las importaciones se hace en el dispositivo |
+| Paso entre dispositivos | Exportar un archivo JSON (hoja de compartir: Archivos, iCloud Drive) e importarlo en el otro dispositivo, que queda exactamente igual |
+| Copias | Copia diaria en el dispositivo (7 últimas), copia manual y copia automática antes de importar o restaurar |
+| Acceso | Sin cuenta. El iPhone ya está protegido por su código y Face ID; el bloqueo propio de la app queda para la fase de mejoras |
 | Ficheros originales | No se guardan. Se leen en el dispositivo, se anonimizan y se descartan |
 
 **Medidas adicionales sin coste**
 
-- Registro de nuevos usuarios desactivado en Supabase Auth: solo entra la cuenta autorizada.
-- La clave de servicio nunca va en el frontal; solo la clave pública con RLS.
-- Exportación completa a Excel desde la app, como copia propia fuera de Supabase.
+- El navegador pide almacenamiento persistente. En el iPhone, la app instalada en la pantalla de inicio conserva sus datos; borrar la app o los datos del sitio los elimina, por eso la app recuerda exportar si hay datos reales sin exportar en 14 días.
+- Los datos de la app instalada en el iPhone y los de Safari son distintos: se pasan con el archivo.
+- Exportación completa a Excel desde la app, como copia propia (fase 3).
 - Bloqueo con Face ID al reabrir la app pasados unos minutos (opcional, fase de mejoras).
 
 ### Anonimización
@@ -199,7 +201,7 @@ Las columnas exactas se fijan con los Excel reales de BBVA (cuenta y tarjeta). E
 
 ## 4. Modelo de datos
 
-Nueve tablas en Supabase. El movimiento es la unidad central y lleva un tipo que decide si computa en el extracto.
+Nueve colecciones, más los ajustes, en el documento de datos del dispositivo (`BaseDatos` en `src/lib/tipos.ts`). El movimiento es la unidad central y lleva un tipo que decide si computa en el extracto.
 
 | Tabla | Contenido principal |
 | --- | --- |
@@ -213,7 +215,7 @@ Nueve tablas en Supabase. El movimiento es la unidad central y lleva un tipo que
 | compromisos | Deuda pendiente, colchón, ventana de pago, mes de referencia, intereses |
 | eventos_previstos | Fecha, concepto, importe, categoría |
 
-Los ajustes generales (fecha de inicio, fecha de corte con Fintonic, lista de alias de terceros, umbrales) van en una tabla `ajustes` de una sola fila o en columnas del perfil de usuario.
+Los ajustes generales (fecha de inicio, fecha de corte con Fintonic, lista de alias de terceros, umbrales) van en `ajustes`, dentro del mismo documento.
 
 Cuentas previstas: dos cuentas bancarias, una tarjeta de crédito y una hipoteca. La hipoteca no tiene movimientos propios: su cuota se carga en una de las cuentas y computa en Vivienda, subcategoría Hipoteca.
 
@@ -429,7 +431,7 @@ La v1 trabaja solo con BBVA desde octubre de 2026 y queda completa al cerrar la 
 | Fase | Contenido | Se cierra cuando |
 | --- | --- | --- |
 | 0. Preparación | Excel de octubre de las cuentas y la tarjeta de BBVA, plantillas de lectura, repositorio en GitHub y CLAUDE.md | El mapeo de BBVA está cerrado |
-| 1. Base | Supabase, acceso con Google, modelo de datos, cuentas por alias y catálogo de categorías | Acceso, modelo y catálogo operativos |
+| 1. Base | Almacenamiento en el dispositivo, exportación e importación, modelo de datos, cuentas por alias y catálogo de categorías | Almacenamiento, modelo y catálogo operativos |
 | 2. Importación BBVA | Cuentas y tarjeta, anonimización, deduplicación, reglas, revisión y traspasos internos | Octubre y noviembre importados sin duplicados, sin datos identificativos y sin doble cómputo de la tarjeta |
 | 3. Extracto y gastos de empleado | Extracto mensual, marcado rápido, conciliación de reembolsos y vistas de análisis | Octubre y noviembre cerrados con los reembolsos conciliados |
 | 4. Presupuestos, plan de pagos y Claude | Presupuesto por categoría, plan de pagos de la deuda familiar con proyección y simulación, y botón Analizar con Claude | Presupuesto de diciembre definido, pago del verano de 2027 proyectado y primer análisis hecho en Claude |

@@ -1,6 +1,5 @@
-import { Briefcase, ChartPie, FileText, List, LogOut, Settings } from 'lucide-react'
+import { Briefcase, ChartPie, FileText, List, Settings } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router-dom'
-import { useSesion } from '../sesion/Sesion'
 
 // Las cuatro pestañas del móvil (apartado 12). Resúmenes se abre desde el Extracto en el móvil
 const SECCIONES = [
@@ -12,8 +11,6 @@ const SECCIONES = [
 const MENU_ESCRITORIO = [...SECCIONES.slice(0, 3), { a: '/resumenes', texto: 'Resúmenes', icono: FileText, fin: false }, SECCIONES[3]]
 
 export function Estructura() {
-  const { sesion, salir } = useSesion()
-
   return (
     <div className="min-h-dvh md:flex">
       {/* Escritorio: barra lateral al estilo de las apps de iPad y Mac */}
@@ -43,14 +40,7 @@ export function Estructura() {
             </NavLink>
           ))}
         </nav>
-        <div className="mt-auto px-2 pt-4">
-          <p className="truncate text-xs text-zinc-500" title={sesion?.user.email ?? ''}>
-            {sesion?.user.email}
-          </p>
-          <button onClick={salir} className="mt-2 flex items-center gap-2 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
-            <LogOut className="size-4" strokeWidth={1.75} /> Salir
-          </button>
-        </div>
+        <p className="mt-auto px-2 pt-4 text-xs text-zinc-500">Datos guardados en este dispositivo</p>
       </aside>
 
       <main className="min-w-0 flex-1 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-32 md:px-8 md:py-8">

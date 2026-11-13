@@ -1,11 +1,11 @@
 import { ChevronLeft, ChevronRight, Download, FlaskConical, Share2 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Aviso, Encabezado } from '../componentes/Encabezado'
 import { Baldosa } from '../componentes/Icono'
 import { FilaInterruptor, useInterfaz } from '../componentes/Interfaz'
 import { compartirArchivo, puedeCompartirArchivos } from '../lib/compartir'
-import { contarDatosPrueba } from '../lib/datosPruebaSupabase'
-import { cargarDatosResumen } from '../lib/datosResumen'
+import { contarDatosPrueba } from '../datos/operaciones'
+import { useDatos } from '../datos/ProveedorDatos'
 import { diaSemana, hoyIso } from '../lib/fechas'
 import { formatearImporte } from '../lib/formato'
 import { registrar } from '../lib/registro'
@@ -17,14 +17,11 @@ import {
   textoEnCurso,
   periodoDe,
   porcentaje,
-  type ConciliacionResumen,
-  type MovimientoResumen,
   type Periodo,
   type Resumen,
   type TipoPeriodo,
   type Tono,
 } from '../lib/resumen'
-import { mensajeError, supabase } from '../lib/supabase'
 import { NOMBRE_TIPO_MOVIMIENTO, type Categoria } from '../lib/tipos'
 
 const CLAVE_CONCEPTOS = 'puchifin-resumen-conceptos'
@@ -76,39 +73,18 @@ export function Resumenes() {
   const { avisar } = useInterfaz()
   const [tipo, setTipo] = useState<TipoPeriodo>('mes')
   const [desplazamiento, setDesplazamiento] = useState(0)
-  const [categorias, setCategorias] = useState<Categoria[] | null>(null)
-  const [datos, setDatos] = useState<{ clave: string; movimientos: MovimientoResumen[]; conciliaciones: ConciliacionResumen[] } | null>(null)
-  const [hayPrueba, setHayPrueba] = useState(false)
+  const db = useDatos()
+  const categorias = db.categorias
+  const hayPrueba = contarDatosPrueba(db) > 0
   const [conceptos, setConceptos] = useState(() => leerPreferencia(CLAVE_CONCEPTOS, 'si') !== 'no')
   const [reducida, setReducida] = useState(() => leerPreferencia(CLAVE_VERSION, 'completa') === 'reducida')
   const [error, setError] = useState<string | null>(null)
   const [generando, setGenerando] = useState(false)
 
   const periodo: Periodo = useMemo(() => desplazarPeriodo(periodoDe(tipo, hoyIso()), desplazamiento), [tipo, desplazamiento])
-  const clave = `${periodo.tipo}:${periodo.inicio}`
-
-  useEffect(() => {
-    supabase.from('categorias').select('*').then(({ data, error: e }) => {
-      if (e) setError(mensajeError(e))
-      else setCategorias(data as Categoria[])
-    })
-    contarDatosPrueba().then((n) => setHayPrueba(n > 0), () => undefined)
-  }, [])
-
-  useEffect(() => {
-    let cancelado = false
-    cargarDatosResumen(periodo).then(
-      (d) => !cancelado && setDatos({ clave, ...d }),
-      (e) => !cancelado && setError((e as Error).message),
-    )
-    return () => {
-      cancelado = true
-    }
-  }, [periodo, clave])
-
-  const resumen: Resumen | null = useMemo(
-    () => (categorias && datos?.clave === clave ? calcularResumen(periodo, datos.movimientos, categorias, datos.conciliaciones, 10, hoyIso()) : null),
-    [categorias, datos, clave, periodo],
+  const resumen: Resumen = useMemo(
+    () => calcularResumen(periodo, db.movimientos, categorias, db.conciliaciones, 10, hoyIso()),
+    [periodo, db.movimientos, categorias, db.conciliaciones],
   )
 
   const cambiarConceptos = (v: boolean) => {
@@ -121,7 +97,6 @@ export function Resumenes() {
   }
 
   const generarPdf = async (descargar: boolean) => {
-    if (!resumen || !categorias) return
     setGenerando(true)
     try {
       const { generarPdfResumen, nombreArchivoResumen } = await import('../lib/pdf')
@@ -187,11 +162,11 @@ export function Resumenes() {
 
         <div className="flex flex-wrap items-center justify-end gap-2">
           {compartir && (
-            <button className="boton-primario" disabled={!resumen || generando} onClick={() => generarPdf(false)}>
+            <button className="boton-primario" disabled={generando} onClick={() => generarPdf(false)}>
               <Share2 className="size-4" /> Compartir PDF
             </button>
           )}
-          <button className={compartir ? 'boton-secundario' : 'boton-primario'} disabled={!resumen || generando} onClick={() => generarPdf(true)}>
+          <button className={compartir ? 'boton-secundario' : 'boton-primario'} disabled={generando} onClick={() => generarPdf(true)}>
             <Download className="size-4" /> {generando ? 'Generando…' : 'Descargar PDF'}
           </button>
         </div>
@@ -208,7 +183,7 @@ export function Resumenes() {
         </div>
       )}
 
-      {!resumen ? <p className="text-sm text-zinc-500">Cargando…</p> : <VistaPrevia r={resumen} conceptos={conceptos} reducida={reducida} categorias={categorias ?? []} />}
+      <VistaPrevia r={resumen} conceptos={conceptos} reducida={reducida} categorias={categorias} />
     </>
   )
 }

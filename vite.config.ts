@@ -33,10 +33,10 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Solo se cachea el frontal. Los datos de Supabase y novedades.json siempre van a la red.
+        // Se cachea la app para que funcione sin conexión. novedades.json siempre va a la red.
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
         globIgnores: ['**/novedades.json'],
-        navigateFallbackDenylist: [/^\/auth/, /novedades\.json$/],
+        navigateFallbackDenylist: [/novedades\.json$/],
       },
     }),
   ],

@@ -1,33 +1,21 @@
 /**
- * Copias de seguridad.
+ * Copias de seguridad y paso de datos entre dispositivos.
  *
- * - Copia diaria automática en el dispositivo (IndexedDB), al abrir la app: se guardan las 7 últimas.
- * - Copia manual y copia previa a cada restauración, que no se borran solas.
- * - Exportar a archivo JSON (hoja de compartir o descarga) e importar desde archivo.
- * - Restaurar sustituye todos los datos en Supabase en una sola transacción (restaurar_copia).
- *
- * Las copias contienen lo mismo que Supabase: datos ya anonimizados, sin números de cuenta.
+ * - Copia diaria automática en el dispositivo (IndexedDB "puchifin-copias"), al abrir la app: 7 últimas.
+ * - Copia manual y copias automáticas antes de restaurar o importar, que no se borran solas (10 últimas).
+ * - Exportar: archivo JSON con todos los datos, para guardarlo en Archivos o iCloud Drive y cargarlo
+ *   en otro dispositivo. Importar sustituye todo por el contenido del archivo, exactamente igual.
  */
+import { esperarGuardado, obtenerDatos, reemplazarDatos } from '../datos/almacen'
+import { crearArchivo, leerArchivo, resumenArchivo, serializar, validarArchivo, type ArchivoPuchiFin } from '../datos/archivo'
 import { compartirArchivo, type ResultadoCompartir } from './compartir'
-import { contieneIdentificativo } from './identificativos'
 import { hoyIso } from './fechas'
 import { registrar } from './registro'
-import { mensajeError, supabase } from './supabase'
-import { APP_VERSION } from './version'
 
 export type TipoCopia = 'diaria' | 'manual' | 'antes de restaurar' | 'antes de importar'
 
-export interface Copia {
-  app: 'puchifin'
-  esquema: number
-  exportado: string
-  version_app?: string
-  datos: Record<string, Record<string, unknown>[]>
-}
-
 export interface MetaCopia {
   clave: string
-  usuario: string
   tipo: TipoCopia
   creada: string
   dia: string
@@ -40,8 +28,9 @@ export interface MetaCopia {
 export const MAX_DIARIAS = 7
 export const MAX_OTRAS = 10
 const BASE = 'puchifin-copias'
+const CLAVE_ULTIMA_EXPORTACION = 'puchifin-ultima-exportacion'
+const CLAVE_SALTAR = 'puchifin-copia-saltar'
 
-// Avisa a la pantalla de Herramientas cuando cambian las copias (por ejemplo, al terminar la diaria)
 const oyentes = new Set<() => void>()
 export function suscribirCopias(f: () => void): () => void {
   oyentes.add(f)
@@ -49,31 +38,14 @@ export function suscribirCopias(f: () => void): () => void {
 }
 const avisarCambio = () => oyentes.forEach((f) => f())
 
-/** Comprueba que un JSON es una copia de PuchiFin. Devuelve el motivo si no lo es */
-export function validarCopia(json: unknown): string | null {
-  if (!json || typeof json !== 'object') return 'El archivo no es una copia de PuchiFin'
-  const c = json as Partial<Copia>
-  if (c.app !== 'puchifin' || !c.datos || typeof c.datos !== 'object') return 'El archivo no es una copia de PuchiFin'
-  for (const [tabla, filas] of Object.entries(c.datos)) {
-    if (!Array.isArray(filas)) return `Copia dañada: ${tabla} no es una lista`
-  }
-  // Última comprobación antes de enviar nada a Supabase (regla 3)
-  if (contieneIdentificativo(JSON.stringify(c.datos))) return 'La copia contiene un número de cuenta, tarjeta, IBAN o DNI. No se restaura'
-  return null
-}
-
-export function metaDe(copia: Copia, usuario: string, tipo: TipoCopia, creada = new Date().toISOString()): MetaCopia {
-  const n = (t: string) => copia.datos[t]?.length ?? 0
+export function metaDe(archivo: ArchivoPuchiFin, tipo: TipoCopia, creada = new Date().toISOString()): MetaCopia {
   return {
     clave: tipo === 'diaria' ? `${creada.slice(0, 10)}#diaria` : `${creada}#${tipo}`,
-    usuario,
     tipo,
     creada,
     dia: creada.slice(0, 10),
-    version: copia.version_app ?? '?',
-    movimientos: n('movimientos'),
-    cuentas: n('cuentas'),
-    categorias: n('categorias'),
+    version: archivo.version_app,
+    ...resumenArchivo(archivo),
   }
 }
 
@@ -86,7 +58,7 @@ export function copiasSobrantes(lista: MetaCopia[]): string[] {
 }
 
 // ---------------------------------------------------------------------------
-// IndexedDB: 'copias' guarda la copia completa y 'meta' un resumen para listarlas sin leerlas
+// IndexedDB: 'copias' guarda el archivo completo y 'meta' un resumen para listarlas sin leerlas
 // ---------------------------------------------------------------------------
 
 function abrir(): Promise<IDBDatabase> {
@@ -117,14 +89,14 @@ async function transaccion<T>(modo: IDBTransactionMode, fn: (copias: IDBObjectSt
   })
 }
 
-export async function listarCopias(usuario: string): Promise<MetaCopia[]> {
+export async function listarCopias(): Promise<MetaCopia[]> {
   const todas = ((await transaccion('readonly', (_c, meta) => meta.getAll())) ?? []) as MetaCopia[]
-  return todas.filter((m) => m.usuario === usuario).sort((a, b) => b.creada.localeCompare(a.creada))
+  return todas.sort((a, b) => b.creada.localeCompare(a.creada))
 }
 
-export async function leerCopia(clave: string): Promise<Copia | undefined> {
-  const r = (await transaccion('readonly', (copias) => copias.get(clave))) as { clave: string; copia: Copia } | undefined
-  return r?.copia
+export async function leerCopia(clave: string): Promise<ArchivoPuchiFin | undefined> {
+  const r = (await transaccion('readonly', (copias) => copias.get(clave))) as { clave: string; archivo: ArchivoPuchiFin } | undefined
+  return r?.archivo
 }
 
 export async function borrarCopia(clave: string): Promise<void> {
@@ -136,8 +108,8 @@ export async function borrarCopia(clave: string): Promise<void> {
   avisarCambio()
 }
 
-export async function borrarTodasLasCopias(usuario: string): Promise<number> {
-  const lista = await listarCopias(usuario)
+export async function borrarTodasLasCopias(): Promise<number> {
+  const lista = await listarCopias()
   await transaccion('readwrite', (copias, meta) => {
     for (const m of lista) {
       copias.delete(m.clave)
@@ -149,13 +121,16 @@ export async function borrarTodasLasCopias(usuario: string): Promise<number> {
   return lista.length
 }
 
-async function guardarEnDispositivo(copia: Copia, usuario: string, tipo: TipoCopia): Promise<MetaCopia> {
-  const m = metaDe(copia, usuario, tipo)
+/** Guarda una copia de los datos actuales en el dispositivo */
+export async function hacerCopia(tipo: TipoCopia): Promise<MetaCopia> {
+  await esperarGuardado()
+  const archivo = crearArchivo(structuredClone(obtenerDatos()))
+  const m = metaDe(archivo, tipo)
   await transaccion('readwrite', (copias, meta) => {
-    copias.put({ clave: m.clave, copia })
+    copias.put({ clave: m.clave, archivo })
     meta.put(m)
   })
-  const sobran = copiasSobrantes(await listarCopias(usuario))
+  const sobran = copiasSobrantes(await listarCopias())
   if (sobran.length) {
     await transaccion('readwrite', (copias, meta) => {
       for (const c of sobran) {
@@ -164,37 +139,18 @@ async function guardarEnDispositivo(copia: Copia, usuario: string, tipo: TipoCop
       }
     })
   }
+  registrar('info', `Copia ${tipo} guardada en el dispositivo`, { movimientos: m.movimientos, categorias: m.categorias })
   avisarCambio()
   return m
 }
 
-// ---------------------------------------------------------------------------
-// Supabase
-// ---------------------------------------------------------------------------
-
-export async function exportarCopia(): Promise<Copia> {
-  const { data, error } = await supabase.rpc('exportar_copia')
-  if (error) throw new Error(mensajeError(error))
-  return { ...(data as Copia), version_app: APP_VERSION }
-}
-
-export async function hacerCopia(usuario: string, tipo: TipoCopia): Promise<MetaCopia> {
-  const copia = await exportarCopia()
-  const m = await guardarEnDispositivo(copia, usuario, tipo)
-  registrar('info', `Copia ${tipo} guardada en el dispositivo`, { movimientos: m.movimientos, categorias: m.categorias })
-  return m
-}
-
-const CLAVE_SALTAR = 'puchifin-copia-saltar'
-
 /** Copia diaria: una al día, al abrir la app. Si se borró a mano la de hoy, no se repite hasta mañana */
-export async function copiaDiaria(usuario: string): Promise<MetaCopia | null> {
+export async function copiaDiaria(): Promise<MetaCopia | null> {
   try {
-    const hoy = hoyIso()
-    if (localStorage.getItem(CLAVE_SALTAR) === hoy) return null
-    const lista = await listarCopias(usuario)
-    if (lista.some((m) => m.tipo === 'diaria' && m.dia === new Date().toISOString().slice(0, 10))) return null
-    return await hacerCopia(usuario, 'diaria')
+    if (localStorage.getItem(CLAVE_SALTAR) === hoyIso()) return null
+    const hoy = new Date().toISOString().slice(0, 10)
+    if ((await listarCopias()).some((m) => m.tipo === 'diaria' && m.dia === hoy)) return null
+    return await hacerCopia('diaria')
   } catch (e) {
     registrar('error', `Copia diaria fallida: ${(e as Error).message ?? e}`)
     return null
@@ -209,35 +165,46 @@ export function saltarCopiaDeHoy(): void {
   }
 }
 
-/** Restaura una copia: antes guarda una copia del estado actual en el dispositivo */
-export async function restaurarCopia(copia: Copia, usuario: string): Promise<Record<string, number>> {
-  const motivo = validarCopia(copia)
-  if (motivo) throw new Error(motivo)
-  await hacerCopia(usuario, 'antes de restaurar')
-  const { data, error } = await supabase.rpc('restaurar_copia', { copia })
-  if (error) {
-    registrar('error', `Restaurar copia falló: ${mensajeError(error)}`)
-    throw new Error(mensajeError(error))
+/** Sustituye todos los datos por los del archivo. Antes guarda una copia del estado actual */
+export async function restaurar(archivo: ArchivoPuchiFin, tipo: 'antes de restaurar' | 'antes de importar'): Promise<void> {
+  const valido = validarArchivo(archivo)
+  await hacerCopia(tipo)
+  await reemplazarDatos(valido.datos)
+  registrar('info', tipo === 'antes de importar' ? 'Archivo importado' : 'Copia restaurada', resumenArchivo(valido))
+}
+
+// ---------------------------------------------------------------------------
+// Exportar e importar archivo
+// ---------------------------------------------------------------------------
+
+export function nombreArchivoExportacion(fecha = hoyIso()): string {
+  return `PuchiFin ${fecha}.json`
+}
+
+export async function exportarArchivo(archivo?: ArchivoPuchiFin): Promise<ResultadoCompartir> {
+  await esperarGuardado()
+  const texto = archivo ? JSON.stringify(archivo, null, 1) : serializar(obtenerDatos())
+  const r = await compartirArchivo(new Blob([texto], { type: 'application/json' }), nombreArchivoExportacion(), 'Datos de PuchiFin')
+  if (r !== 'cancelado' && !archivo) {
+    try {
+      localStorage.setItem(CLAVE_ULTIMA_EXPORTACION, new Date().toISOString())
+    } catch {
+      // sin almacenamiento
+    }
+    avisarCambio()
   }
-  registrar('info', 'Copia restaurada', data)
-  return data as Record<string, number>
+  registrar('info', `Exportación: ${r}`, archivo ? resumenArchivo(archivo) : { movimientos: obtenerDatos().movimientos.length })
+  return r
 }
 
-export async function exportarArchivo(copia?: Copia): Promise<ResultadoCompartir> {
-  const c = copia ?? (await exportarCopia())
-  const blob = new Blob([JSON.stringify(c, null, 2)], { type: 'application/json' })
-  return compartirArchivo(blob, `puchifin-copia-${hoyIso()}.json`, 'Copia de PuchiFin')
-}
-
-export async function leerArchivo(archivo: File): Promise<Copia> {
-  const texto = await archivo.text()
-  let json: unknown
+export function ultimaExportacion(): string | null {
   try {
-    json = JSON.parse(texto)
+    return localStorage.getItem(CLAVE_ULTIMA_EXPORTACION)
   } catch {
-    throw new Error('El archivo no es un JSON válido')
+    return null
   }
-  const motivo = validarCopia(json)
-  if (motivo) throw new Error(motivo)
-  return json as Copia
+}
+
+export async function leerArchivoDeUsuario(archivo: File): Promise<ArchivoPuchiFin> {
+  return leerArchivo(await archivo.text())
 }

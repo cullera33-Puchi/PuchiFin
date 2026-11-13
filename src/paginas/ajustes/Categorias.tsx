@@ -1,10 +1,11 @@
 import { Check, ChevronRight, Plus } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { Aviso } from '../../componentes/Encabezado'
 import { Baldosa } from '../../componentes/Icono'
 import { ICONOS, ICONO_POR_DEFECTO } from '../../componentes/iconos'
-import { FilaInterruptor } from '../../componentes/Interfaz'
-import { mensajeError, supabase } from '../../lib/supabase'
+import { FilaInterruptor, useInterfaz } from '../../componentes/Interfaz'
+import { actualizarCategoria, crearCategoria, fusionarCategoria } from '../../datos/operaciones'
+import { intentar, useDatos } from '../../datos/ProveedorDatos'
 import type { Categoria, Naturaleza } from '../../lib/tipos'
 
 interface Arbol {
@@ -13,27 +14,14 @@ interface Arbol {
 }
 
 export function Categorias() {
-  const [categorias, setCategorias] = useState<Categoria[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const categorias = useDatos().categorias
   const [abiertas, setAbiertas] = useState<Set<string>>(new Set())
   const [editando, setEditando] = useState<string | null>(null)
   const [nuevaEn, setNuevaEn] = useState<string | 'raiz' | null>(null)
   const [verInactivas, setVerInactivas] = useState(false)
 
-  const cargar = useCallback(async () => {
-    const { data, error: e } = await supabase.from('categorias').select('*').order('orden').order('nombre')
-    if (e) setError(mensajeError(e))
-    else setCategorias(data as Categoria[])
-  }, [])
-
-  useEffect(() => {
-    // Carga asíncrona: el estado se actualiza al llegar la respuesta de Supabase
-    // oxlint-disable-next-line react/set-state-in-effect
-    cargar()
-  }, [cargar])
-
   const arbol: Arbol[] = useMemo(() => {
-    const todas = (categorias ?? []).filter((c) => verInactivas || c.activa)
+    const todas = [...categorias].sort((a, b) => a.orden - b.orden).filter((c) => verInactivas || c.activa)
     return todas
       .filter((c) => !c.padre_id)
       .map((raiz) => ({ raiz, hijas: todas.filter((c) => c.padre_id === raiz.id) }))
@@ -48,23 +36,14 @@ export function Categorias() {
     })
 
   const crear = async (nombre: string, padre: Categoria | null, naturaleza: Naturaleza): Promise<string | null> => {
-    const hermanas = (categorias ?? []).filter((c) => c.padre_id === (padre?.id ?? null))
-    const { error: e } = await supabase.from('categorias').insert({
-      nombre: nombre.trim(),
-      padre_id: padre?.id ?? null,
-      naturaleza,
-      color: padre?.color ?? '#8E8E93',
-      icono: padre ? null : ICONO_POR_DEFECTO,
-      orden: hermanas.length + 1,
-    })
-    if (e) return mensajeError(e)
+    const error = await intentar((db) => crearCategoria(db, { nombre, padre_id: padre?.id ?? null, naturaleza, icono: padre ? null : ICONO_POR_DEFECTO }), 'Categoría creada')
+    if (error) return error
     setNuevaEn(null)
     if (padre) setAbiertas((s) => new Set(s).add(padre.id))
-    await cargar()
     return null
   }
 
-  const total = categorias?.filter((c) => !c.padre_id && c.activa).length ?? 0
+  const total = categorias.filter((c) => !c.padre_id && c.activa).length
 
   return (
     <div className="space-y-4">
@@ -74,15 +53,13 @@ export function Categorias() {
           <FilaInterruptor texto="Mostrar inactivas" activo={verInactivas} onCambio={setVerInactivas} />
         </div>
       </div>
-      {error && <Aviso>{error}</Aviso>}
-
       <ul className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
         {arbol.map(({ raiz, hijas }) => {
           const abierta = abiertas.has(raiz.id)
           return (
             <li key={raiz.id}>
               {editando === raiz.id ? (
-                <Editor categoria={raiz} todas={categorias ?? []} onFin={() => { setEditando(null); cargar() }} />
+                <Editor categoria={raiz} todas={categorias} onFin={() => setEditando(null)} />
               ) : (
                 <div className={`flex items-center gap-1 pr-3 ${raiz.activa ? '' : 'opacity-50'}`}>
                   <button className="fila flex-1 hover:bg-zinc-50 dark:hover:bg-zinc-800/60" aria-expanded={abierta} onClick={() => alternar(raiz.id)}>
@@ -107,7 +84,7 @@ export function Categorias() {
                   {hijas.map((h) =>
                     editando === h.id ? (
                       <li key={h.id}>
-                        <Editor categoria={h} todas={categorias ?? []} onFin={() => { setEditando(null); cargar() }} />
+                        <Editor categoria={h} todas={categorias} onFin={() => setEditando(null)} />
                       </li>
                     ) : (
                       <li key={h.id} className={`flex items-center gap-3 py-2 pr-4 pl-[60px] ${h.activa ? '' : 'opacity-50'}`}>
@@ -200,6 +177,7 @@ function NuevaCategoria({
 const COLORES = ['#FF3B30', '#FF9500', '#F7B500', '#34C759', '#00C7BE', '#30B0C7', '#32ADE6', '#007AFF', '#5856D6', '#AF52DE', '#FF2D55', '#A2845E', '#8E8E93', '#636366']
 
 function Editor({ categoria, todas, onFin }: { categoria: Categoria; todas: Categoria[]; onFin: () => void }) {
+  const { confirmar } = useInterfaz()
   const [nombre, setNombre] = useState(categoria.nombre)
   const [icono, setIcono] = useState(categoria.icono && ICONOS[categoria.icono] ? categoria.icono : ICONO_POR_DEFECTO)
   const [color, setColor] = useState(categoria.color ?? '#8E8E93')
@@ -218,23 +196,23 @@ function Editor({ categoria, todas, onFin }: { categoria: Categoria; todas: Cate
 
   const guardar = async (e: FormEvent) => {
     e.preventDefault()
-    const { error: err } = await supabase
-      .from('categorias')
-      .update({ nombre: nombre.trim(), icono: esRaiz ? icono : categoria.icono, color, activa })
-      .eq('id', categoria.id)
-    if (err) setError(mensajeError(err))
+    const err = await intentar((db) => actualizarCategoria(db, categoria.id, { nombre, icono: esRaiz ? icono : categoria.icono, color, activa }), 'Categoría modificada')
+    if (err) setError(err)
     else onFin()
   }
 
   const fusionar = async () => {
     const d = todas.find((c) => c.id === destino)
     if (!d) return
-    const ok = window.confirm(
-      `Se moverán los movimientos, reglas y presupuestos de "${categoria.nombre}" a "${nombreCompleto(d)}" y se borrará "${categoria.nombre}". ¿Continuar?`,
-    )
+    const ok = await confirmar({
+      titulo: 'Fusionar categoría',
+      texto: `Los movimientos, reglas y presupuestos de «${categoria.nombre}» pasan a «${nombreCompleto(d)}» y «${categoria.nombre}» se borra.`,
+      aceptar: 'Fusionar',
+      peligro: true,
+    })
     if (!ok) return
-    const { error: err } = await supabase.rpc('fusionar_categoria', { id_origen: categoria.id, id_destino: destino })
-    if (err) setError(mensajeError(err))
+    const err = await intentar((db) => fusionarCategoria(db, categoria.id, destino), 'Categorías fusionadas')
+    if (err) setError(err)
     else onFin()
   }
 

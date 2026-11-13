@@ -1,31 +1,34 @@
-import { Copy, Download, FlaskConical, RotateCcw, Share2, Trash2, Upload } from 'lucide-react'
+import { Copy, Download, FlaskConical, HardDriveDownload, HardDriveUpload, RotateCcw, Share2, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { useActualizacion } from '../../componentes/Actualizacion'
 import { Aviso } from '../../componentes/Encabezado'
 import { Baldosa } from '../../componentes/Icono'
 import { Hoja, useInterfaz } from '../../componentes/Interfaz'
+import { resumenArchivo, type ArchivoPuchiFin } from '../../datos/archivo'
+import { borrarDatosPrueba, contarDatosPrueba } from '../../datos/operaciones'
+import { intentar, useDatos } from '../../datos/ProveedorDatos'
 import { compartirArchivo, copiarTexto } from '../../lib/compartir'
 import {
   borrarCopia,
   borrarTodasLasCopias,
   exportarArchivo,
   hacerCopia,
-  leerArchivo,
+  leerArchivoDeUsuario,
   leerCopia,
   listarCopias,
-  restaurarCopia,
+  restaurar,
   saltarCopiaDeHoy,
   suscribirCopias,
-  type Copia,
+  ultimaExportacion,
   type MetaCopia,
 } from '../../lib/copias'
-import { borrarDatosPrueba, contarDatosPrueba, crearDatosPrueba } from '../../lib/datosPruebaSupabase'
+import { generarDatosPrueba } from '../../lib/datosPrueba'
+import { hoyIso } from '../../lib/fechas'
 import { formatearFecha } from '../../lib/formato'
 import { borrarRegistro, entradasRegistro, recuperarRegistro, registrar, suscribirRegistro, textoRegistro } from '../../lib/registro'
 import { APP_VERSION } from '../../lib/version'
-import { useSesion } from '../../sesion/Sesion'
 
-function Seccion({ titulo, nota, children }: { titulo: string; nota?: string; children: ReactNode }) {
+function Seccion({ titulo, nota, children }: { titulo: string; nota?: ReactNode; children: ReactNode }) {
   return (
     <section className="tarjeta space-y-3">
       <div>
@@ -38,6 +41,7 @@ function Seccion({ titulo, nota, children }: { titulo: string; nota?: string; ch
 }
 
 const hora = (iso: string) => new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+const cuando = (iso: string) => `del ${formatearFecha(iso)} a las ${hora(iso)}`
 const NOMBRE_TIPO: Record<MetaCopia['tipo'], string> = {
   diaria: 'Copia diaria',
   manual: 'Copia manual',
@@ -46,28 +50,28 @@ const NOMBRE_TIPO: Record<MetaCopia['tipo'], string> = {
 }
 
 export function Herramientas() {
-  const { sesion } = useSesion()
-  const usuario = sesion?.user.id ?? ''
+  const db = useDatos()
   const { avisar, confirmar } = useInterfaz()
   const { pendiente, actualizar, verNovedades, buscar } = useActualizacion()
 
   const [copias, setCopias] = useState<MetaCopia[] | null>(null)
-  const [prueba, setPrueba] = useState<number | null>(null)
+  const [ultima, setUltima] = useState(ultimaExportacion)
   const [ocupado, setOcupado] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [verRegistro, setVerRegistro] = useState(false)
   const archivo = useRef<HTMLInputElement>(null)
   const entradas = useSyncExternalStore(suscribirRegistro, entradasRegistro)
+  const prueba = contarDatosPrueba(db)
 
   const recargar = useCallback(async () => {
     try {
-      setCopias(await listarCopias(usuario))
+      setCopias(await listarCopias())
     } catch (e) {
       registrar('error', `No se pudieron leer las copias: ${(e as Error).message}`)
       setCopias([])
     }
-    contarDatosPrueba().then(setPrueba, () => setPrueba(null))
-  }, [usuario])
+    setUltima(ultimaExportacion())
+  }, [])
 
   useEffect(() => {
     // oxlint-disable-next-line react/set-state-in-effect
@@ -87,47 +91,47 @@ export function Herramientas() {
       setError((e as Error).message)
     } finally {
       setOcupado(null)
-      recargar()
     }
   }
 
-  const restaurar = async (copia: Copia, cuando: string) => {
-    const n = copia.datos.movimientos?.length ?? 0
+  const sustituir = async (a: ArchivoPuchiFin, titulo: string, tipo: 'antes de restaurar' | 'antes de importar') => {
+    const n = resumenArchivo(a)
     const ok = await confirmar({
-      titulo: `Restaurar copia ${cuando}`,
+      titulo,
       texto: (
         <>
           <p>
-            Se sustituyen todos los datos (cuentas, categorías, reglas y movimientos) por los de esa copia ({n} movimientos). Lo creado
-            después se perderá.
+            Se sustituyen todos los datos de este dispositivo por los del archivo: {n.cuentas} cuentas, {n.categorias} categorías y{' '}
+            {n.movimientos} movimientos. Quedará exactamente igual que cuando se guardó.
           </p>
-          <p className="mt-2">Antes se guarda en este dispositivo una copia del estado actual, para poder volver atrás.</p>
+          <p className="mt-2">Antes se guarda una copia del estado actual en este dispositivo, por si hay que volver atrás.</p>
         </>
       ),
-      aceptar: 'Restaurar',
+      aceptar: tipo === 'antes de importar' ? 'Importar' : 'Restaurar',
       peligro: true,
     })
     if (!ok) return
     await ejecutar('restaurar', async () => {
-      await restaurarCopia(copia, usuario)
-      avisar(`Copia ${cuando} restaurada`)
+      await restaurar(a, tipo)
+      avisar(tipo === 'antes de importar' ? 'Datos importados' : 'Copia restaurada')
     })
   }
 
   const restaurarLocal = async (m: MetaCopia) => {
-    const copia = await leerCopia(m.clave)
-    if (!copia) {
+    const a = await leerCopia(m.clave)
+    if (!a) {
       setError('No se encuentra la copia en este dispositivo')
       return
     }
-    await restaurar(copia, `del ${formatearFecha(m.dia)} a las ${hora(m.creada)}`)
+    await sustituir(a, `Restaurar copia ${cuando(m.creada)}`, 'antes de restaurar')
   }
 
-  const importarArchivo = async (f: File) => {
+  const importar = async (f: File) => {
+    setError(null)
     try {
-      const copia = await leerArchivo(f)
-      registrar('info', 'Copia leída desde archivo', { movimientos: copia.datos.movimientos?.length ?? 0 })
-      await restaurar(copia, `del ${formatearFecha(copia.exportado)}`)
+      const a = await leerArchivoDeUsuario(f)
+      registrar('info', 'Archivo leído para importar', resumenArchivo(a))
+      await sustituir(a, a.exportado ? `Importar datos ${cuando(a.exportado)}` : 'Importar datos', 'antes de importar')
     } catch (e) {
       registrar('aviso', `Importar archivo: ${(e as Error).message}`)
       setError((e as Error).message)
@@ -137,7 +141,7 @@ export function Herramientas() {
   const borrarUna = async (m: MetaCopia) => {
     const ok = await confirmar({
       titulo: 'Borrar copia',
-      texto: `La copia del ${formatearFecha(m.dia)} a las ${hora(m.creada)} se borrará de este dispositivo. No se puede deshacer.`,
+      texto: `La copia ${cuando(m.creada)} se borrará de este dispositivo. No se puede deshacer.`,
       aceptar: 'Borrar',
       peligro: true,
     })
@@ -159,7 +163,7 @@ export function Herramientas() {
     })
     if (!ok) return
     await ejecutar('borrar', async () => {
-      const b = await borrarTodasLasCopias(usuario)
+      const b = await borrarTodasLasCopias()
       saltarCopiaDeHoy()
       avisar(b === 1 ? 'Copia borrada' : `${b} copias borradas`)
     })
@@ -173,10 +177,20 @@ export function Herramientas() {
       aceptar: 'Generar',
     })
     if (!ok) return
-    await ejecutar('prueba', async () => {
-      const n = await crearDatosPrueba()
-      avisar(`${n} movimientos de prueba creados`)
-    })
+    let n = 0
+    const err = await intentar((d) => {
+      if (contarDatosPrueba(d)) throw new Error('Ya hay datos de prueba')
+      const p = generarDatosPrueba({ cuentas: d.cuentas, categorias: d.categorias, desde: d.ajustes.fecha_inicio, hasta: hoyIso() })
+      n = p.movimientos.length
+      return {
+        ...d,
+        importaciones: [...d.importaciones, ...p.importaciones],
+        movimientos: [...d.movimientos, ...p.movimientos],
+        conciliaciones: [...d.conciliaciones, ...p.conciliaciones],
+      }
+    }, 'Datos de prueba generados')
+    if (err) setError(err)
+    else avisar(`${n} movimientos de prueba creados`)
   }
 
   const eliminarPrueba = async () => {
@@ -187,13 +201,12 @@ export function Herramientas() {
       peligro: true,
     })
     if (!ok) return
-    await ejecutar('prueba', async () => {
-      const n = await borrarDatosPrueba()
-      avisar(`${n} movimientos de prueba eliminados`)
-    })
+    const err = await intentar(borrarDatosPrueba, 'Datos de prueba eliminados')
+    if (err) setError(err)
+    else avisar(`${prueba} movimientos de prueba eliminados`)
   }
 
-  const textoReg = () => textoRegistro(copias?.[0] ? `movimientos ${copias[0].movimientos}` : undefined)
+  const textoReg = () => textoRegistro(`cuentas ${db.cuentas.length}, movimientos ${db.movimientos.length}, de prueba ${prueba}`)
   const compartirRegistro = async () => {
     const texto = textoReg()
     try {
@@ -216,31 +229,42 @@ export function Herramientas() {
     <div className="space-y-4">
       {error && <Aviso>{error}</Aviso>}
 
-      <Seccion titulo="Versión">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-auto text-sm">
-            PuchiFin <strong>v{APP_VERSION}</strong>
-            {pendiente && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">Nueva versión lista</span>}
-          </span>
-          <button className="boton-secundario" onClick={verNovedades}>
-            Novedades
-          </button>
-          {pendiente ? (
-            <button className="boton-primario" onClick={actualizar}>
-              Actualizar
-            </button>
+      <Seccion
+        titulo="Exportar e importar"
+        nota="Tus datos se guardan solo en este dispositivo. Exporta un archivo y guárdalo en Archivos o iCloud Drive; al importarlo en el ordenador (o en otro iPhone) todo queda exactamente igual."
+      >
+        <p className="text-sm">
+          {ultima ? (
+            <>
+              Última exportación: <strong>{cuando(ultima)}</strong>
+            </>
           ) : (
-            <button className="boton-secundario" onClick={buscar}>
-              Buscar actualización
-            </button>
+            <span className="text-zinc-500">Todavía no has exportado desde este dispositivo.</span>
           )}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button className="boton-primario" disabled={!!ocupado} onClick={() => ejecutar('exportar', async () => { await exportarArchivo(); setUltima(ultimaExportacion()) })}>
+            <HardDriveDownload className="size-4" strokeWidth={2} /> Exportar todos los datos
+          </button>
+          <button className="boton-secundario" disabled={!!ocupado} onClick={() => archivo.current?.click()}>
+            <HardDriveUpload className="size-4" strokeWidth={2} /> Importar archivo
+          </button>
+          <input
+            ref={archivo}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              e.target.value = ''
+              if (f) importar(f)
+            }}
+          />
         </div>
+        {ocupado === 'restaurar' && <Aviso tipo="info">Sustituyendo los datos…</Aviso>}
       </Seccion>
 
-      <Seccion
-        titulo="Copias de seguridad"
-        nota="Cada día, al abrir la app, se guarda una copia en este dispositivo (se conservan las 7 últimas). Son los mismos datos anonimizados que hay en Supabase."
-      >
+      <Seccion titulo="Copias de seguridad" nota="Cada día, al abrir la app, se guarda una copia en este dispositivo (se conservan las 7 últimas).">
         {copias === null ? (
           <p className="text-sm text-zinc-500">Cargando…</p>
         ) : copias.length === 0 ? (
@@ -262,12 +286,12 @@ export function Herramientas() {
                 </button>
                 <button
                   className="boton-icono"
-                  title="Guardar como archivo"
-                  aria-label="Guardar como archivo"
+                  title="Exportar esta copia"
+                  aria-label="Exportar esta copia"
                   disabled={!!ocupado}
                   onClick={async () => {
-                    const c = await leerCopia(m.clave)
-                    if (c) await exportarArchivo(c)
+                    const a = await leerCopia(m.clave)
+                    if (a) await exportarArchivo(a)
                   }}
                 >
                   <Download className="size-5" strokeWidth={1.75} />
@@ -279,52 +303,31 @@ export function Herramientas() {
             ))}
           </ul>
         )}
-        <div className="flex flex-wrap gap-2">
-          <button className="boton-primario" disabled={!!ocupado} onClick={() => ejecutar('copia', async () => { await hacerCopia(usuario, 'manual'); avisar('Copia guardada en este dispositivo') })}>
+        <div className="flex flex-wrap items-center gap-2">
+          <button className="boton-secundario" disabled={!!ocupado} onClick={() => ejecutar('copia', async () => { await hacerCopia('manual'); avisar('Copia guardada en este dispositivo') })}>
             {ocupado === 'copia' ? 'Guardando…' : 'Hacer copia ahora'}
-          </button>
-          <button className="boton-secundario" disabled={!!ocupado} onClick={() => ejecutar('exportar', async () => { await exportarArchivo() })}>
-            <Share2 className="size-4" /> Exportar a archivo
-          </button>
-          <button className="boton-secundario" disabled={!!ocupado} onClick={() => archivo.current?.click()}>
-            <Upload className="size-4" /> Restaurar desde archivo
           </button>
           {!!copias?.length && (
             <button className="boton-texto px-2 text-red-600 dark:text-red-500" disabled={!!ocupado} onClick={borrarTodas}>
               Borrar todas
             </button>
           )}
-          <input
-            ref={archivo}
-            type="file"
-            accept="application/json,.json"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0]
-              e.target.value = ''
-              if (f) importarArchivo(f)
-            }}
-          />
         </div>
-        {ocupado === 'restaurar' && <Aviso tipo="info">Restaurando…</Aviso>}
       </Seccion>
 
-      <Seccion
-        titulo="Datos de prueba"
-        nota="Movimientos inventados para probar el extracto y los resúmenes sin datos reales. Se eliminan de una vez sin tocar lo real."
-      >
+      <Seccion titulo="Datos de prueba" nota="Movimientos inventados para probar el extracto y los resúmenes sin datos reales. Se eliminan de una vez sin tocar lo real.">
         {prueba ? (
           <div className="flex flex-wrap items-center gap-2">
             <span className="mr-auto flex items-center gap-2 text-sm">
               <Baldosa glifo={FlaskConical} color="#FF9500" tamano="sm" /> {prueba} movimientos de prueba
             </span>
-            <button className="boton-secundario text-red-600 dark:text-red-500" disabled={!!ocupado} onClick={eliminarPrueba}>
-              {ocupado === 'prueba' ? 'Eliminando…' : 'Eliminar datos de prueba'}
+            <button className="boton-secundario text-red-600 dark:text-red-500" onClick={eliminarPrueba}>
+              Eliminar datos de prueba
             </button>
           </div>
         ) : (
-          <button className="boton-secundario" disabled={!!ocupado || prueba === null} onClick={generarPrueba}>
-            <FlaskConical className="size-4" /> {ocupado === 'prueba' ? 'Generando…' : 'Generar datos de prueba'}
+          <button className="boton-secundario" onClick={generarPrueba}>
+            <FlaskConical className="size-4" strokeWidth={2} /> Generar datos de prueba
           </button>
         )}
       </Seccion>
@@ -336,11 +339,32 @@ export function Herramientas() {
             Ver
           </button>
           <button className="boton-secundario" onClick={async () => (await copiarTexto(textoReg())) && avisar('Registro copiado')}>
-            <Copy className="size-4" /> Copiar
+            <Copy className="size-4" strokeWidth={2} /> Copiar
           </button>
           <button className="boton-secundario" onClick={compartirRegistro}>
-            <Share2 className="size-4" /> Compartir
+            <Share2 className="size-4" strokeWidth={2} /> Compartir
           </button>
+        </div>
+      </Seccion>
+
+      <Seccion titulo="Versión">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-auto text-sm">
+            PuchiFin <strong>v{APP_VERSION}</strong>
+            {pendiente && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">Nueva versión lista</span>}
+          </span>
+          <button className="boton-secundario" onClick={verNovedades}>
+            Novedades
+          </button>
+          {pendiente ? (
+            <button className="boton-primario" onClick={actualizar}>
+              Actualizar
+            </button>
+          ) : (
+            <button className="boton-secundario" onClick={buscar}>
+              Buscar actualización
+            </button>
+          )}
         </div>
       </Seccion>
 
@@ -354,10 +378,7 @@ export function Herramientas() {
             <button className="boton-secundario text-red-600" disabled={!entradas.length} onClick={borrarReg}>
               Borrar
             </button>
-            <button
-              className="boton-secundario"
-              onClick={() => compartirArchivo(new Blob([textoReg()], { type: 'text/plain' }), `puchifin-registro-${new Date().toISOString().slice(0, 10)}.txt`, 'Registro de PuchiFin')}
-            >
+            <button className="boton-secundario" onClick={() => compartirArchivo(new Blob([textoReg()], { type: 'text/plain' }), `puchifin-registro-${hoyIso()}.txt`, 'Registro de PuchiFin')}>
               Guardar
             </button>
             <button className="boton-primario" onClick={async () => (await copiarTexto(textoReg())) && avisar('Registro copiado')}>

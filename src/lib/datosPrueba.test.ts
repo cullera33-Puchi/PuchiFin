@@ -5,7 +5,7 @@ import { calcularResumen, periodoMes } from './resumen'
 import type { Categoria, Cuenta } from './tipos'
 
 const cuenta = (id: string, alias: string, tipo: Cuenta['tipo'], orden: number): Cuenta => ({
-  id, user_id: 'u', alias, entidad: 'BBVA', tipo, activa: true, orden, created_at: '',
+  id, alias, entidad: 'BBVA', tipo, activa: true, orden, created_at: '',
 })
 const CUENTAS = [
   cuenta('c1', 'Cuenta principal', 'cuenta', 1),
@@ -14,7 +14,7 @@ const CUENTAS = [
   cuenta('h', 'Hipoteca', 'hipoteca', 4),
 ]
 const c = (id: string, nombre: string, padre: string | null = null, naturaleza: 'gasto' | 'ingreso' = 'gasto'): Categoria => ({
-  id, user_id: 'u', padre_id: padre, nombre, icono: null, color: '#000000', naturaleza, activa: true, orden: 0,
+  id, padre_id: padre, nombre, icono: null, color: '#000000', naturaleza, activa: true, orden: 0,
 })
 const CATEGORIAS = [
   c('viv', 'Vivienda'), c('viv-hip', 'Hipoteca', 'viv'),
@@ -52,7 +52,7 @@ describe('generarDatosPrueba', () => {
     const total = datos.importaciones.reduce((s, i) => s + i.movimientos_nuevos, 0)
     expect(total).toBe(datos.movimientos.length)
     const ids = new Set(datos.importaciones.map((i) => i.id))
-    expect(datos.movimientos.every((m) => ids.has(m.importacion_id))).toBe(true)
+    expect(datos.movimientos.every((m) => ids.has(m.importacion_id ?? ''))).toBe(true)
   })
 
   it('la liquidación de noviembre cuadra con la tarjeta de octubre', () => {

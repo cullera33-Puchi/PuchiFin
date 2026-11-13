@@ -20,5 +20,3 @@ jobs:
         run: npm test
       - name: Tipos y build
         run: npm run build
-      - name: Migraciones y RLS contra Postgres
-        run: npm run test:db

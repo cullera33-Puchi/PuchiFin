@@ -8,43 +8,12 @@
  */
 import { normalizarConcepto } from './conceptos'
 import { sumarDias } from './fechas'
-import type { Categoria, Cuenta, TipoMovimiento } from './tipos'
-
-export interface MovimientoPrueba {
-  id: string
-  cuenta_id: string
-  importacion_id: string
-  fecha_operacion: string
-  fecha_valor: string
-  concepto_original: string
-  concepto_limpio: string
-  concepto_normalizado: string
-  ocurrencia: number
-  importe: number
-  categoria_id: string | null
-  tipo: TipoMovimiento
-  origen_categoria: 'regla' | null
-}
-
-export interface ImportacionPrueba {
-  id: string
-  cuenta_id: string
-  origen: 'datos_prueba'
-  fecha_desde: string
-  fecha_hasta: string
-  movimientos_nuevos: number
-}
-
-export interface ConciliacionPrueba {
-  reembolso_id: string
-  gasto_id: string
-  importe_aplicado: number
-}
+import type { Categoria, Conciliacion, Cuenta, Importacion, Movimiento, TipoMovimiento } from './tipos'
 
 export interface DatosPrueba {
-  importaciones: ImportacionPrueba[]
-  movimientos: MovimientoPrueba[]
-  conciliaciones: ConciliacionPrueba[]
+  importaciones: Importacion[]
+  movimientos: Movimiento[]
+  conciliaciones: Conciliacion[]
 }
 
 /** Generador pseudoaleatorio con semilla (mulberry32) */
@@ -83,10 +52,12 @@ export function generarDatosPrueba(opciones: {
   categorias: Categoria[]
   desde: string
   hasta: string
-  nuevoId: () => string
+  nuevoId?: () => string
   semilla?: number
 }): DatosPrueba {
-  const { cuentas, categorias, desde, hasta, nuevoId } = opciones
+  const { cuentas, categorias, desde, hasta } = opciones
+  const nuevoId = opciones.nuevoId ?? (() => crypto.randomUUID())
+  const creado = new Date().toISOString()
   const r = aleatorio(opciones.semilla ?? 20261001)
 
   const activas = cuentas.filter((c) => c.activa).sort((a, b) => a.orden - b.orden)
@@ -104,18 +75,21 @@ export function generarDatosPrueba(opciones: {
   }
   const cat = (ruta: string) => porNombre.get(ruta.toLowerCase()) ?? null
 
-  const importaciones = new Map<string, ImportacionPrueba>()
+  const importaciones = new Map<string, Importacion>()
   const importacionDe = (cuentaId: string) => {
     let i = importaciones.get(cuentaId)
     if (!i) {
-      i = { id: nuevoId(), cuenta_id: cuentaId, origen: 'datos_prueba', fecha_desde: desde, fecha_hasta: hasta, movimientos_nuevos: 0 }
+      i = {
+        id: nuevoId(), cuenta_id: cuentaId, origen: 'datos_prueba', fecha_desde: desde, fecha_hasta: hasta,
+        movimientos_nuevos: 0, movimientos_duplicados: 0, movimientos_descartados: 0, estado: 'confirmada', created_at: creado,
+      }
       importaciones.set(cuentaId, i)
     }
     return i
   }
 
-  const movimientos: MovimientoPrueba[] = []
-  const conciliaciones: ConciliacionPrueba[] = []
+  const movimientos: Movimiento[] = []
+  const conciliaciones: Conciliacion[] = []
   const repeticiones = new Map<string, number>()
 
   const anadir = (cuenta: Cuenta, fecha: string, concepto: string, importe: number, ruta: string | null, tipo: TipoMovimiento = 'normal') => {
@@ -126,7 +100,7 @@ export function generarDatosPrueba(opciones: {
     const ocurrencia = (repeticiones.get(clave) ?? 0) + 1
     repeticiones.set(clave, ocurrencia)
     const categoria_id = ruta ? cat(ruta) : null
-    const m: MovimientoPrueba = {
+    const m: Movimiento = {
       id: nuevoId(),
       cuenta_id: cuenta.id,
       importacion_id: imp.id,
@@ -139,7 +113,12 @@ export function generarDatosPrueba(opciones: {
       importe: Math.round(importe * 100) / 100,
       categoria_id,
       tipo,
+      saldo: null,
+      regla_id: null,
       origen_categoria: categoria_id ? 'regla' : null,
+      nota: null,
+      reembolso_cerrado: false,
+      created_at: creado,
     }
     movimientos.push(m)
     imp.movimientos_nuevos++
@@ -147,7 +126,7 @@ export function generarDatosPrueba(opciones: {
   }
 
   // Gastos de empleado de cada mes, para reembolsarlos el mes siguiente
-  const empleadoPorMes = new Map<string, MovimientoPrueba[]>()
+  const empleadoPorMes = new Map<string, Movimiento[]>()
   const cargoTarjetaPorMes = new Map<string, number>()
 
   for (let dia = desde; dia <= hasta; dia = sumarDias(dia, 1)) {
@@ -193,7 +172,7 @@ export function generarDatosPrueba(opciones: {
       const total = Math.round(-gastos.reduce((s, g) => s + g.importe, 0) * 100) / 100
       if (total > 0) {
         const reembolso = anadir(principal, dia, `TRANSFERENCIA DE Empresa GASTOS ${mesAnterior.slice(5)}/${mesAnterior.slice(0, 4)}`, total, null, 'reembolso_empresa')
-        if (reembolso) for (const g of gastos) conciliaciones.push({ reembolso_id: reembolso.id, gasto_id: g.id, importe_aplicado: -g.importe })
+        if (reembolso) for (const g of gastos) conciliaciones.push({ id: nuevoId(), reembolso_id: reembolso.id, gasto_id: g.id, importe_aplicado: -g.importe, created_at: creado })
       }
     }
     if (d === 27) anadir(principal, dia, `TRANSFERENCIA DE Empresa NOMINA ${mesNombre}`, 4862.37, 'Ingresos > Nómina')

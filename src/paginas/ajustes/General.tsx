@@ -1,29 +1,22 @@
 import { Plus, X } from 'lucide-react'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Aviso } from '../../componentes/Encabezado'
 import { contieneIdentificativo } from '../../lib/identificativos'
 import { formatearImporte } from '../../lib/formato'
-import { mensajeError, supabase } from '../../lib/supabase'
-import type { Ajustes, Compromiso } from '../../lib/tipos'
+import { guardarAjustes } from '../../datos/operaciones'
+import { intentar, useDatos } from '../../datos/ProveedorDatos'
+import type { Ajustes } from '../../lib/tipos'
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
 
 export function General() {
-  const [ajustes, setAjustes] = useState<Ajustes | null>(null)
-  const [deuda, setDeuda] = useState<Compromiso | null>(null)
+  const db = useDatos()
+  const deuda = db.compromisos.find((c) => c.activo)
+  // Borrador local: se guarda al pulsar «Guardar ajustes»
+  const [ajustes, setAjustes] = useState<Ajustes>(() => structuredClone(db.ajustes))
   const [nuevoAlias, setNuevoAlias] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [guardado, setGuardado] = useState(false)
-
-  useEffect(() => {
-    supabase.from('ajustes').select('*').single().then(({ data, error: e }) => {
-      if (e) setError(mensajeError(e))
-      else setAjustes(data as Ajustes)
-    })
-    supabase.from('compromisos').select('*').eq('activo', true).limit(1).maybeSingle().then(({ data }) => setDeuda(data as Compromiso | null))
-  }, [])
-
-  if (!ajustes) return error ? <Aviso>{error}</Aviso> : <p className="text-sm text-zinc-500">Cargando…</p>
 
   const cambiar = (parcial: Partial<Ajustes>) => {
     setGuardado(false)
@@ -49,17 +42,8 @@ export function General() {
       setError('La fecha de corte con Fintonic debe ser anterior a la fecha de inicio')
       return
     }
-    const { error: err } = await supabase
-      .from('ajustes')
-      .update({
-        fecha_inicio: ajustes.fecha_inicio,
-        fecha_corte_fintonic: ajustes.fecha_corte_fintonic,
-        dias_aviso_reembolso: ajustes.dias_aviso_reembolso,
-        umbral_aviso_presupuesto: ajustes.umbral_aviso_presupuesto,
-        alias_terceros: ajustes.alias_terceros,
-      })
-      .eq('user_id', ajustes.user_id)
-    if (err) setError(mensajeError(err))
+    const err = await intentar((d) => guardarAjustes(d, ajustes), 'Ajustes guardados')
+    if (err) setError(err)
     else setGuardado(true)
   }
 

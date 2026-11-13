@@ -1,12 +1,11 @@
 import { ChevronRight, CreditCard, House, Landmark, Plus } from 'lucide-react'
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Aviso } from '../../componentes/Encabezado'
 import { Baldosa } from '../../componentes/Icono'
 import { FilaInterruptor } from '../../componentes/Interfaz'
-import { validarAlias } from '../../lib/identificativos'
-import { registrar } from '../../lib/registro'
-import { mensajeError, supabase } from '../../lib/supabase'
-import { NOMBRE_TIPO_CUENTA, type Cuenta, type TipoCuenta } from '../../lib/tipos'
+import { guardarCuenta } from '../../datos/operaciones'
+import { intentar, useDatos } from '../../datos/ProveedorDatos'
+import { NOMBRE_TIPO_CUENTA, type TipoCuenta } from '../../lib/tipos'
 
 const ESTILO_TIPO = {
   cuenta: { glifo: Landmark, color: '#007AFF' },
@@ -24,42 +23,19 @@ interface Borrador {
 const VACIO: Borrador = { alias: '', entidad: 'BBVA', tipo: 'cuenta', activa: true }
 
 export function Cuentas() {
-  const [cuentas, setCuentas] = useState<Cuenta[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const cuentas = [...useDatos().cuentas].sort((a, b) => a.orden - b.orden)
   const [editando, setEditando] = useState<string | 'nueva' | null>(null)
 
-  const cargar = useCallback(async () => {
-    const { data, error: e } = await supabase.from('cuentas').select('*').order('orden').order('created_at')
-    if (e) setError(mensajeError(e))
-    else setCuentas(data as Cuenta[])
-  }, [])
-
-  useEffect(() => {
-    // Carga asíncrona: el estado se actualiza al llegar la respuesta de Supabase
-    // oxlint-disable-next-line react/set-state-in-effect
-    cargar()
-  }, [cargar])
-
   const guardar = async (b: Borrador, id?: string): Promise<string | null> => {
-    const motivo = validarAlias(b.alias)
-    if (motivo) return motivo
-    const fila = { alias: b.alias.trim(), entidad: b.entidad.trim() || null, tipo: b.tipo, activa: b.activa }
-    const { error: e } = id
-      ? await supabase.from('cuentas').update(fila).eq('id', id)
-      : await supabase.from('cuentas').insert({ ...fila, orden: (cuentas?.length ?? 0) + 1 })
-    if (e) return mensajeError(e)
-    registrar('info', id ? 'Cuenta modificada' : 'Cuenta creada', { tipo: b.tipo, activa: b.activa })
-    setEditando(null)
-    await cargar()
-    return null
+    const error = await intentar((db) => guardarCuenta(db, b, id), id ? 'Cuenta modificada' : 'Cuenta creada')
+    if (!error) setEditando(null)
+    return error
   }
 
   return (
     <div className="space-y-4">
-      {error && <Aviso>{error}</Aviso>}
-
       <ul className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
-        {cuentas?.map((c) => {
+        {cuentas.map((c) => {
           const estilo = ESTILO_TIPO[c.tipo]
           return (
             <li key={c.id}>
