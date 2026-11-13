@@ -2,6 +2,17 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.5.0. Fases 2 y 3, gestos y Excel de prueba (13 de noviembre de 2026)
+
+- SheetJS 0.20.3 desde cdn.sheetjs.com (la versión de npm es antigua y tiene vulnerabilidades al leer ficheros). Entorno de trabajo «PuchiFin» con ese servidor permitido.
+- Importación (`src/importacion/`): plantillas JSON por origen (columnas, obligatorias, firma, signo); detección de la fila de cabeceras y del origen; lectura de fechas (texto, serie o fecha) e importes en formato español; anonimización (IBAN, cuentas y tarjetas aunque sean parciales, DNI y NIE; alias de terceros por nombre sin acentos ni mayúsculas; quitar nombres sin alias conservando el concepto desde palabras clave); concepto limpio y normalizado; descarte de lo anterior a la fecha de inicio; deduplicación por cuenta, fecha, importe y concepto con repeticiones; reglas manuales, aprendidas y de la app (36); sugerencias de gasto de empleado (incluido restaurante en día de viaje), reembolso y pago de deuda que se confirman o descartan y refuerzan o debilitan la regla; traspasos emparejados entre cuentas propias en los dos lados; aviso si la liquidación de la tarjeta no cuadra con el mes anterior; verificación final que bloquea; copia previa; deshacer con vuelta atrás de los traspasos emparejados.
+- Esquema 2: importaciones con `modificados` y reglas de la app; `migrar()` adapta los datos y archivos de la v0.4 y se guardan ya adaptados.
+- Fase 3: `calcularExtracto` con media de hasta 12 meses anteriores con datos (mes en curso, mismos días); `movimientosDeCategoria`; `cambiarCategoria` con mismo concepto y regla manual exacta; `cambiarTipo`, `alternarEmpleado`, `guardarNota`, `cerrarReembolso`; conciliación (`proponerConciliacion` con búsqueda exacta del más antiguo al más reciente, `conciliar` con aplicación parcial, `desconciliar`) e `indicadoresEmpleado`; evolución mensual, serie de categoría con media móvil de 3 meses y cierre anual; exportación a Excel de Extracto, Movimientos y Empleado.
+- Pantallas: Extracto, Movimientos de una categoría, Movimientos (búsqueda, filtros, bandeja sin categoría, selección múltiple con categoría, empleado y tipo), Importar, Importaciones, Empleado (con hoja de conciliación), Análisis (Recharts con paleta validada para daltonismo y modo oscuro), Reglas; alias de terceros con nombres en Ajustes, General; Excel de prueba en Herramientas.
+- Gestos (`src/componentes/gestos.tsx`): filas deslizables con acciones y ejecución al deslizar del todo, deslizar entre meses y periodos, volver desde el borde izquierdo y cerrar hojas arrastrando hacia abajo. Barras de navegación con «‹ Atrás» y cabeceras con los botones encima del título grande.
+- Carga diferida de Análisis, Importar, la exportación a Excel y el PDF: el paquete inicial baja de 1,36 MB a 0,45 MB.
+- Pruebas: 175 tests, entre ellos la importación completa de los tres Excel de prueba (sin datos identificativos, sin duplicados al reimportar, solapes, traspasos, liquidación, sugerencias y deshacer). Prueba en navegador con gestos táctiles reales: importar los tres Excel, deslizar entre meses y filas, seleccionar, conciliar, analizar y volver desde el borde.
+
 ## v0.4.2. Publicación en GitHub Pages (13 de noviembre de 2026)
 
 - Flujo `.github/workflows/publicar.yml`: en cada envío a `main`, tests, build con `BASE_PATH=/<repositorio>/`, copia de `index.html` a `404.html` y publicación con `actions/deploy-pages`.

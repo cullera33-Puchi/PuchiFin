@@ -1,0 +1,26 @@
+{
+  "_nota": "Patrones para quitar el nombre del ordenante o beneficiario en transferencias y Bizum cuando no tiene alias. Expresiones regulares sobre el concepto en mayúsculas; el grupo «nombre» es lo que se sustituye. El nombre termina al final del texto o antes de un separador.",
+  "patrones": [
+    "^(?:TRANSFERENCIA|TRANSF\\.?|TRF\\.?)(?:\\s+(?:RECIBIDA|REALIZADA|INMEDIATA|SEPA|EMITIDA))*\\s+(?:DE|A FAVOR DE|A|ORDENANTE:?|BENEFICIARIO:?)\\s+(?<nombre>.+?)(?=\\s+-\\s+|\\s*/\\s*|\\s+CONCEPTO:?\\s|$)",
+    "^BIZUM(?:\\s+(?:RECIBIDO|ENVIADO|RECIBIDA|ENVIADA))?\\s+(?:DE|A)\\s+(?<nombre>.+?)(?=\\s+-\\s+|\\s*/\\s*|\\s+CONCEPTO:?\\s|$)",
+    "(?:ORDENANTE|BENEFICIARIO|TITULAR):?\\s+(?<nombre>[A-ZÁÉÍÓÚÑÜ][A-ZÁÉÍÓÚÑÜ.' ]+?)(?=\\s+-\\s+|\\s*/\\s*|\\s+CONCEPTO:?\\s|$)"
+  ],
+  "conservar_desde": [
+    "NOMINA",
+    "NÓMINA",
+    "GASTOS",
+    "REEMBOLSO",
+    "DIETAS",
+    "LIQUIDACION",
+    "ALQUILER",
+    "CENA",
+    "COMIDA",
+    "REGALO",
+    "DEVOLUCION",
+    "CUOTA",
+    "PAGO",
+    "PRESTAMO",
+    "FACTURA"
+  ],
+  "_nota_conservar": "Si en lo que sigue al nombre aparece una de estas palabras, se conserva desde ella (TRANSFERENCIA DE NOMBRE NOMINA OCTUBRE queda en TRANSFERENCIA DE NOMINA OCTUBRE)."
+}

@@ -4,6 +4,7 @@
  * dos niveles de categoría, deduplicación y borrado en cascada.
  * Si una operación no es válida, lanza ErrorDatos con un mensaje para el usuario.
  */
+import { reglasPredeterminadas } from '../importacion/reglas'
 import { NOMBRE_TIPO, detectarIdentificativos, validarAlias } from '../lib/identificativos'
 import {
   VERSION_ESQUEMA,
@@ -84,7 +85,7 @@ export function datosIniciales(): BaseDatos {
       cuenta('Hipoteca', null, 'hipoteca', 4),
     ],
     categorias,
-    reglas: [],
+    reglas: reglasPredeterminadas(categorias, creada),
     importaciones: [],
     movimientos: [],
     conciliaciones: [],

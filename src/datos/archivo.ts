@@ -5,6 +5,7 @@
  */
 import { APP_VERSION } from '../lib/version'
 import { VERSION_ESQUEMA, type BaseDatos } from '../lib/tipos'
+import { reglasPredeterminadas } from '../importacion/reglas'
 import { AJUSTES_POR_DEFECTO, ErrorDatos, comprobarBaseDatos } from './operaciones'
 
 export const FORMATO_ARCHIVO = 1
@@ -74,7 +75,12 @@ export function migrar(d: Partial<BaseDatos>): BaseDatos {
     compromisos: d.compromisos ?? [],
     eventos_previstos: d.eventos_previstos ?? [],
   }
-  // Esquema 1: estado inicial. Las migraciones futuras se añaden aquí, por número de esquema.
+  const desde = d.esquema ?? 1
+  // Esquema 2 (v0.5.0): importaciones con «modificados» y reglas de la app
+  if (desde < 2) {
+    datos.importaciones = datos.importaciones.map((i) => ({ ...i, modificados: i.modificados ?? [] }))
+    if (!datos.reglas.some((r) => r.origen === 'sistema')) datos.reglas = [...datos.reglas, ...reglasPredeterminadas(datos.categorias)]
+  }
   return datos
 }
 

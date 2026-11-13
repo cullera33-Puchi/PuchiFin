@@ -80,6 +80,7 @@ describe('generarDatosPrueba', () => {
   })
 
   it('hasta el reembolso, los gastos de empleado de octubre siguen pendientes', () => {
+    const datos = generar('2026-11-05')
     const r = calcularResumen(periodoMes('2026-10-01'), datos.movimientos, CATEGORIAS, datos.conciliaciones)
     expect(r.empleado.pendiente).toBeCloseTo(r.empleado.gastos)
   })
@@ -90,6 +91,6 @@ describe('generarDatosPrueba', () => {
     expect(r.totales.ingresos).toBeCloseTo(4862.37)
     expect(r.totales.gastos).toBeGreaterThan(1500)
     expect(r.empleado.gastos).toBeGreaterThan(0)
-    expect(r.empleado.pendiente).toBe(0) // reembolsado y conciliado el 20 de noviembre
+    expect(r.empleado.pendiente).toBe(0) // reembolsado y conciliado el 10 de noviembre
   })
 })

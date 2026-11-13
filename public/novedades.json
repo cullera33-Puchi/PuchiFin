@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.5.0",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Importa los Excel de BBVA desde Movimientos: la app quita números de cuenta, tarjetas y nombres, descarta lo ya importado y propone categorías, gastos de empleado y reembolsos para que los confirmes.",
+      "Extracto mensual con la comparativa frente a tu media, movimientos por categoría y avisos de lo que falta por categorizar.",
+      "Gastos de empleado: desliza un movimiento a la izquierda para marcarlo; en Empleado, la app propone qué gastos cubre cada reembolso.",
+      "Se maneja con el pulgar: desliza para cambiar de mes, desde el borde izquierdo para volver y hacia abajo para cerrar.",
+      "Para probar: en Ajustes, Herramientas, descarga los Excel de prueba e impórtalos. También exportas a Excel cualquier vista y tienes la vista de Análisis."
+    ]
+  },
+  {
     "version": "0.4.2",
     "fecha": "2026-11-13",
     "cambios": [

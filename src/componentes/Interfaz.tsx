@@ -113,6 +113,11 @@ export function Hoja({
   children: ReactNode
   acciones?: ReactNode
 }) {
+  // Arrastrar la cabecera hacia abajo cierra la hoja, como en iOS
+  const [dy, setDy] = useState(0)
+  const [arrastrando, setArrastrando] = useState(false)
+  const inicio = useRef<{ y: number; id: number } | null>(null)
+
   useEffect(() => {
     if (!abierta) return
     const tecla = (e: KeyboardEvent) => e.key === 'Escape' && onCerrar()
@@ -122,21 +127,49 @@ export function Hoja({
 
   if (!abierta) return null
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40" onClick={onCerrar}>
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40" style={{ opacity: 1 - Math.min(dy / 500, 0.5) }} onClick={onCerrar}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label={titulo}
         className="flex max-h-[88dvh] w-full max-w-lg flex-col rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom)] shadow-xl dark:bg-zinc-900"
+        style={{ transform: `translateY(${dy}px)`, transition: arrastrando ? 'none' : 'transform 0.25s ease-out' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
-          <h2 className="font-semibold">{titulo}</h2>
-          <button aria-label="Cerrar" className="rounded-full p-1 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800" onClick={onCerrar}>
-            <X className="size-5" />
-          </button>
+        <div
+          className="cursor-grab border-b border-zinc-200 dark:border-zinc-800"
+          style={{ touchAction: 'none' }}
+          onPointerDown={(e) => {
+            if ((e.target as HTMLElement).closest('button')) return
+            inicio.current = { y: e.clientY, id: e.pointerId }
+            setArrastrando(true)
+            e.currentTarget.setPointerCapture(e.pointerId)
+          }}
+          onPointerMove={(e) => {
+            if (!inicio.current || inicio.current.id !== e.pointerId) return
+            setDy(Math.max(0, e.clientY - inicio.current.y))
+          }}
+          onPointerUp={() => {
+            inicio.current = null
+            setArrastrando(false)
+            if (dy > 110) onCerrar()
+            setDy(0)
+          }}
+          onPointerCancel={() => {
+            inicio.current = null
+            setArrastrando(false)
+            setDy(0)
+          }}
+        >
+          <div className="mx-auto mt-2 h-1.5 w-9 rounded-full bg-zinc-300 dark:bg-zinc-600" aria-hidden="true" />
+          <div className="flex items-center justify-between px-4 pt-1 pb-3">
+            <h2 className="font-semibold">{titulo}</h2>
+            <button aria-label="Cerrar" className="rounded-full bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700" onClick={onCerrar}>
+              <X className="size-4" strokeWidth={2.5} />
+            </button>
+          </div>
         </div>
-        <div className="overflow-y-auto px-4 py-4">{children}</div>
+        <div className="overflow-y-auto overscroll-contain px-4 py-4">{children}</div>
         {acciones && <div className="flex justify-end gap-2 border-t border-zinc-200 px-4 py-3 dark:border-zinc-800">{acciones}</div>}
       </div>
     </div>
@@ -174,3 +207,25 @@ export function FilaInterruptor({ texto, nota, activo, onCambio }: { texto: stri
     </div>
   )
 }
+
+/** Control segmentado al estilo de iOS */
+export function Segmentado<T extends string>({ opciones, valor, onCambio, etiqueta }: { opciones: [T, string][]; valor: T; onCambio: (v: T) => void; etiqueta: string }) {
+  return (
+    <div role="radiogroup" aria-label={etiqueta} className="flex gap-0.5 rounded-[9px] bg-zinc-200/80 p-0.5 dark:bg-zinc-800">
+      {opciones.map(([v, texto]) => (
+        <button
+          key={v}
+          role="radio"
+          aria-checked={valor === v}
+          onClick={() => onCambio(v)}
+          className={`flex-1 rounded-[7px] px-3 py-1 text-[13px] font-medium transition ${
+            valor === v ? 'bg-white text-zinc-900 shadow-[0_3px_8px_rgba(0,0,0,0.12),0_3px_1px_rgba(0,0,0,0.04)] dark:bg-zinc-600 dark:text-white' : 'text-zinc-700 dark:text-zinc-300'
+          }`}
+        >
+          {texto}
+        </button>
+      ))}
+    </div>
+  )
+}
+

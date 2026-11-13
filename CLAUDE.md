@@ -86,14 +86,15 @@ Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (po
 - Todo cambio de datos pasa por una función pura de `src/datos/operaciones.ts`, aplicada con `cambiar()` o `intentar()`. Ahí van las comprobaciones (datos identificativos, unicidad, integridad), con sus tests.
 
 - Una fase cada vez. Al terminar cada fase, resume qué se ha hecho, qué queda pendiente y cómo probarlo.
-- Tests unitarios para el lector de Excel, la anonimización, la deduplicación y las reglas de categorización. Es donde un error no se ve en pantalla.
+- Tests unitarios para el lector de Excel, la anonimización, la deduplicación y las reglas de categorización. Es donde un error no se ve en pantalla. `src/importacion/importar.test.ts` importa los Excel de prueba de punta a punta: cualquier cambio del importador debe mantenerlo en verde.
+- Gestos: toda lista de movimientos usa `FilaMovimientoDeslizable`; toda pantalla secundaria, `BarraNavegacion` (vuelve también desde el borde); las hojas se cierran arrastrando.
 - Si una decisión no está en la especificación, pregunta antes de asumir.
 - Mantén actualizado el apartado de estado de este fichero.
 
 ## Pendiente de confirmar
 
-- Columnas exactas de los Excel de BBVA, de cuenta y de tarjeta. Hasta tenerlas, el lector se construye contra el mapeo configurable y los ficheros sintéticos.
-- Ordenante y concepto de la transferencia de reembolso de la empresa.
+- Columnas exactas de los Excel de BBVA, de cuenta y de tarjeta. El lector funciona con las plantillas de `src/importacion/plantillas/` y los Excel de prueba; con los reales se ajustan esas plantillas (columnas, signo de la tarjeta) y los patrones de nombres de `terceros.json`.
+- Ordenante y concepto de la transferencia de reembolso de la empresa. Hoy: se sugiere como reembolso cualquier ingreso con el alias Empresa que no sea nómina; el usuario añade el nombre de la empresa al alias Empresa en Ajustes, General.
 - Si la deuda familiar tiene intereses y si el colchón se mide sobre el saldo conjunto de las dos cuentas (afecta a la fase 4).
 - Entidad de cada cuenta y cuenta desde la que se paga la hipoteca.
 - El repositorio es público. No contiene datos personales. El usuario lo deja pendiente. Ojo: GitHub Pages en un repositorio privado exige un plan de pago de GitHub; si se hace privado, habría que publicar en otro servicio gratuito (por ejemplo, Vercel).
@@ -108,6 +109,12 @@ Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (po
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.5.0 (13/11/2026): fases 2 y 3 construidas, pendientes de validar con los Excel reales de BBVA.
+  - Fase 2: importador en `src/importacion/` (plantillas por origen en `src/importacion/plantillas/*.json`, lectura con SheetJS 0.20.3 desde cdn.sheetjs.com, anonimización, deduplicación con repeticiones, reglas, sugerencias, traspasos entre cuentas propias, comprobación de la liquidación de la tarjeta, verificación final y deshacer). Pantallas Importar e Importaciones. Reglas de la app y sugerencias en `src/importacion/reglas.ts`; esquema 2 del modelo.
+  - Fase 3: Extracto mensual con media de hasta 12 meses (mes en curso, con los mismos días), movimientos de una categoría, Movimientos con búsqueda, filtros, bandeja sin categoría, corrección individual y en bloque con regla, Empleado con indicadores y conciliación propuesta, exportación a Excel de cada vista, Análisis (evolución, categoría con media móvil, anual) y Reglas en Ajustes.
+  - Gestos con el pulgar (`src/componentes/gestos.tsx`): deslizar filas (izquierda, gasto de empleado; derecha, categoría), deslizar para cambiar de mes o periodo, volver desde el borde izquierdo y cerrar hojas arrastrando.
+  - Excel de prueba con formato BBVA (`src/importacion/excelPrueba.ts`, `tests/fixtures/*.xlsx`, `npm run excel:prueba` y botón en Herramientas).
+  - Supuestos que hay que confirmar con los Excel reales: columnas de cuenta y de tarjeta, signo de las compras de la tarjeta, cómo vienen los nombres en transferencias y Bizum, y el concepto de la liquidación de la tarjeta.
 - v0.4.2 (13/11/2026): publicada en GitHub Pages (`https://cullera33-puchi.github.io/PuchiFin/`). La app admite publicarse en una subcarpeta (variable `BASE_PATH`) y `404.html` hace que funcionen los enlaces directos.
 - v0.4.1 (13/11/2026): solo la app del iPhone. Se retira el diseño de escritorio (barra lateral y variantes para pantalla ancha); en un navegador de ordenador se ve la misma columna de móvil. Textos de la app centrados en el iPhone.
 - v0.4.0 (13/11/2026): los datos pasan a guardarse solo en el dispositivo (IndexedDB), sin Supabase ni acceso con Google. Exportar e importar un archivo JSON deja otro dispositivo exactamente igual. Las reglas que comprobaba Postgres (datos identificativos, alias únicos, dos niveles de categoría, deduplicación, borrado en cascada) están en `src/datos/operaciones.ts`. Aviso en el Extracto si hay datos reales sin exportar en 14 días. El nombre del familiar (alias Familia) se guardará también en el dispositivo.

@@ -1,5 +1,6 @@
 import { Briefcase, ChartPie, List, Settings } from 'lucide-react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { useVolverDesdeBorde } from './gestos'
 
 /**
  * Estructura de la app del iPhone: contenido en una columna y barra de pestañas flotante con las
@@ -14,9 +15,20 @@ const SECCIONES = [
 ]
 
 export function Estructura() {
+  const borde = useVolverDesdeBorde()
+  const { pathname } = useLocation()
+  // Pantallas secundarias del Extracto: su pestaña sigue marcada
+  const enExtracto = pathname === '/' || ['/extracto', '/analisis', '/resumenes'].some((p) => pathname.startsWith(p))
   return (
-    <div className="min-h-dvh">
-      <main className="mx-auto max-w-lg px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-32">
+    <div className="min-h-dvh overflow-x-clip">
+      <main
+        className="mx-auto max-w-lg px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-32"
+        style={{
+          transform: borde.dx ? `translateX(${borde.dx}px)` : undefined,
+          transition: borde.animar ? 'transform 0.18s ease-out' : 'none',
+          boxShadow: borde.dx ? '-8px 0 24px rgba(0,0,0,0.12)' : undefined,
+        }}
+      >
         <Outlet />
       </main>
 
@@ -27,15 +39,16 @@ export function Estructura() {
             key={a}
             to={a}
             end={fin}
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 rounded-full py-1.5 text-[10px] font-medium transition-colors ${
+ className={({ isActive: activa }) => {
+              const isActive = a === '/' ? enExtracto : activa
+              return `flex flex-col items-center gap-0.5 rounded-full py-1.5 text-[10px] font-medium transition-colors ${
                 isActive ? 'bg-zinc-900/[0.06] text-marca-700 dark:bg-white/10 dark:text-marca-500' : 'text-zinc-600 dark:text-zinc-400'
               }`
-            }
+            }}
           >
-            {({ isActive }) => (
+            {({ isActive: activa }) => (
               <>
-                <Icono className="size-[22px]" strokeWidth={isActive ? 2.25 : 1.75} />
+                <Icono className="size-[22px]" strokeWidth={(a === '/' ? enExtracto : activa) ? 2.25 : 1.75} />
                 {texto}
               </>
             )}
