@@ -5,6 +5,8 @@
  * - Deslizable: deslizar a los lados cambia de mes o de periodo, con la página siguiendo al dedo.
  * - useVolverDesdeBorde: deslizar desde el borde izquierdo vuelve a la pantalla anterior.
  * Usan eventos de puntero con touch-action: pan-y, así el desplazamiento vertical sigue siendo nativo.
+ * Un gesto que empieza sobre una fila deslizable es solo de la fila: no cambia de mes ni vuelve atrás
+ * (para eso, desde fuera de las filas o desde el mismo borde de la pantalla).
  * Todos aceptan distancia o velocidad: un gesto corto y rápido cuenta como uno largo.
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react'
@@ -94,7 +96,7 @@ export function FilaDeslizable({
   const ancho = () => caja.current?.offsetWidth ?? 360
 
   return (
-    <div ref={caja} className="relative overflow-hidden">
+    <div ref={caja} data-fila-deslizable="" className="relative overflow-hidden">
       {/* Acciones de debajo */}
       {x < 0 && (
         <div className="absolute inset-y-0 right-0 flex" style={{ width: Math.max(-x, derecha.length * ANCHO_ACCION) }}>
@@ -158,7 +160,7 @@ export function FilaDeslizable({
           const dy = e.clientY - s.y
           if (s.horizontal === null) {
             if (Math.abs(dx) < UMBRAL_BLOQUEO && Math.abs(dy) < UMBRAL_BLOQUEO) return
-            s.horizontal = Math.abs(dx) > Math.abs(dy)
+            s.horizontal = Math.abs(dx) > Math.abs(dy) * 1.2
             if (s.horizontal) (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
           }
           if (!s.horizontal) return
@@ -249,6 +251,7 @@ export function Deslizable({
       style={{ touchAction: 'pan-y' }}
       onPointerDown={(e) => {
         if (e.pointerType === 'mouse' || e.clientX < 24) return // el borde izquierdo es para volver
+        if (enFila(e.target)) return // el gesto es de la fila
         s.current = { x: e.clientX, y: e.clientY, id: e.pointerId, horizontal: null, vel: crearVelocidad(e.clientX, e.timeStamp) }
       }}
       onPointerMove={(e) => {
@@ -295,6 +298,9 @@ export function Deslizable({
   )
 }
 
+/** El gesto empieza sobre una fila deslizable */
+const enFila = (t: EventTarget | null) => t instanceof Element && !!t.closest('[data-fila-deslizable]')
+
 /** Pantallas raíz de cada pestaña: desde ellas no se vuelve atrás */
 const RAICES = ['/', '/movimientos', '/informes', '/ajustes', '/ajustes/cuentas', '/ajustes/categorias', '/ajustes/general', '/ajustes/herramientas']
 
@@ -318,6 +324,8 @@ export function useVolverDesdeBorde(): { dx: number; animar: boolean } {
     const alEmpezar = (e: TouchEvent) => {
       const t = e.touches[0]
       if (e.touches.length !== 1 || t.clientX > 28) return
+      // Sobre una fila deslizable solo vale el mismo borde de la pantalla (las filas empiezan a 16 px)
+      if (t.clientX > 12 && enFila(e.target)) return
       inicio = { x: t.clientX, y: t.clientY, vel: crearVelocidad(t.clientX, e.timeStamp) }
     }
     const alMover = (e: TouchEvent) => {

@@ -2,6 +2,12 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.15.1. Gesto de las filas sin cambiar de pantalla y filtro por subcategoría (13 de noviembre de 2026)
+
+- Gestos (`gestos.tsx`): un gesto que empieza sobre una fila deslizable (`data-fila-deslizable`) es solo de la fila. `Deslizable` (cambio de mes) lo ignora y `useVolverDesdeBorde` solo lo toma si empieza en los primeros 12 px de la pantalla, fuera de la fila. La fila se fija como horizontal solo con un movimiento claramente lateral (1,2 veces el vertical).
+- Informes, categoría: las subcategorías del quesito filtran la lista de movimientos (marca, total y recuento de lo filtrado, «Ver todos»). La exportación a Excel sigue el filtro. El filtro se mantiene al cambiar de periodo.
+- Prueba en navegador con gestos táctiles: deslizar a los dos lados en una categoría de Informes no cambia de periodo ni de pantalla.
+
 ## v0.15.0. Fuera la gestión de gastos de empleado; solo el marcado rápido (13 de noviembre de 2026)
 
 - Se retiran la pestaña Empleado (`Empleado.tsx`, `RevisarEmpleado.tsx`; `/empleado` redirige al Extracto), la puntuación de posibles gastos de empleado (`importacion/empleado.ts`), la conciliación de reembolsos (`aplicado`, `gastosPendientes`, `proponerConciliacion`, `conciliar`, `desconciliar`, `indicadoresEmpleado`, `cerrarReembolso`, `marcarPersonal`), los avisos del Extracto, el pendiente de reembolso de los resúmenes y el PDF, y en Ajustes, General, la zona de casa y el aviso de días.

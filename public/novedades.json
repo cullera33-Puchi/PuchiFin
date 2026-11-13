@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.15.1",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Deslizar una línea ya no cambia de pantalla ni de mes: el gesto es solo de la línea.",
+      "Para volver atrás, desliza desde el mismo borde de la pantalla; para cambiar de mes, fuera de las líneas.",
+      "En Informes, dentro de una categoría, toca una subcategoría para ver solo sus movimientos. «Ver todos» quita el filtro."
+    ]
+  },
+  {
     "version": "0.15.0",
     "fecha": "2026-11-13",
     "cambios": [

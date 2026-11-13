@@ -1,4 +1,4 @@
-import { ChartColumn, ChevronLeft, ChevronRight, Sheet } from 'lucide-react'
+import { ChartColumn, Check, ChevronLeft, ChevronRight, Sheet, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts'
@@ -9,7 +9,7 @@ import { Segmentado, useInterfaz } from '../componentes/Interfaz'
 import { DetalleMovimiento } from '../componentes/movimientos'
 import { useDatos } from '../datos/ProveedorDatos'
 import { diaLargo, hoyIso, MESES, mesLargo } from '../lib/fechas'
-import { formatearImporte } from '../lib/formato'
+import { formatearImporte, plural } from '../lib/formato'
 import { calcularInforme, moverPeriodo, periodoDeFecha, porcionesGrafico, type Escala, type Informe, type PeriodoInforme, type Vista } from '../lib/informes'
 import { porcentaje } from '../lib/resumen'
 import { porDia } from '../lib/vista'
@@ -136,8 +136,21 @@ function Totales({ informe, onVista }: { informe: Informe; onVista: (v: Vista) =
   )
 }
 
-/** Quesito con el total en el centro y la leyenda en forma de lista: tocar una fila abre su detalle */
-function PanelQuesito({ informe, onAbrir, sinDetalle }: { informe: Informe; onAbrir?: (id: string | null) => void; sinDetalle?: boolean }) {
+/**
+ * Quesito con el total en el centro y la leyenda en forma de lista. Tocar una fila abre su detalle
+ * (onAbrir) o filtra los movimientos por ella (onElegir, con la elegida marcada).
+ */
+function PanelQuesito({
+  informe,
+  onAbrir,
+  onElegir,
+  elegida,
+}: {
+  informe: Informe
+  onAbrir?: (id: string | null) => void
+  onElegir?: (id: string | null) => void
+  elegida?: string | null
+}) {
   const [marcada, setMarcada] = useState<number | null>(null)
   const grafico = porcionesGrafico(informe.porciones)
   const nombre = informe.vista === 'gasto' ? 'Gastos' : 'Ingresos'
@@ -195,18 +208,23 @@ function PanelQuesito({ informe, onAbrir, sinDetalle }: { informe: Informe; onAb
                 </span>
               </span>
               <span className="text-[15px] tabular-nums">{formatearImporte(p.importe)}</span>
-              {!sinDetalle && <ChevronRight className="size-4 shrink-0 text-zinc-400" strokeWidth={2} />}
+              {onElegir ? (
+                <Check className={`size-5 shrink-0 text-[#007AFF] dark:text-[#0A84FF] ${elegida === p.id ? '' : 'invisible'}`} strokeWidth={2.5} />
+              ) : (
+                <ChevronRight className="size-4 shrink-0 text-zinc-400" strokeWidth={2} />
+              )}
             </>
           )
+          const activa = onElegir && elegida === p.id
           return (
             <li key={p.id ?? 'sin'}>
-              {sinDetalle ? (
-                <div className="flex min-h-11 items-center gap-3 py-1.5">{fila}</div>
-              ) : (
-                <button className="flex min-h-11 w-full items-center gap-3 py-1.5 text-left active:opacity-60" onClick={() => onAbrir?.(p.id)}>
-                  {fila}
-                </button>
-              )}
+              <button
+                aria-pressed={onElegir ? activa : undefined}
+                className={`flex min-h-11 w-full items-center gap-3 py-1.5 text-left active:opacity-60 ${onElegir && elegida !== undefined && !activa ? 'opacity-50' : ''}`}
+                onClick={() => (onElegir ? onElegir(p.id) : onAbrir?.(p.id))}
+              >
+                {fila}
+              </button>
             </li>
           )
         })}
@@ -277,13 +295,19 @@ export function InformeCategoria() {
   const categoria = db.categorias.find((c) => c.id === categoriaId)
   const informe = useMemo(() => calcularInforme(db, periodo, vista, categoriaId, hoy), [db, periodo.clave, periodo.escala, vista, categoriaId, hoy]) // eslint-disable-line react-hooks/exhaustive-deps
   const [detalle, setDetalle] = useState<string | null>(null)
+  // Subcategoría elegida para filtrar los movimientos (undefined: todas). Se mantiene al cambiar de periodo
+  const [sub, setSub] = useState<string | null | undefined>(undefined)
+  const porcionSub = sub === undefined ? undefined : informe.porciones.find((p) => p.id === sub)
+  const nombreSub = porcionSub?.nombre ?? (sub ? db.categorias.find((c) => c.id === sub)?.nombre : undefined)
+  const movimientos = sub === undefined ? informe.movimientos : informe.movimientos.filter((m) => m.categoria_id === sub)
+  const totalVisto = Math.round((vista === 'gasto' ? -1 : 1) * movimientos.reduce((s, m) => s + m.importe, 0) * 100) / 100
   const anterior = moverPeriodo(periodo, -1)
   const siguiente = moverPeriodo(periodo, 1)
   const haySiguiente = siguiente.clave <= periodoDeFecha(periodo.escala, hoy).clave
 
   const exportar = async () => {
-    const r = await (await import('../lib/exportarExcel')).exportarVista(db, `informe ${categoria?.nombre ?? 'sin categoria'} ${periodo.clave}`, informe.movimientos, [
-      ['Informe', `${vista === 'gasto' ? 'Gastos' : 'Ingresos'}, ${categoria?.nombre ?? 'Sin categoría'}`],
+    const r = await (await import('../lib/exportarExcel')).exportarVista(db, `informe ${categoria?.nombre ?? 'sin categoria'}${nombreSub ? ` ${nombreSub}` : ''} ${periodo.clave}`, movimientos, [
+      ['Informe', `${vista === 'gasto' ? 'Gastos' : 'Ingresos'}, ${categoria?.nombre ?? 'Sin categoría'}${nombreSub ? `, ${nombreSub}` : ''}`],
       ['Periodo', nombrePeriodo(periodo)],
       ['Total', informe.total],
       [],
@@ -316,12 +340,30 @@ export function InformeCategoria() {
       </div>
       <Deslizable onAnterior={() => ir({ p: anterior.clave })} onSiguiente={() => ir({ p: siguiente.clave })} haySiguiente={haySiguiente}>
         <div className="space-y-4">
-          {informe.porciones.length > 1 && <PanelQuesito informe={informe} sinDetalle />}
+          {informe.porciones.length > 1 && <PanelQuesito informe={informe} elegida={sub} onElegir={(id) => setSub((s) => (s === id ? undefined : id))} />}
           <Evolucion db={db} informe={informe} categoria={categoriaId} onPeriodo={(p) => ir({ p })} />
-          {informe.movimientos.length === 0 ? (
+          {informe.porciones.length > 1 && (
+            <div className="flex items-center gap-2 px-1">
+              <p className="min-w-0 flex-1 text-[13px] text-zinc-500">
+                {sub === undefined ? (
+                  <>Todos los movimientos. Toca una subcategoría para ver solo los suyos.</>
+                ) : (
+                  <>
+                    <span className="font-semibold text-zinc-900 dark:text-zinc-100">{nombreSub ?? 'Subcategoría'}</span>: {formatearImporte(totalVisto)} en {plural(movimientos.length, 'movimiento', 'movimientos')}
+                  </>
+                )}
+              </p>
+              {sub !== undefined && (
+                <button className="boton-texto inline-flex shrink-0 items-center gap-1 px-2" onClick={() => setSub(undefined)}>
+                  <X className="size-4" strokeWidth={2} /> Ver todos
+                </button>
+              )}
+            </div>
+          )}
+          {movimientos.length === 0 ? (
             <p className="tarjeta text-center text-[15px] text-zinc-500">Sin movimientos en este periodo.</p>
           ) : (
-            porDia(informe.movimientos).map(([dia, lista]) => (
+            porDia(movimientos).map(([dia, lista]) => (
               <section key={dia}>
                 <h3 className="cabecera-grupo">{diaLargo(dia, periodo.escala === 'anio')}</h3>
                 <ul className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
