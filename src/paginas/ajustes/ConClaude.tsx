@@ -198,7 +198,8 @@ function HojaReglas({ abierta, onCerrar }: { abierta: boolean; onCerrar: () => v
     <Hoja abierta={abierta} titulo="Importar reglas" listo="Cerrar" onCerrar={onCerrar}>
       <div className="space-y-4">
         <p className="text-[15px] text-zinc-600 dark:text-zinc-400">
-          Pega lo que te ha devuelto Claude: una línea por comercio con la clave, un tabulador (o «;») y «Categoría &gt; Subcategoría». Las reglas se guardan solo en este iPhone.
+          Pega lo que te ha devuelto Claude: una línea por comercio con la clave, un tabulador (o «;») y «Categoría &gt; Subcategoría». Con «~» delante, la palabra se busca en
+          cualquier parte del concepto (~cumple). En lugar de la categoría puede ir un tipo (Tipo: Traspaso interno). Las reglas se guardan solo en este iPhone.
         </p>
         <textarea className="campo min-h-40 font-mono text-[13px]" placeholder={'mercadona\tAlimentación > Supermercado'} value={texto} onChange={(e) => setTexto(e.target.value)} />
         {lineas.length > 0 && (

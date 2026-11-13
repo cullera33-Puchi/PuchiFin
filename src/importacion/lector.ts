@@ -27,6 +27,8 @@ export interface Plantilla {
   concepto_ancho_fijo?: [number, number, number]
   /** Valores de la columna de detalle que son solo el tipo de operación */
   operaciones?: string[]
+  /** Categorías que BBVA pone en la columna del detalle: se tratan como operación, fuera del nombre del comercio */
+  categorias_banco?: string[]
   /** Conceptos en los que el detalle es el nombre de una persona (traspasos, transferencias) */
   tercero_si_concepto?: string[]
   /** Conceptos que no dicen nada por sí solos: el concepto limpio es el detalle */
@@ -183,7 +185,8 @@ export function extraer(filas: unknown[][], hoja = 'Hoja 1', plantillas = PLANTI
     const { comercio, poblacion } = partirAnchoFijo(conceptoBruto, plantilla.concepto_ancho_fijo)
     const conceptoN = normalizarCabecera(comercio)
     const detalleN = normalizarCabecera(detalleBruto)
-    const esOperacion = !!detalleBruto && (plantilla.operaciones ?? []).map(normalizarCabecera).includes(detalleN)
+    const esOperacion =
+      !!detalleBruto && [...(plantilla.operaciones ?? []), ...(plantilla.categorias_banco ?? [])].map(normalizarCabecera).includes(detalleN)
     const esTercero = !!detalleBruto && !esOperacion && (plantilla.tercero_si_concepto ?? []).some((r) => new RegExp(r, 'i').test(conceptoN))
     res.push({
       numero: i + 1,

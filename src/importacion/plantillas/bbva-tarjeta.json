@@ -4,19 +4,97 @@
   "nombre": "BBVA tarjeta de crédito",
   "tipo_cuenta": "tarjeta_credito",
   "columnas": {
-    "fecha_operacion": ["fecha", "fecha operacion", "fecha de operacion", "f operacion"],
-    "fecha_valor": ["fecha valor", "fecha de cargo", "f cargo", "fecha cargo", "f valor"],
-    "concepto": ["concepto", "comercio", "descripcion"],
-    "detalle": ["movimiento"],
-    "concepto_extra": ["observaciones"],
-    "importe": ["importe"]
+    "fecha_operacion": [
+      "fecha",
+      "fecha operacion",
+      "fecha de operacion",
+      "f operacion"
+    ],
+    "fecha_valor": [
+      "fecha valor",
+      "fecha de cargo",
+      "f cargo",
+      "fecha cargo",
+      "f valor"
+    ],
+    "concepto": [
+      "concepto",
+      "comercio",
+      "descripcion"
+    ],
+    "detalle": [
+      "movimiento"
+    ],
+    "concepto_extra": [
+      "observaciones"
+    ],
+    "importe": [
+      "importe"
+    ]
   },
-  "obligatorias": ["fecha_operacion", "concepto", "importe"],
-  "sin": ["saldo"],
+  "obligatorias": [
+    "fecha_operacion",
+    "concepto",
+    "importe"
+  ],
+  "sin": [
+    "saldo"
+  ],
   "signo": "tal_cual",
   "fecha": "la_anterior",
-  "concepto_ancho_fijo": [25, 13, 2],
-  "operaciones": ["pago con tarjeta", "pago con tarjeta contactless", "compra", "devolucion"],
+  "concepto_ancho_fijo": [
+    25,
+    13,
+    2
+  ],
+  "operaciones": [
+    "pago con tarjeta",
+    "pago con tarjeta contactless",
+    "compra",
+    "devolucion"
+  ],
   "tercero_si_concepto": [],
-  "concepto_generico": []
+  "concepto_generico": [],
+  "_nota_categorias_banco": "BBVA añade a muchos movimientos su propia categoría en la columna Movimiento («Ocio», «Compras», «No categorizable»…). Se trata como una operación: queda en el concepto completo (las reglas la pueden usar) pero no en el nombre del comercio.",
+  "categorias_banco": [
+    "ocio",
+    "compras",
+    "transporte",
+    "viajes",
+    "hogar",
+    "otros",
+    "otros ingresos",
+    "otros gastos",
+    "salud y belleza",
+    "salud",
+    "belleza",
+    "efectivo y servicios bancarios",
+    "no categorizable",
+    "pendiente de categorizar gastos",
+    "pendiente de categorizar ingresos",
+    "administraciones publicas",
+    "otras financiaciones",
+    "efectivo transferencias y cheques",
+    "alimentacion",
+    "restauracion",
+    "educacion",
+    "seguros",
+    "suministros",
+    "vehiculo y transporte",
+    "ropa y complementos",
+    "impuestos",
+    "comisiones",
+    "prestamos",
+    "deporte",
+    "mascotas",
+    "regalos",
+    "cultura",
+    "tecnologia",
+    "hijos",
+    "vivienda",
+    "nomina",
+    "traspasos",
+    "inversiones",
+    "ahorro"
+  ]
 }

@@ -2,6 +2,14 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.12.0. Lo aprendido de un año de movimientos reales (13 de noviembre de 2026)
+
+- Lector: la categoría que BBVA añade en la columna Movimiento («Ocio», «Compras», «Transporte», «No categorizable», «Pendiente de categorizar gastos»…; `categorias_banco` en las plantillas) se trata como operación: queda en el concepto completo y fuera del nombre del comercio. El mismo comercio ya no se parte en dos claves.
+- Liquidación de la tarjeta como la llama BBVA: «Adeudo mensual de tarjeta» en la cuenta y «Rebut mes anterior» en la tarjeta, traspasos internos. «Operación financiada» y «Operació finançada», traspasos (se anulan entre sí). Traspasos desde y hacia la tarjeta.
+- Diccionario: bonÀrea (súper y, con la etiqueta Transporte, gasolinera), Carrefour abreviado, Opencor, Tesco, vending, cadenas de cafetería, «Benzinera», EESS, Cedipsa, zona regulada, BSM, Blinkay, peajes de AUCAT y túneles, Applus/ITV, «Tallers», comedor escolar (Ausolan), Pepe Mobile, campings, Tixalia, Entrapolis, bonificaciones del banco, comisiones en catalán, multas y tasas. Prioridades: peajes antes que bares, seguros antes que tecnología, colegio profesional como cuota.
+- Reglas importadas: palabra clave con «~» (`tipo_patron` contiene) y reglas de tipo («Tipo: Pago de deuda»). Las reglas de tipo del usuario se aplican también a lo pendiente.
+- Pruebas: 312 tests (conceptos nuevos del diccionario, etiqueta de BBVA, liquidación, palabras clave y tipos).
+
 ## v0.11.2. Copias que se ven completas (13 de noviembre de 2026)
 
 - Las copias ya guardaban el documento completo de datos (movimientos, reglas, categorías, cuentas, importaciones, conciliaciones, ajustes y deuda). Ahora su resumen incluye el número de reglas (`resumenArchivo`, `MetaCopia.reglas`) y se muestra en la lista de copias.

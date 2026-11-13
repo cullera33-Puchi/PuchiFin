@@ -52,4 +52,16 @@ describe('reglas pegadas desde Claude', () => {
     const categorizados = imp.movimientos.filter((m) => m.categoria_id)
     for (const m of categorizados) expect(aplicado.movimientos.find((x) => x.id === m.id)!.categoria_id).toBe(m.categoria_id)
   })
+
+  it('admite palabras clave (~) y reglas de tipo', () => {
+    const l = leerReglas(db, ['~cumple\tCompras > Regalos', 'pago a prestamista\tTipo: Pago de deuda', 'otro\tTipo: Inventado'].join('\n'))
+    expect(l[0]).toMatchObject({ modo: 'contiene', clave: 'cumple', error: null })
+    expect(l[1]).toMatchObject({ modo: 'exacto', tipo: 'pago_deuda', categoria_id: null, error: null })
+    expect(l[2].error).toContain('No existe el tipo')
+    const r = importarReglas(db, l).db
+    const regla = r.reglas.find((x) => x.patron === 'cumple')!
+    expect(regla).toMatchObject({ tipo_patron: 'contiene', prioridad: 60, origen: 'manual' })
+    expect(r.reglas.find((x) => x.tipo_movimiento === 'pago_deuda' && x.origen === 'manual')).toBeTruthy()
+  })
 })
+

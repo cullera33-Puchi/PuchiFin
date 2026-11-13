@@ -116,3 +116,28 @@ describe('importar pegando', () => {
     expect(() => leerTexto('   ')).toThrow(/No hay nada/)
   })
 })
+
+describe('categoría que BBVA añade en la columna Movimiento', () => {
+  const lectura = extraer(
+    informe([
+      fila('10/11/2026', '10/11/2026', 'Pastisseria zeta', 'Ocio', -4.75),
+      fila('09/11/2026', '09/11/2026', 'Pastisseria zeta', '', -6.03),
+      fila('08/11/2026', '08/11/2026', 'Rebut mes anterior', 'No categorizable', 942.63),
+      fila('07/11/2026', '07/11/2026', 'Cafe zeta', 'Pendiente de categorizar gastos', -1.25),
+    ]),
+  )
+  it('no forma parte del nombre del comercio: el mismo comercio con y sin etiqueta da la misma clave', () => {
+    const [conEtiqueta, , rebut, cafe] = lectura.filas
+    expect(conEtiqueta).toMatchObject({ detalle: null, operacion: 'Ocio' })
+    expect(rebut).toMatchObject({ detalle: null, operacion: 'No categorizable' })
+    expect(cafe.detalle).toBeNull()
+    const db = datosIniciales()
+    const p = proponer(db, lectura, db.cuentas[0].id)
+    const limpio = (n: number) => p.nuevos.find((m) => m.fila === lectura.filas[n].numero)!.concepto_limpio
+    expect(limpio(0)).toBe(limpio(1))
+    // La etiqueta sigue en el concepto completo, para que las reglas la puedan usar
+    expect(p.nuevos.find((m) => m.fila === conEtiqueta.numero)!.concepto_original).toContain('Ocio')
+    expect(p.nuevos.find((m) => m.fila === rebut.numero)!.tipo).toBe('traspaso_interno')
+  })
+})
+

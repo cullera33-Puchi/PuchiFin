@@ -60,6 +60,28 @@ const CASOS: [string, string][] = [
   ['RECIBO MAPFRE SEGUROS', 'Seguros > Otros'],
   ['LINEA DIRECTA ASEGURADORA', 'Seguros > Coche'],
   ['AYUNTAMIENTO DE VALENCIA MULTA', 'Impuestos > Otros'],
+  // Con la categoría que BBVA añade al final (queda en el concepto completo, no en el comercio)
+  ['CORP.ALIM.GUISSONA G999 - Transporte', 'Transporte > Combustible'],
+  ['CORP.ALIM.GUISSONA T999', 'Alimentación > Supermercado'],
+  ['CARREF VILLAZETA', 'Alimentación > Supermercado'],
+  ['BENZINERA VILLAZETA', 'Transporte > Combustible'],
+  ['EESS VILLAZETA PETROL', 'Transporte > Combustible'],
+  ['Z. REGULADA VILLAZETA', 'Transporte > Aparcamiento'],
+  ['PK. GRAN VIA 75', 'Transporte > Aparcamiento'],
+  ['AUCAT BAR VILLAZETA N', 'Transporte > Peajes'],
+  ['APPLUS ITEUVE', 'Transporte > Mantenimiento del coche'],
+  ['TALLERS ZETA SL', 'Transporte > Mantenimiento del coche'],
+  ['AUSOLAN', 'Hijos > Colegio'],
+  ['Adeudo de colegio profesional Colegio Oficial de Zeta', 'Suscripciones > Cuotas'],
+  ['Gp - Seguro Fnac Multimedia', 'Seguros > Otros'],
+  ['Gp - Fnac Pack service', 'Suscripciones > Cuotas'],
+  ['Bbva plan estarseguro', 'Seguros > Otros'],
+  ['Adeudo de telecomunicaciones e internet Pepe Mobile, S.l.u.', 'Suministros > Fibra y móvil'],
+  ['VENDING ZETA', 'Restaurantes > Cafeterías'],
+  ['SSP S.A. - AEROPUERTO DE ZETA', 'Restaurantes > Restaurantes'],
+  ['CAMPING ZETA', 'Viajes > Alojamiento'],
+  ['TIXALIA WORLDWIDE', 'Ocio > Cine y espectáculos'],
+  ['Comissio Traspas Disponible', 'Comisiones e intereses > Comisiones bancarias'],
 ]
 
 describe('diccionario de comercios de la app', () => {
@@ -72,3 +94,17 @@ describe('diccionario de comercios de la app', () => {
     expect(categoria('AMAZON')).toBe('Compras > Hogar')
   })
 })
+
+describe('tipos que pone la app sin confirmación', () => {
+  const tipo = (concepto: string, importe: number) =>
+    clasificar({ texto: normalizarConcepto(concepto), clave: claveComercio(concepto), cuenta_id: db.cuentas[0].id, importe }, db.reglas).tipo
+  it('la liquidación de la tarjeta como la llama BBVA, en la cuenta y en la tarjeta', () => {
+    expect(tipo('Adeudo mensual de tarjeta', -942.63)).toBe('traspaso_interno')
+    expect(tipo('Rebut mes anterior', 942.63)).toBe('traspaso_interno')
+  })
+  it('las operaciones financiadas, que se anulan entre sí', () => {
+    expect(tipo('Operación financiada con tarjeta', -432.96)).toBe('traspaso_interno')
+    expect(tipo('Operació Finançada', 649.44)).toBe('traspaso_interno')
+  })
+})
+

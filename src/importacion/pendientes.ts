@@ -63,10 +63,12 @@ export function aplicarReglasAPendientes(db: BaseDatos): { db: BaseDatos; catego
   const movimientos = db.movimientos.map((m) => {
     if (!esPendiente(m)) return m
     const c = clasificar({ texto: normalizarConcepto(m.concepto_original), clave: claveComercio(m.concepto_limpio), cuenta_id: m.cuenta_id, importe: m.importe }, db.reglas, aprendidas)
-    // Reglas de la app que cambian el tipo sin pedir confirmación: traspasos y liquidación de la tarjeta
-    if (c.tipo === 'traspaso_interno') {
+    // Cambian el tipo sin pedir confirmación: traspasos y liquidación de la tarjeta (reglas de la app) y
+    // cualquier regla de tipo que haya creado o importado el usuario
+    const manual = c.regla_id ? db.reglas.find((r) => r.id === c.regla_id)?.origen === 'manual' : false
+    if (c.tipo === 'traspaso_interno' || (c.tipo !== 'normal' && manual)) {
       traspasos++
-      return { ...m, tipo: c.tipo, regla_id: c.regla_id }
+      return { ...m, tipo: c.tipo, regla_id: c.regla_id, categoria_id: c.categoria_id ?? m.categoria_id }
     }
     if (c.tipo !== 'normal' || !c.categoria_id) return m
     categorizados++

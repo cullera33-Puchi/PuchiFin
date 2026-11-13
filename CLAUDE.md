@@ -96,7 +96,7 @@ Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (po
 
 ## Pendiente de confirmar
 
-- Formato del Excel de la tarjeta de crédito. El de cuenta está confirmado con un Excel real del 13/11/2026 («Informe BBVA»: Fecha valor, Fecha, Concepto, Movimiento, Importe, Divisa, Disponible, Divisa, Observaciones). Para la tarjeta se supone el mismo sin Disponible; falta un Excel real (columnas y signo de las compras).
+- Formato del Excel de la tarjeta de crédito: el resumen de un año (13/11/2026) muestra que la columna Movimiento trae la categoría de BBVA y que el pago llega como «Rebut mes anterior»; falta confirmar columnas y signo con un Excel. El de cuenta está confirmado con un Excel real del 13/11/2026 («Informe BBVA»: Fecha valor, Fecha, Concepto, Movimiento, Importe, Divisa, Disponible, Divisa, Observaciones). Para la tarjeta se supone el mismo sin Disponible; falta un Excel real (columnas y signo de las compras).
 - Bizum: la columna Movimiento trae el mensaje («Recibido: …», «ENVIADO: …», «COMPRA: …»), que se conserva aplicando los alias. Confirmar si en algún caso trae el nombre de la persona y debe quitarse.
 - Ordenante y concepto de la transferencia de reembolso de la empresa. Hoy: se sugiere como reembolso cualquier ingreso con el alias Empresa que no sea nómina; el usuario añade el nombre de la empresa al alias Empresa en Ajustes, General.
 - Si la deuda familiar tiene intereses y si el colchón se mide sobre el saldo conjunto de las dos cuentas (afecta a la fase 4).
@@ -137,6 +137,7 @@ Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alt
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.12.0 (13/11/2026): lo aprendido del resumen de un año de movimientos reales (solo cadenas públicas y palabras genéricas en el código; las reglas personales viven en el dispositivo). Etiqueta de categoría de BBVA fuera del nombre del comercio, liquidación de la tarjeta como la llama BBVA, operaciones financiadas, diccionario ampliado y prioridades, y reglas importadas por palabra clave y de tipo.
 - v0.11.2 (13/11/2026): las copias muestran también el número de reglas y la copia manual ofrece guardar en Archivos; test de copia y restauración completa.
 - v0.11.1 (13/11/2026): «Empezar de cero» en Herramientas para una carga limpia (`empezarDeCero`): borra lo cargado y conserva cuentas, categorías, ajustes y reglas, con copia previa y Deshacer.
 - v0.11.0 (13/11/2026): hoja de movimiento, interruptores Liquid Glass y categorizar con Claude. Pendiente de validar por el usuario.

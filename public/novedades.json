@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.12.0",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "La app ya no parte un comercio en dos por la categoría que añade BBVA («Ocio», «Compras»…): todos los movimientos del mismo comercio van juntos.",
+      "Reconoce el pago de la tarjeta como lo llama BBVA («Adeudo mensual de tarjeta» y «Rebut mes anterior») y las operaciones financiadas, así que el gasto de la tarjeta no cuenta dos veces.",
+      "Muchos comercios nuevos: bonÀrea (súper y gasolinera), zona regulada, peajes, ITV, talleres, comedor escolar, campings, cafeterías y más.",
+      "Las reglas de Claude admiten palabras clave (~cumple) y tipos (Tipo: Pago de deuda)."
+    ]
+  },
+  {
     "version": "0.11.2",
     "fecha": "2026-11-13",
     "cambios": [
