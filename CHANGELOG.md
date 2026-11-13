@@ -2,6 +2,12 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.16.1. Volver atrás sin cosas raras en Informes (13 de noviembre de 2026)
+
+- `InformeCategoria` ya no está dentro de `Deslizable`: deslizar a la derecha cambiaba al mes anterior (la pantalla se iba y volvía) en lugar de volver. El periodo se cambia con las flechas.
+- `useVolverDesdeBorde`: en pantallas apiladas, el gesto de volver empieza desde el borde o desde cualquier punto sin deslizamiento propio (filas, `Deslizable` con `data-deslizable`, campos, listas con desplazamiento horizontal); se decide tras 10 px (hacia la derecha y lateral), anula el scroll vertical mientras vuelve y no actúa con una hoja abierta. `Deslizable` cede los primeros 28 px al borde.
+- La subcategoría elegida en un informe va en la dirección (`sub`) como un paso más: «atrás» la quita antes de volver a Informes; título y botón de volver lo reflejan.
+
 ## v0.16.0. Barra de pestañas flotante y repartir PayPal por importe (13 de noviembre de 2026)
 
 - Barra de pestañas (`Estructura.tsx`, `index.css`): cápsula de cristal flotante de 62 px (`.cristal-pestanas`) con resalte deslizante de la pestaña activa, toque inmediato (`touch-action: manipulation`), respuesta al pulsar y pestañas a toda la altura de la cápsula. Antes, la franja del área segura bajo los iconos no respondía. Tocar la pestaña activa sube al principio. `--alto-pestanas` coloca avisos, barras flotantes y el final del contenido. Con una fila deslizada abierta, la barra responde al primer toque (`data-pestanas`).

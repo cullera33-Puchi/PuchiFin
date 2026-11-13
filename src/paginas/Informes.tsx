@@ -31,15 +31,23 @@ function useEstadoInforme() {
   const vista: Vista = params.get('vista') === 'ingreso' ? 'ingreso' : 'gasto'
   const escala: Escala = params.get('escala') === 'anio' ? 'anio' : 'mes'
   const periodo: PeriodoInforme = { escala, clave: params.get('p') ?? periodoDeFecha(escala, hoy).clave }
+  // Subcategoría elegida dentro de una categoría: es un paso más, «atrás» vuelve a la categoría entera
+  const sub = params.get('sub') ?? undefined
   const ir = (cambios: { vista?: Vista; escala?: Escala; p?: string }) => {
     const e = cambios.escala ?? escala
     // Al pasar de mes a año se queda el año del mes; de año a mes, el mes en curso o diciembre
     const deEscala = e === escala ? periodo.clave : e === 'anio' ? periodo.clave.slice(0, 4) : hoy.startsWith(periodo.clave) ? hoy.slice(0, 7) : `${periodo.clave}-12`
     const p = cambios.p ?? deEscala
-    setParams({ vista: cambios.vista ?? vista, escala: e, p }, { replace: true })
+    setParams({ vista: cambios.vista ?? vista, escala: e, p, ...(sub ? { sub } : {}) }, { replace: true })
+  }
+  const elegirSub = (id: string | undefined) => {
+    const base = { vista, escala, p: periodo.clave }
+    if (id) setParams({ ...base, sub: id }, { replace: !!sub })
+    else if (sub && window.history.state?.idx > 0) window.history.back()
+    else setParams(base, { replace: true })
   }
   const consulta = `vista=${vista}&escala=${escala}&p=${periodo.clave}`
-  return { hoy, vista, escala, periodo, ir, consulta }
+  return { hoy, vista, escala, periodo, ir, consulta, sub, elegirSub }
 }
 
 const nombrePeriodo = (p: PeriodoInforme) => (p.escala === 'mes' ? mesLargo(`${p.clave}-01`) : `Año ${p.clave}`)
@@ -290,13 +298,11 @@ export function InformeCategoria() {
   const db = useDatos()
   const { id } = useParams()
   const { avisar } = useInterfaz()
-  const { hoy, vista, periodo, ir } = useEstadoInforme()
+  const { hoy, vista, periodo, ir, sub, elegirSub } = useEstadoInforme()
   const categoriaId = id === 'sin' ? null : (id ?? null)
   const categoria = db.categorias.find((c) => c.id === categoriaId)
   const informe = useMemo(() => calcularInforme(db, periodo, vista, categoriaId, hoy), [db, periodo.clave, periodo.escala, vista, categoriaId, hoy]) // eslint-disable-line react-hooks/exhaustive-deps
   const [detalle, setDetalle] = useState<string | null>(null)
-  // Subcategoría elegida para filtrar los movimientos (undefined: todas). Se mantiene al cambiar de periodo
-  const [sub, setSub] = useState<string | null | undefined>(undefined)
   const porcionSub = sub === undefined ? undefined : informe.porciones.find((p) => p.id === sub)
   const nombreSub = porcionSub?.nombre ?? (sub ? db.categorias.find((c) => c.id === sub)?.nombre : undefined)
   const movimientos = sub === undefined ? informe.movimientos : informe.movimientos.filter((m) => m.categoria_id === sub)
@@ -320,9 +326,9 @@ export function InformeCategoria() {
   return (
     <>
       <BarraNavegacion
-        titulo={categoria?.nombre ?? 'Sin categoría'}
-        atras="Informes"
-        subtitulo={`${nombrePeriodo(periodo)}. ${formatearImporte(informe.total)} en ${informe.movimientos.length} ${informe.movimientos.length === 1 ? 'movimiento' : 'movimientos'}`}
+        titulo={sub !== undefined ? (nombreSub ?? 'Subcategoría') : (categoria?.nombre ?? 'Sin categoría')}
+        atras={sub !== undefined ? (categoria?.nombre ?? 'Atrás') : 'Informes'}
+        subtitulo={`${nombrePeriodo(periodo)}. ${formatearImporte(sub !== undefined ? totalVisto : informe.total)} en ${plural(movimientos.length, 'movimiento', 'movimientos')}`}
         accion={
           <button className="boton-icono" aria-label="Exportar a Excel" title="Exportar a Excel" onClick={exportar}>
             <Sheet className="size-[22px]" strokeWidth={1.75} />
@@ -338,9 +344,10 @@ export function InformeCategoria() {
           <ChevronRight className="size-6" strokeWidth={2} />
         </button>
       </div>
-      <Deslizable onAnterior={() => ir({ p: anterior.clave })} onSiguiente={() => ir({ p: siguiente.clave })} haySiguiente={haySiguiente}>
+      {/* Sin cambio de mes deslizando: en una pantalla apilada, deslizar a la derecha es volver */}
+      <div>
         <div className="space-y-4">
-          {informe.porciones.length > 1 && <PanelQuesito informe={informe} elegida={sub} onElegir={(id) => setSub((s) => (s === id ? undefined : id))} />}
+          {informe.porciones.length > 1 && <PanelQuesito informe={informe} elegida={sub} onElegir={(id) => elegirSub(id === sub || !id ? undefined : id)} />}
           <Evolucion db={db} informe={informe} categoria={categoriaId} onPeriodo={(p) => ir({ p })} />
           {informe.porciones.length > 1 && (
             <div className="flex items-center gap-2 px-1">
@@ -354,7 +361,7 @@ export function InformeCategoria() {
                 )}
               </p>
               {sub !== undefined && (
-                <button className="boton-texto inline-flex shrink-0 items-center gap-1 px-2" onClick={() => setSub(undefined)}>
+                <button className="boton-texto inline-flex shrink-0 items-center gap-1 px-2" onClick={() => elegirSub(undefined)}>
                   <X className="size-4" strokeWidth={2} /> Ver todos
                 </button>
               )}
@@ -377,7 +384,7 @@ export function InformeCategoria() {
             ))
           )}
         </div>
-      </Deslizable>
+      </div>
       <DetalleMovimiento id={detalle} onCerrar={() => setDetalle(null)} />
     </>
   )

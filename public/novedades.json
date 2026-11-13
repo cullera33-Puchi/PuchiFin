@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.16.1",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Volver atrás deslizando ya no se queda a medias: en las pantallas interiores, desliza hacia la derecha desde cualquier punto (fuera de las líneas) o desde el borde.",
+      "Dentro de una categoría de Informes, deslizar ya no cambia de mes: usa las flechas.",
+      "Si eliges una subcategoría, «atrás» vuelve primero a la categoría entera y después a Informes."
+    ]
+  },
+  {
     "version": "0.16.0",
     "fecha": "2026-11-13",
     "cambios": [

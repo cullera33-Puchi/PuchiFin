@@ -3,7 +3,8 @@
  * - FilaDeslizable: deslizar una fila a la izquierda o a la derecha descubre acciones; deslizar del todo
  *   ejecuta la primera (como «Eliminar» en Mail).
  * - Deslizable: deslizar a los lados cambia de mes o de periodo, con la página siguiendo al dedo.
- * - useVolverDesdeBorde: deslizar desde el borde izquierdo vuelve a la pantalla anterior.
+ * - useVolverDesdeBorde: en una pantalla apilada, deslizar hacia la derecha vuelve a la anterior: desde el
+ *   borde o desde cualquier punto que no tenga deslizamiento propio (filas, cambio de mes, campos).
  * Usan eventos de puntero con touch-action: pan-y, así el desplazamiento vertical sigue siendo nativo.
  * Un gesto que empieza sobre una fila deslizable es solo de la fila: no cambia de mes ni vuelve atrás
  * (para eso, desde fuera de las filas o desde el mismo borde de la pantalla).
@@ -255,9 +256,10 @@ export function Deslizable({
 
   return (
     <div
+      data-deslizable=""
       style={{ touchAction: 'pan-y' }}
       onPointerDown={(e) => {
-        if (e.pointerType === 'mouse' || e.clientX < 24) return // el borde izquierdo es para volver
+        if (e.pointerType === 'mouse' || e.clientX < 28) return // el borde izquierdo es para volver
         if (enFila(e.target)) return // el gesto es de la fila
         s.current = { x: e.clientX, y: e.clientY, id: e.pointerId, horizontal: null, vel: crearVelocidad(e.clientX, e.timeStamp) }
       }}
@@ -308,6 +310,10 @@ export function Deslizable({
 /** El gesto empieza sobre una fila deslizable */
 const enFila = (t: EventTarget | null) => t instanceof Element && !!t.closest('[data-fila-deslizable]')
 
+/** Elementos con deslizamiento lateral propio: filas, cambio de mes, campos y listas que se desplazan en horizontal */
+const conGestoPropio = (t: EventTarget | null) =>
+  t instanceof Element && !!t.closest('[data-fila-deslizable], [data-deslizable], input, textarea, select, [contenteditable], .overflow-x-auto')
+
 /** Pantallas raíz de cada pestaña: desde ellas no se vuelve atrás */
 const RAICES = ['/', '/movimientos', '/informes', '/ajustes', '/ajustes/cuentas', '/ajustes/categorias', '/ajustes/general', '/ajustes/herramientas']
 
@@ -325,27 +331,40 @@ export function useVolverDesdeBorde(): { dx: number; animar: boolean } {
 
   useEffect(() => {
     if (raiz) return
-    let inicio: { x: number; y: number; vel: Velocidad } | null = null
+    // horizontal: null mientras no se sabe si el gesto es de volver o de desplazar en vertical
+    let inicio: { x: number; y: number; vel: Velocidad; horizontal: boolean | null } | null = null
     let actual = 0
     let ultimoT = 0
     const alEmpezar = (e: TouchEvent) => {
+      inicio = null
       const t = e.touches[0]
-      if (e.touches.length !== 1 || t.clientX > 28) return
-      // Sobre una fila deslizable solo vale el mismo borde de la pantalla (las filas empiezan a 16 px)
+      if (e.touches.length !== 1) return
+      // Con una hoja abierta, el gesto es de la hoja
+      if (document.documentElement.classList.contains('con-hoja')) return
+      // Desde el borde vale casi siempre; sobre una fila, solo el mismo borde de la pantalla (las filas empiezan a 16 px)
       if (t.clientX > 12 && enFila(e.target)) return
-      inicio = { x: t.clientX, y: t.clientY, vel: crearVelocidad(t.clientX, e.timeStamp) }
+      // Desde cualquier otro punto de una pantalla apilada, salvo en lo que tiene deslizamiento propio
+      if (t.clientX > 28 && conGestoPropio(e.target)) return
+      inicio = { x: t.clientX, y: t.clientY, vel: crearVelocidad(t.clientX, e.timeStamp), horizontal: null }
     }
     const alMover = (e: TouchEvent) => {
       if (!inicio) return
       const t = e.touches[0]
       const mx = t.clientX - inicio.x
-      if (Math.abs(t.clientY - inicio.y) > Math.abs(mx) && mx < 30) {
-        inicio = null
-        setAnimar(true)
-        setDx(0)
-        return
+      const my = t.clientY - inicio.y
+      if (inicio.horizontal === null) {
+        if (Math.abs(mx) < 10 && Math.abs(my) < 10) return
+        // Solo hacia la derecha y claramente lateral; si no, es scroll y no se toca
+        inicio.horizontal = mx > 0 && Math.abs(mx) > Math.abs(my) * 1.2
+        if (!inicio.horizontal) {
+          inicio = null
+          return
+        }
+        inicio.x = t.clientX - 1
       }
-      actual = Math.max(0, mx)
+      // Mientras vuelve, la pantalla no se desplaza en vertical
+      if (e.cancelable) e.preventDefault()
+      actual = Math.max(0, t.clientX - inicio.x)
       inicio.vel.mover(t.clientX, e.timeStamp)
       ultimoT = e.timeStamp
       setAnimar(false)
@@ -353,8 +372,10 @@ export function useVolverDesdeBorde(): { dx: number; animar: boolean } {
     }
     const alTerminar = (e: TouchEvent) => {
       if (!inicio) return
+      const fijo = inicio.horizontal
       const v = inicio.vel.valor(e.type === 'touchcancel' ? ultimoT + 1000 : e.timeStamp)
       inicio = null
+      if (!fijo) return
       setAnimar(true)
       if (e.type !== 'touchcancel' && (actual > window.innerWidth / 3 || esLanzamiento(v, actual, 1))) {
         vibrar()
@@ -369,7 +390,8 @@ export function useVolverDesdeBorde(): { dx: number; animar: boolean } {
       actual = 0
     }
     window.addEventListener('touchstart', alEmpezar, { passive: true })
-    window.addEventListener('touchmove', alMover, { passive: true })
+    // No pasivo: una vez decidido que es volver, se anula el desplazamiento vertical
+    window.addEventListener('touchmove', alMover, { passive: false })
     window.addEventListener('touchend', alTerminar)
     window.addEventListener('touchcancel', alTerminar)
     return () => {
