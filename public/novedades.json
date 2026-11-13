@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.13.0",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Los taxis, Uber y Cabify tienen su propia subcategoría (Transporte, Taxi y VTC), para encontrarlos rápido. La app los sigue proponiendo como posible gasto de empleado.",
+      "Categorías nuevas: Cuidado personal, Mascotas, Formación y Efectivo, y el IBI y las basuras pasan a Impuestos.",
+      "El abono por fraccionamiento de gastos cuenta como traspaso, y PayPal va por defecto a Compras (lo cambias cuando quieras).",
+      "Lo que ya tenías categorizado se conserva."
+    ]
+  },
+  {
     "version": "0.12.0",
     "fecha": "2026-11-13",
     "cambios": [

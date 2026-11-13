@@ -31,16 +31,30 @@ export function exigirSinIdentificativos(campo: string, valor: string | null | u
 // Datos iniciales
 // ---------------------------------------------------------------------------
 
+/** Categorías nuevas de la v0.13.0 (también se añaden a los datos anteriores) */
+const NUEVAS_V013: Record<string, string[]> = {
+  'Cuidado personal': ['Peluquería y estética', 'Perfumería y cosmética', 'Masajes y bienestar'],
+  Mascotas: ['Veterinario', 'Comida y accesorios'],
+  Formación: ['Estudios', 'Cursos y plataformas'],
+  Efectivo: ['Retiradas de cajero'],
+}
+const RAICES_V013: [string, string, string][] = [
+  ['Cuidado personal', 'peluqueria', '#FF6FA8'],
+  ['Mascotas', 'mascota', '#C08552'],
+  ['Formación', 'estudios', '#4C6EF5'],
+  ['Efectivo', 'monedas', '#8E8E93'],
+]
+
 /** Suscripciones con subcategoría propia (v0.10.0) */
 export const PLATAFORMAS = ['Netflix', 'Disney+', 'HBO Max', 'Amazon Prime', 'Spotify', 'Claude', 'PlayStation', 'Nintendo']
 
 const CATALOGO: [string, string, string, Naturaleza, string[]][] = [
-  ['Vivienda', 'casa', '#FF9500', 'gasto', ['Hipoteca', 'Comunidad', 'IBI y tasas', 'Seguro de hogar', 'Mantenimiento y reformas']],
+  ['Vivienda', 'casa', '#FF9500', 'gasto', ['Hipoteca', 'Comunidad', 'Seguro de hogar', 'Mantenimiento y reformas']],
   ['Suministros', 'bombilla', '#F7B500', 'gasto', ['Luz', 'Agua', 'Fibra y móvil']],
   ['Alimentación', 'carrito', '#34C759', 'gasto', ['Supermercado', 'Mercado y tiendas']],
   ['Restaurantes', 'cubiertos', '#FF3B30', 'gasto', ['Restaurantes', 'Cafeterías', 'Comida rápida y a domicilio', 'Bares y copas']],
   ['Ocio', 'entrada', '#FF6482', 'gasto', ['Planes y salidas', 'Cine y espectáculos', 'Cultura', 'Deporte', 'Juegos']],
-  ['Transporte', 'coche', '#007AFF', 'gasto', ['Combustible', 'Peajes', 'Aparcamiento', 'Transporte público', 'Mantenimiento del coche']],
+  ['Transporte', 'coche', '#007AFF', 'gasto', ['Combustible', 'Peajes', 'Aparcamiento', 'Transporte público', 'Taxi y VTC', 'Mantenimiento del coche']],
   ['Hijos', 'bebe', '#FF2D55', 'gasto', ['Colegio', 'Extraescolares', 'Ropa', 'Cuidado']],
   ['Salud', 'salud', '#30B0C7', 'gasto', ['Farmacia', 'Seguro médico', 'Consultas']],
   ['Compras', 'bolsa', '#AF52DE', 'gasto', ['Ropa', 'Hogar', 'Tecnología', 'Regalos']],
@@ -48,7 +62,11 @@ const CATALOGO: [string, string, string, Naturaleza, string[]][] = [
   ['Viajes', 'avion', '#32ADE6', 'gasto', ['Alojamiento', 'Transporte', 'Actividades']],
   ['Seguros', 'escudo', '#8E8E93', 'gasto', ['Coche', 'Vida', 'Otros']],
   ['Comisiones e intereses', 'banco', '#636366', 'gasto', ['Comisiones bancarias', 'Intereses de tarjeta']],
-  ['Impuestos', 'recibo', '#A2845E', 'gasto', ['IRPF', 'Otros']],
+  ['Cuidado personal', 'peluqueria', '#FF6FA8', 'gasto', NUEVAS_V013['Cuidado personal']],
+  ['Mascotas', 'mascota', '#C08552', 'gasto', NUEVAS_V013.Mascotas],
+  ['Formación', 'estudios', '#4C6EF5', 'gasto', NUEVAS_V013['Formación']],
+  ['Efectivo', 'monedas', '#8E8E93', 'gasto', NUEVAS_V013.Efectivo],
+  ['Impuestos', 'recibo', '#A2845E', 'gasto', ['IRPF', 'IBI y tasas', 'Otros']],
   ['Ingresos', 'billete', '#00C7BE', 'ingreso', ['Nómina', 'Otros ingresos']],
 ]
 
@@ -331,6 +349,29 @@ export function actualizarCatalogo(categorias: Categoria[]): Categoria[] {
   if (susc) {
     cats = cats.map((c) => (c.padre_id === susc.id && igual(c.nombre, 'Plataformas') ? { ...c, nombre: 'Otras plataformas' } : c))
     anadir(susc, PLATAFORMAS, true)
+  }
+
+  // v0.13.0: taxis aparte, IBI y tasas en Impuestos (mismo identificador) y cuatro categorías nuevas
+  const transporte = raiz('Transporte')
+  if (transporte) anadir(transporte, ['Taxi y VTC'])
+  const impuestos = raiz('Impuestos')
+  const vivienda = raiz('Vivienda')
+  if (impuestos && vivienda) {
+    const ibi = cats.find((c) => c.padre_id === vivienda.id && igual(c.nombre, 'IBI y tasas'))
+    if (ibi && !hijas(impuestos.id).some((c) => igual(c.nombre, 'IBI y tasas'))) {
+      cats = cats.map((c) => (c.id === ibi.id ? { ...c, padre_id: impuestos.id, color: impuestos.color, naturaleza: impuestos.naturaleza, orden: 2 } : c))
+    }
+  }
+  for (const [nombre, icono, color] of RAICES_V013) {
+    let r = raiz(nombre)
+    if (!r) {
+      // Antes de Impuestos e Ingresos
+      const antes = Math.min(...cats.filter((c) => !c.padre_id && (igual(c.nombre, 'Impuestos') || igual(c.nombre, 'Ingresos'))).map((c) => c.orden), 999)
+      cats = cats.map((c) => (!c.padre_id && c.orden >= antes ? { ...c, orden: c.orden + 1 } : c))
+      r = { id: nuevoId(), padre_id: null, nombre, icono, color, naturaleza: 'gasto', activa: true, orden: antes === 999 ? cats.filter((c) => !c.padre_id).length + 1 : antes }
+      cats.push(r)
+    }
+    anadir(r, NUEVAS_V013[nombre])
   }
   return cats
 }

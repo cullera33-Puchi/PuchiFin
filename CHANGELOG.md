@@ -2,6 +2,12 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.13.0. Taxis, IBI en Impuestos y categorías nuevas (13 de noviembre de 2026)
+
+- Catálogo (esquema 7, `actualizarCatalogo` idempotente y sin cambiar identificadores): Transporte > Taxi y VTC; IBI y tasas pasa de Vivienda a Impuestos; nuevas Cuidado personal (Peluquería y estética, Perfumería y cosmética, Masajes y bienestar), Mascotas (Veterinario, Comida y accesorios), Formación (Estudios, Cursos y plataformas) y Efectivo (Retiradas de cajero).
+- Reglas: taxis y VTC (también «Licencia» con la etiqueta Transporte), retiradas de efectivo, peluquería, perfumerías, masajes, veterinario y tiendas de mascotas, universidades y plataformas de cursos, recaudación municipal e IBI en Impuestos, «Abono por fraccionamiento de gastos» como traspaso y PayPal a Compras > Hogar con prioridad baja. Los taxis salen de Viajes > Transporte.
+- Pruebas: 320 tests.
+
 ## v0.12.0. Lo aprendido de un año de movimientos reales (13 de noviembre de 2026)
 
 - Lector: la categoría que BBVA añade en la columna Movimiento («Ocio», «Compras», «Transporte», «No categorizable», «Pendiente de categorizar gastos»…; `categorias_banco` en las plantillas) se trata como operación: queda en el concepto completo y fuera del nombre del comercio. El mismo comercio ya no se parte en dos claves.

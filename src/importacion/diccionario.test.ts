@@ -82,6 +82,19 @@ const CASOS: [string, string][] = [
   ['CAMPING ZETA', 'Viajes > Alojamiento'],
   ['TIXALIA WORLDWIDE', 'Ocio > Cine y espectáculos'],
   ['Comissio Traspas Disponible', 'Comisiones e intereses > Comisiones bancarias'],
+  ['TAXI ZETA', 'Transporte > Taxi y VTC'],
+  ['UBER TRIP', 'Transporte > Taxi y VTC'],
+  ['Licencia 12345 - Transporte', 'Transporte > Taxi y VTC'],
+  ['Ret. efectivo a debito con tarj. en cajero. aut.', 'Efectivo > Retiradas de cajero'],
+  ['Com. ret. efec. a debito con tarj. en caj. aut.', 'Comisiones e intereses > Comisiones bancarias'],
+  ['PERRUQUERIA ZETA', 'Cuidado personal > Peluquería y estética'],
+  ['DRUNI C.C. ZETA', 'Cuidado personal > Perfumería y cosmética'],
+  ['MASAJES ZETA', 'Cuidado personal > Masajes y bienestar'],
+  ['CLINICA VETERINARIA ZETA', 'Mascotas > Veterinario'],
+  ['UNIVERSIDAD ZETA', 'Formación > Estudios'],
+  ['DOMESTIKA INC.', 'Formación > Cursos y plataformas'],
+  ['Adeudo de recaudacion municipal Ajuntament de Zeta', 'Impuestos > IBI y tasas'],
+  ['PayPal Europe S.a.r.l. et Cie S.c.a', 'Compras > Hogar'],
 ]
 
 describe('diccionario de comercios de la app', () => {
@@ -101,6 +114,9 @@ describe('tipos que pone la app sin confirmación', () => {
   it('la liquidación de la tarjeta como la llama BBVA, en la cuenta y en la tarjeta', () => {
     expect(tipo('Adeudo mensual de tarjeta', -942.63)).toBe('traspaso_interno')
     expect(tipo('Rebut mes anterior', 942.63)).toBe('traspaso_interno')
+  })
+  it('el abono por fraccionamiento de gastos, que ya está en la tarjeta', () => {
+    expect(tipo('Abono por fraccionamiento de gastos', 393.81)).toBe('traspaso_interno')
   })
   it('las operaciones financiadas, que se anulan entre sí', () => {
     expect(tipo('Operación financiada con tarjeta', -432.96)).toBe('traspaso_interno')

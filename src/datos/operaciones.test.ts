@@ -31,8 +31,8 @@ describe('datosIniciales', () => {
 
   it('carga cuentas, catálogo, ajustes y deuda', () => {
     expect(db.cuentas.map((c) => c.alias)).toEqual(['Cuenta principal', 'Cuenta 2', 'Tarjeta', 'Hipoteca'])
-    expect(db.categorias.filter((c) => !c.padre_id)).toHaveLength(15)
-    expect(db.categorias.filter((c) => c.padre_id)).toHaveLength(58)
+    expect(db.categorias.filter((c) => !c.padre_id)).toHaveLength(19)
+    expect(db.categorias.filter((c) => c.padre_id)).toHaveLength(67)
     expect(db.categorias.filter((c) => c.naturaleza === 'ingreso')).toHaveLength(3)
     expect(db.ajustes.fecha_inicio).toBe('2026-10-01')
     expect(db.compromisos[0]).toMatchObject({ nombre: 'Deuda familiar', deuda_inicial: 0, colchon: 0, mes_referencia: 7 })
@@ -82,17 +82,17 @@ describe('categorías', () => {
   })
 
   it('fusiona moviendo movimientos y subcategorías', () => {
-    let a = crearCategoria(db, { nombre: 'Mascotas', padre_id: null })
-    const masc = cat(a, 'Mascotas')
-    a = crearCategoria(a, { nombre: 'Veterinario', padre_id: masc.id })
+    let a = crearCategoria(db, { nombre: 'Animales', padre_id: null })
+    const masc = cat(a, 'Animales')
+    a = crearCategoria(a, { nombre: 'Clínica animal', padre_id: masc.id })
     a = crearCategoria(a, { nombre: 'Farmacia', padre_id: masc.id }) // homónima de Salud > Farmacia
     a = conPrueba(a)
     const unMov = a.movimientos[0].id
-    a = { ...a, movimientos: a.movimientos.map((m): Movimiento => (m.id === unMov ? { ...m, categoria_id: cat(a, 'Farmacia', 'Mascotas').id } : m)) }
+    a = { ...a, movimientos: a.movimientos.map((m): Movimiento => (m.id === unMov ? { ...m, categoria_id: cat(a, 'Farmacia', 'Animales').id } : m)) }
     const salud = cat(a, 'Salud')
     const r = fusionarCategoria(a, masc.id, salud.id)
-    expect(r.categorias.some((c) => c.nombre === 'Mascotas')).toBe(false)
-    expect(cat(r, 'Veterinario', 'Salud')).toBeDefined()
+    expect(r.categorias.some((c) => c.nombre === 'Animales')).toBe(false)
+    expect(cat(r, 'Clínica animal', 'Salud')).toBeDefined()
     expect(r.categorias.filter((c) => c.nombre === 'Farmacia' && c.padre_id === salud.id)).toHaveLength(1)
     expect(r.movimientos.find((m) => m.id === unMov)!.categoria_id).toBe(cat(r, 'Farmacia', 'Salud').id)
     expect(comprobarBaseDatos(r)).toEqual([])
@@ -177,7 +177,7 @@ describe('actualizarCatalogo (v0.10.0)', () => {
     // La antigua subcategoría «Ocio» es la misma, ahora «Planes y salidas» dentro de Ocio
     const antiguoOcio = viejo.find((c) => c.nombre === 'Ocio')!
     expect(porId.get(antiguoOcio.id)).toMatchObject({ nombre: 'Planes y salidas', padre_id: raiz('Ocio').id })
-    expect(nuevo.filter((c) => !c.padre_id)).toHaveLength(15)
+    expect(nuevo.filter((c) => !c.padre_id)).toHaveLength(19)
   })
 
   it('no hace nada si ya está al día', () => {
@@ -220,3 +220,24 @@ describe('empezarDeCero', () => {
     expect(inicial.movimientos).toEqual([])
   })
 })
+
+describe('actualizarCatalogo (v0.13.0)', () => {
+  it('taxis aparte, IBI y tasas en Impuestos con el mismo identificador y las categorías nuevas', () => {
+    const actual = datosIniciales().categorias
+    const impuestos = actual.find((c) => !c.padre_id && c.nombre === 'Impuestos')!
+    const vivienda = actual.find((c) => !c.padre_id && c.nombre === 'Vivienda')!
+    const ibi = actual.find((c) => c.nombre === 'IBI y tasas')!
+    // Como era antes: IBI en Vivienda, sin taxis ni las categorías nuevas
+    const nuevas = new Set(['Cuidado personal', 'Mascotas', 'Formación', 'Efectivo'])
+    const raicesNuevas = new Set(actual.filter((c) => !c.padre_id && nuevas.has(c.nombre)).map((c) => c.id))
+    const viejo = actual
+      .filter((c) => !raicesNuevas.has(c.id) && !raicesNuevas.has(c.padre_id ?? '') && c.nombre !== 'Taxi y VTC')
+      .map((c) => (c.id === ibi.id ? { ...c, padre_id: vivienda.id } : c))
+    const nuevo = actualizarCatalogo(viejo)
+    expect(nuevo.find((c) => c.id === ibi.id)!.padre_id).toBe(impuestos.id)
+    for (const n of nuevas) expect(nuevo.some((c) => !c.padre_id && c.nombre === n)).toBe(true)
+    expect(nuevo.some((c) => c.nombre === 'Taxi y VTC')).toBe(true)
+    expect(actualizarCatalogo(nuevo)).toEqual(nuevo)
+  })
+})
+

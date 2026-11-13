@@ -137,6 +137,7 @@ Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alt
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.13.0 (13/11/2026): respuestas del usuario a la revisión del año. Esquema 7 (`actualizarCatalogo`, mismos identificadores): Transporte > Taxi y VTC (los taxis siguen proponiéndose como posible gasto de empleado), IBI y tasas pasa de Vivienda a Impuestos, y categorías nuevas Cuidado personal, Mascotas, Formación y Efectivo, con sus reglas. Fraccionamiento de gastos como traspaso; PayPal a Compras > Hogar por defecto.
 - v0.12.0 (13/11/2026): lo aprendido del resumen de un año de movimientos reales (solo cadenas públicas y palabras genéricas en el código; las reglas personales viven en el dispositivo). Etiqueta de categoría de BBVA fuera del nombre del comercio, liquidación de la tarjeta como la llama BBVA, operaciones financiadas, diccionario ampliado y prioridades, y reglas importadas por palabra clave y de tipo.
 - v0.11.2 (13/11/2026): las copias muestran también el número de reglas y la copia manual ofrece guardar en Archivos; test de copia y restauración completa.
 - v0.11.1 (13/11/2026): «Empezar de cero» en Herramientas para una carga limpia (`empezarDeCero`): borra lo cargado y conserva cuentas, categorías, ajustes y reglas, con copia previa y Deshacer.
@@ -316,12 +317,12 @@ La app trae un catálogo predeterminado de categorías que se puede ampliar, y l
 
 | Categoría | Subcategorías predeterminadas |
 | --- | --- |
-| Vivienda | Hipoteca, comunidad, IBI y tasas, seguro de hogar, mantenimiento y reformas |
+| Vivienda | Hipoteca, comunidad, seguro de hogar, mantenimiento y reformas |
 | Suministros | Luz, agua, fibra y móvil |
 | Alimentación | Supermercado, mercado y tiendas |
 | Restaurantes | Restaurantes, cafeterías, comida rápida y a domicilio, bares y copas |
 | Ocio | Planes y salidas, cine y espectáculos, cultura, deporte, juegos |
-| Transporte | Combustible, peajes, aparcamiento, transporte público, mantenimiento del coche |
+| Transporte | Combustible, peajes, aparcamiento, transporte público, taxi y VTC, mantenimiento del coche |
 | Hijos | Colegio, extraescolares, ropa, cuidado |
 | Salud | Farmacia, seguro médico, consultas |
 | Compras | Ropa, hogar, tecnología, regalos |
@@ -329,7 +330,11 @@ La app trae un catálogo predeterminado de categorías que se puede ampliar, y l
 | Viajes | Alojamiento, transporte, actividades |
 | Seguros | Coche, vida, otros |
 | Comisiones e intereses | Comisiones bancarias, intereses de tarjeta |
-| Impuestos | IRPF, otros |
+| Cuidado personal | Peluquería y estética, perfumería y cosmética, masajes y bienestar |
+| Mascotas | Veterinario, comida y accesorios |
+| Formación | Estudios, cursos y plataformas |
+| Efectivo | Retiradas de cajero |
+| Impuestos | IRPF, IBI y tasas (incluye basuras), otros |
 | Ingresos | Nómina, otros ingresos |
 
 **Orden de aplicación en cada importación**
