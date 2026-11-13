@@ -97,6 +97,6 @@ export function migrar(d: Partial<BaseDatos>): BaseDatos {
   return datos
 }
 
-export function resumenArchivo(a: ArchivoPuchiFin): { movimientos: number; cuentas: number; categorias: number } {
-  return { movimientos: a.datos.movimientos.length, cuentas: a.datos.cuentas.length, categorias: a.datos.categorias.length }
+export function resumenArchivo(a: ArchivoPuchiFin): { movimientos: number; cuentas: number; categorias: number; reglas: number } {
+  return { movimientos: a.datos.movimientos.length, cuentas: a.datos.cuentas.length, categorias: a.datos.categorias.length, reglas: a.datos.reglas.length }
 }

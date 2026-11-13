@@ -3,7 +3,10 @@ import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { copiaDiaria, hacerCopia, leerCopia, listarCopias, restaurar } from '../lib/copias'
 import { cambiar, esperarGuardado, iniciarAlmacen, obtenerDatos, reiniciarParaPruebas } from './almacen'
-import { ErrorDatos, guardarCuenta } from './operaciones'
+import { ErrorDatos, confirmarSaldo, empezarDeCero, guardarAjustes, guardarCuenta } from './operaciones'
+import { cambiarCategoria } from './movimientos'
+import { generarDatosPrueba } from '../lib/datosPrueba'
+import { importarReglas, leerReglas } from '../importacion/claude'
 
 beforeEach(async () => {
   reiniciarParaPruebas()
@@ -68,4 +71,30 @@ describe('copias', () => {
     const a = await leerCopia(m.clave)
     expect(a?.datos).toEqual(obtenerDatos())
   })
+
+  it('una copia guarda absolutamente todo y restaurarla lo deja idéntico', async () => {
+    await iniciarAlmacen()
+    // Movimientos, conciliaciones, importaciones, reglas tuyas e importadas, saldo confirmado y ajustes
+    await cambiar((d) => {
+      const p = generarDatosPrueba({ cuentas: d.cuentas, categorias: d.categorias, desde: '2026-10-01', hasta: '2026-11-30' })
+      const conMovs = { ...d, ...p, movimientos: p.movimientos.map((m, i) => (i === 2 ? { ...m, nota: 'nota', mes_imputacion: '2026-12' } : m)) }
+      const conReglas = importarReglas(conMovs, leerReglas(conMovs, 'comercio zeta\tCompras > Regalos')).db
+      const conManual = cambiarCategoria(conReglas, [conReglas.movimientos[5].id], conReglas.categorias[3].id, { crearRegla: true })
+      const conSaldo = confirmarSaldo(conManual, conManual.cuentas[0].id, 1234.56, 1234.56, '2026-11-13')
+      return guardarAjustes(conSaldo, { dias_fin_de_mes: 3, zona_casa: ['Valencia'] })
+    })
+    await esperarGuardado()
+    const completo = structuredClone(obtenerDatos())
+    expect(completo.reglas.filter((r) => r.origen === 'manual')).toHaveLength(2)
+    expect(completo.conciliaciones.length).toBeGreaterThan(0)
+
+    const meta = await hacerCopia('manual')
+    expect(meta).toMatchObject({ movimientos: completo.movimientos.length, reglas: completo.reglas.length })
+    await cambiar((d) => empezarDeCero(d, { conservarReglas: false, configuracionInicial: true }))
+    expect(obtenerDatos().movimientos).toHaveLength(0)
+
+    await restaurar((await leerCopia(meta.clave))!, 'antes de restaurar')
+    expect(obtenerDatos()).toEqual(completo)
+  })
 })
+

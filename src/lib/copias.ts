@@ -23,6 +23,8 @@ export interface MetaCopia {
   movimientos: number
   cuentas: number
   categorias: number
+  /** Desde la v0.11.2 (las copias anteriores no lo tienen, pero también llevan las reglas) */
+  reglas?: number
 }
 
 export const MAX_DIARIAS = 7

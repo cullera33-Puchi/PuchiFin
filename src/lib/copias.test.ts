@@ -7,7 +7,7 @@ describe('metaDe', () => {
   it('resume la copia y la diaria usa el día como clave', () => {
     const archivo = crearArchivo(datosIniciales())
     const m = metaDe(archivo, 'diaria', '2026-11-13T08:00:00.000Z')
-    expect(m).toMatchObject({ clave: '2026-11-13#diaria', movimientos: 0, cuentas: 4, categorias: 73 })
+    expect(m).toMatchObject({ clave: '2026-11-13#diaria', movimientos: 0, cuentas: 4, categorias: 73, reglas: archivo.datos.reglas.length })
     expect(metaDe(archivo, 'manual', '2026-11-13T08:00:00.000Z').clave).toBe('2026-11-13T08:00:00.000Z#manual')
   })
 })

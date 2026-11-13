@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.11.2",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Cada copia de seguridad guarda todo: movimientos, reglas, categorías, cuentas, ajustes y reembolsos. Ahora la lista de copias muestra también cuántas reglas lleva.",
+      "Al hacer una copia manual, puedes guardarla también en Archivos o iCloud con un toque. Es lo único que sobrevive si borras la app."
+    ]
+  },
+  {
     "version": "0.11.1",
     "fecha": "2026-11-13",
     "cambios": [

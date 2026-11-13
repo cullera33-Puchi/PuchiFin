@@ -2,6 +2,12 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.11.2. Copias que se ven completas (13 de noviembre de 2026)
+
+- Las copias ya guardaban el documento completo de datos (movimientos, reglas, categorías, cuentas, importaciones, conciliaciones, ajustes y deuda). Ahora su resumen incluye el número de reglas (`resumenArchivo`, `MetaCopia.reglas`) y se muestra en la lista de copias.
+- «Hacer copia ahora» ofrece «Guardar en Archivos» en el aviso, porque las copias viven dentro de la app y solo el archivo exportado sobrevive a borrarla.
+- Test de copia y restauración con todo relleno (reglas manuales e importadas, saldo confirmado, ajustes, conciliaciones): idéntico campo a campo. 293 tests.
+
 ## v0.11.1. Empezar de cero (13 de noviembre de 2026)
 
 - `empezarDeCero` en operaciones: borra movimientos, importaciones, conciliaciones, presupuestos, eventos previstos y saldos confirmados; conserva cuentas, categorías, ajustes y reglas de la app; reglas propias opcionales; o configuración inicial completa.

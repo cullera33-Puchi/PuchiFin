@@ -25,7 +25,7 @@ import {
 } from '../../lib/copias'
 import { generarDatosPrueba } from '../../lib/datosPrueba'
 import { hoyIso } from '../../lib/fechas'
-import { formatearFecha } from '../../lib/formato'
+import { formatearFecha, plural } from '../../lib/formato'
 import { borrarRegistro, entradasRegistro, recuperarRegistro, registrar, suscribirRegistro, textoRegistro } from '../../lib/registro'
 import { APP_VERSION } from '../../lib/version'
 import { SeccionClaude } from './ConClaude'
@@ -286,7 +286,7 @@ export function Herramientas() {
                     {formatearFecha(m.dia)} <span className="font-normal text-zinc-500">{hora(m.creada)}</span>
                   </p>
                   <p className="text-xs text-zinc-500">
-                    {NOMBRE_TIPO[m.tipo]}. {m.movimientos} movimientos, {m.cuentas} cuentas, v{m.version}
+                    {NOMBRE_TIPO[m.tipo]}. {plural(m.movimientos, 'movimiento', 'movimientos')}{m.reglas !== undefined ? `, ${plural(m.reglas, 'regla', 'reglas')}` : ''}, {plural(m.cuentas, 'cuenta', 'cuentas')}, v{m.version}
                   </p>
                 </div>
                 <button className="boton-icono" title="Restaurar" aria-label="Restaurar" disabled={!!ocupado} onClick={() => restaurarLocal(m)}>
@@ -312,7 +312,11 @@ export function Herramientas() {
           </ul>
         )}
         <div className="flex flex-wrap items-center gap-2">
-          <button className="boton-secundario" disabled={!!ocupado} onClick={() => ejecutar('copia', async () => { await hacerCopia('manual'); avisar('Copia guardada en el iPhone') })}>
+          <button className="boton-secundario" disabled={!!ocupado} onClick={() => ejecutar('copia', async () => {
+                await hacerCopia('manual')
+                // La copia vive dentro de la app: para que sobreviva a borrar la app, también a Archivos o iCloud
+                avisar('Copia guardada en el iPhone', { texto: 'Guardar en Archivos', fn: () => void exportarArchivo().then(() => setUltima(ultimaExportacion())) })
+              })}>
             {ocupado === 'copia' ? 'Guardando…' : 'Hacer copia ahora'}
           </button>
           {!!copias?.length && (
