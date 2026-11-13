@@ -42,6 +42,8 @@ export interface Importacion {
   movimientos_duplicados: number
   movimientos_descartados: number
   estado: 'confirmada' | 'deshecha'
+  /** Movimientos que ya existían y la importación cambió (traspasos emparejados): su tipo anterior, para deshacer */
+  modificados: { id: string; tipo: TipoMovimiento }[]
   created_at: string
 }
 
@@ -139,7 +141,7 @@ export interface Ajustes {
   zona_casa: string[]
 }
 
-export const VERSION_ESQUEMA = 1
+export const VERSION_ESQUEMA = 2
 
 export interface BaseDatos {
   esquema: number

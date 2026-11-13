@@ -6,7 +6,7 @@
  * guarda enseguida. Nada sale del dispositivo: para llevar los datos a otro, se exporta un archivo.
  */
 import { registrar } from '../lib/registro'
-import type { BaseDatos } from '../lib/tipos'
+import { VERSION_ESQUEMA, type BaseDatos } from '../lib/tipos'
 import { migrar } from './archivo'
 import { ErrorDatos, comprobarBaseDatos, datosIniciales } from './operaciones'
 
@@ -77,6 +77,11 @@ export async function iniciarAlmacen(): Promise<BaseDatos> {
   const guardado = await leerDisco()
   if (guardado) {
     actual = migrar(guardado as Partial<BaseDatos>)
+    // Si el esquema era anterior, se guarda ya adaptado
+    if (((guardado as Partial<BaseDatos>).esquema ?? 1) < VERSION_ESQUEMA) {
+      await guardar(actual)
+      registrar('info', `Datos adaptados al esquema ${VERSION_ESQUEMA}`)
+    }
     registrar('info', 'Datos cargados del dispositivo', { movimientos: actual.movimientos.length, cuentas: actual.cuentas.length })
     // Lo guardado ya pasó las comprobaciones al escribirse; si algo no cuadra, se avisa sin bloquear la app
     const problemas = comprobarBaseDatos(actual)

@@ -14,6 +14,10 @@ Stack: React, TypeScript, Vite, Tailwind CSS, jsPDF y Recharts. Todo gratuito.
 | `src/datos/operaciones.ts` | Operaciones puras sobre los datos y sus reglas (datos identificativos, unicidad, integridad) |
 | `src/datos/almacen.ts` | Almacén en IndexedDB y suscripción de las pantallas |
 | `src/datos/archivo.ts` | Formato del archivo de exportación, validación y migración de esquemas |
+| `src/importacion/` | Importación de los Excel de BBVA: plantillas (`plantillas/*.json`), lectura, anonimización, reglas, deduplicación y Excel de prueba |
+| `src/datos/movimientos.ts` | Corrección de categorías, tipos, gastos de empleado y conciliación de reembolsos |
+| `src/lib/extracto.ts` | Extracto mensual y vistas de análisis |
+| `src/componentes/gestos.tsx` | Gestos con el pulgar: filas deslizables, cambiar de mes, volver desde el borde |
 | `src/lib/identificativos.ts` | Detección de IBAN, cuenta, tarjeta, DNI y NIE |
 | `src/lib/resumen.ts`, `src/lib/pdf.ts` | Resúmenes semanal y mensual y su PDF |
 | `src/lib/copias.ts` | Copias de seguridad, exportar e importar |
@@ -50,6 +54,7 @@ En el iPhone: abrir la dirección en Safari, Compartir, «Añadir a pantalla de 
 ```bash
 npm test        # tests unitarios (Vitest): operaciones, archivo, almacén, resúmenes, PDF, copias…
 npm run build   # comprobación de tipos y build de producción
+npm run excel:prueba   # regenera los Excel de prueba con formato BBVA en tests/fixtures/
 ```
 
 GitHub Actions ejecuta las dos en cada envío (`.github/workflows/pruebas.yml`). Los iconos de la PWA se regeneran desde `public/favicon.svg` con `node scripts/generar-iconos.mjs` (usa Playwright).

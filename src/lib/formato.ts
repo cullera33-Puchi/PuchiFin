@@ -33,3 +33,11 @@ const mesLargo = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeri
 export function formatearMes(anyoMes: string): string {
   return mesLargo.format(new Date(`${anyoMes}-01T00:00:00Z`))
 }
+
+/** Importe escrito por el usuario ("1.234,56", "12,5", "30"); null si está vacío o no es válido */
+export function leerImporteUsuario(texto: string): number | null {
+  const t = texto.trim().replace(/\s|€/g, '')
+  if (!t) return null
+  const n = Number(/,/.test(t) ? t.replace(/\./g, '').replace(',', '.') : t)
+  return Number.isFinite(n) ? Math.round(Math.abs(n) * 100) / 100 : null
+}

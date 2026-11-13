@@ -1,8 +1,9 @@
 import { ChevronLeft, ChevronRight, Download, FlaskConical, Share2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Aviso, Encabezado } from '../componentes/Encabezado'
+import { Aviso, BarraNavegacion } from '../componentes/Encabezado'
+import { Deslizable } from '../componentes/gestos'
 import { Baldosa } from '../componentes/Icono'
-import { FilaInterruptor, useInterfaz } from '../componentes/Interfaz'
+import { FilaInterruptor, Segmentado, useInterfaz } from '../componentes/Interfaz'
 import { compartirArchivo, puedeCompartirArchivos } from '../lib/compartir'
 import { contarDatosPrueba } from '../datos/operaciones'
 import { useDatos } from '../datos/ProveedorDatos'
@@ -46,27 +47,6 @@ function guardarPreferencia(clave: string, valor: string) {
   } catch {
     // sin almacenamiento
   }
-}
-
-/** Control segmentado al estilo de iOS */
-function Segmentado<T extends string>({ opciones, valor, onCambio, etiqueta }: { opciones: [T, string][]; valor: T; onCambio: (v: T) => void; etiqueta: string }) {
-  return (
-    <div role="radiogroup" aria-label={etiqueta} className="flex gap-0.5 rounded-[9px] bg-zinc-200/80 p-0.5 dark:bg-zinc-800">
-      {opciones.map(([v, texto]) => (
-        <button
-          key={v}
-          role="radio"
-          aria-checked={valor === v}
-          onClick={() => onCambio(v)}
-          className={`flex-1 rounded-[7px] px-3 py-1 text-[13px] font-medium transition ${
-            valor === v ? 'bg-white text-zinc-900 shadow-[0_3px_8px_rgba(0,0,0,0.12),0_3px_1px_rgba(0,0,0,0.04)] dark:bg-zinc-600 dark:text-white' : 'text-zinc-700 dark:text-zinc-300'
-          }`}
-        >
-          {texto}
-        </button>
-      ))}
-    </div>
-  )
 }
 
 export function Resumenes() {
@@ -118,7 +98,7 @@ export function Resumenes() {
 
   return (
     <>
-      <Encabezado titulo="Resúmenes" subtitulo="Semanal y mensual, en PDF para compartir" />
+      <BarraNavegacion titulo="Resúmenes" atras="Extracto" subtitulo="Semanal y mensual, en PDF para compartir" />
 
       <div className="mb-4 space-y-3">
         <Segmentado
@@ -183,7 +163,9 @@ export function Resumenes() {
         </div>
       )}
 
-      <VistaPrevia r={resumen} conceptos={conceptos} reducida={reducida} categorias={categorias} />
+      <Deslizable onAnterior={() => setDesplazamiento((d) => d - 1)} onSiguiente={() => setDesplazamiento((d) => d + 1)} haySiguiente={!futuro}>
+        <VistaPrevia r={resumen} conceptos={conceptos} reducida={reducida} categorias={categorias} />
+      </Deslizable>
     </>
   )
 }

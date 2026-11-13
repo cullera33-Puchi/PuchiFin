@@ -1,4 +1,4 @@
-import { Copy, Download, FlaskConical, HardDriveDownload, HardDriveUpload, RotateCcw, Share2, Trash2 } from 'lucide-react'
+import { Copy, Download, FileSpreadsheet, FlaskConical, HardDriveDownload, HardDriveUpload, RotateCcw, Share2, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { useActualizacion } from '../../componentes/Actualizacion'
 import { Aviso } from '../../componentes/Encabezado'
@@ -7,7 +7,8 @@ import { Hoja, useInterfaz } from '../../componentes/Interfaz'
 import { resumenArchivo, type ArchivoPuchiFin } from '../../datos/archivo'
 import { borrarDatosPrueba, contarDatosPrueba } from '../../datos/operaciones'
 import { intentar, useDatos } from '../../datos/ProveedorDatos'
-import { compartirArchivo, copiarTexto } from '../../lib/compartir'
+import { compartirArchivo, compartirArchivos, copiarTexto } from '../../lib/compartir'
+import { guardarAjustes } from '../../datos/operaciones'
 import {
   borrarCopia,
   borrarTodasLasCopias,
@@ -48,6 +49,9 @@ const NOMBRE_TIPO: Record<MetaCopia['tipo'], string> = {
   'antes de restaurar': 'Antes de restaurar',
   'antes de importar': 'Antes de importar',
 }
+
+/** Nombres inventados de los Excel de prueba (los mismos que importacion/excelPrueba.ts) */
+const NOMBRES_PRUEBA = { empresa: 'ACME CONSULTING SL', familia: 'MARIA GARCIA LOPEZ' }
 
 export function Herramientas() {
   const db = useDatos()
@@ -330,6 +334,44 @@ export function Herramientas() {
             <FlaskConical className="size-4" strokeWidth={2} /> Generar datos de prueba
           </button>
         )}
+      </Seccion>
+
+      <Seccion
+        titulo="Excel de prueba"
+        nota="Tres Excel inventados con el formato de BBVA (cuenta principal, cuenta 2 y tarjeta), desde la fecha de inicio hasta hoy. Guárdalos en Archivos e impórtalos desde Movimientos para probar la importación con datos de mentira."
+      >
+        <div className="flex flex-wrap gap-2">
+          <button
+            className="boton-secundario"
+            onClick={async () => {
+              const { escribirXlsx, generarExcelPrueba } = await import('../../importacion/excelPrueba')
+              const excels = generarExcelPrueba({ desde: db.ajustes.fecha_inicio, hasta: hoyIso() })
+              const tipo = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+              const r = await compartirArchivos(excels.map((x) => ({ blob: new Blob([escribirXlsx(x.filas) as BlobPart], { type: tipo }), nombre: x.nombre })), 'Excel de prueba de PuchiFin')
+              if (r === 'descargado') avisar('Excel de prueba descargados')
+            }}
+          >
+            <FileSpreadsheet className="size-4" strokeWidth={2} /> Descargar Excel de prueba
+          </button>
+          {!db.ajustes.alias_terceros.some((a) => a.patrones.includes(NOMBRES_PRUEBA.empresa)) && (
+            <button
+              className="boton-texto px-2"
+              onClick={async () => {
+                const alias = db.ajustes.alias_terceros.map((a) =>
+                  a.alias === 'Empresa' ? { ...a, patrones: [...a.patrones, NOMBRES_PRUEBA.empresa] } : a.alias === 'Familia' ? { ...a, patrones: [...a.patrones, NOMBRES_PRUEBA.familia] } : a,
+                )
+                const e = await intentar((d) => guardarAjustes(d, { alias_terceros: alias }), 'Alias de prueba añadidos')
+                avisar(e ?? 'Nombres de prueba añadidos a Empresa y Familia')
+              }}
+            >
+              Añadir sus nombres a los alias
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-zinc-500">
+          Llevan a propósito un IBAN, números de tarjeta, un DNI y nombres de personas, para comprobar que la importación los quita. Los nombres de la
+          empresa ({NOMBRES_PRUEBA.empresa}) y de la familia ({NOMBRES_PRUEBA.familia}) se sustituyen por su alias si los añades.
+        </p>
       </Seccion>
 
       <Seccion titulo="Registro" nota="Errores y eventos de la app. Cópialo o compártelo para pegarlo en el chat. No incluye conceptos ni importes.">

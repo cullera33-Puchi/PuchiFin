@@ -81,7 +81,7 @@ export function generarDatosPrueba(opciones: {
     if (!i) {
       i = {
         id: nuevoId(), cuenta_id: cuentaId, origen: 'datos_prueba', fecha_desde: desde, fecha_hasta: hasta,
-        movimientos_nuevos: 0, movimientos_duplicados: 0, movimientos_descartados: 0, estado: 'confirmada', created_at: creado,
+        movimientos_nuevos: 0, movimientos_duplicados: 0, movimientos_descartados: 0, estado: 'confirmada', modificados: [], created_at: creado,
       }
       importaciones.set(cuentaId, i)
     }
@@ -165,7 +165,7 @@ export function generarDatosPrueba(opciones: {
       anadir(principal, dia, 'TRASPASO A Cuenta 2', -500, null, 'traspaso_interno')
       anadir(segunda, dia, 'TRASPASO DE Cuenta principal', 500, null, 'traspaso_interno')
     }
-    if (d === 20) {
+    if (d === 10) {
       // Reembolso de la empresa por los gastos de empleado del mes anterior
       const mesAnterior = sumarDias(`${mes}-01`, -1).slice(0, 7)
       const gastos = empleadoPorMes.get(mesAnterior) ?? []

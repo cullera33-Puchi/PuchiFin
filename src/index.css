@@ -69,3 +69,19 @@
 @utility fila {
   @apply flex min-h-12 w-full items-center gap-3 px-4 py-2 text-left;
 }
+
+/* Gráficos: paleta categórica validada (claro y oscuro) */
+:root {
+  --serie-1: #2a78d6;
+  --serie-2: #eb6834;
+  --graf-texto: #52514e;
+  --graf-rejilla: #e4e4e0;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --serie-1: #3987e5;
+    --serie-2: #d95926;
+    --graf-texto: #c3c2b7;
+    --graf-rejilla: #3a3a37;
+  }
+}

@@ -1,4 +1,5 @@
-import { Plus, X } from 'lucide-react'
+import { ChevronRight, Plus, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useState, type FormEvent } from 'react'
 import { Aviso } from '../../componentes/Encabezado'
 import { contieneIdentificativo } from '../../lib/identificativos'
@@ -83,28 +84,62 @@ export function General() {
         <div>
           <h2 className="text-sm font-semibold">Alias de terceros</h2>
           <p className="text-xs text-zinc-500">
-            Sustituyen el nombre del ordenante o beneficiario en transferencias y Bizum. Los patrones de reconocimiento se
-            configuran en la fase 2.
+            Al importar, el nombre del ordenante o beneficiario de transferencias y Bizum se sustituye por su alias si coincide con uno de
+            estos nombres; si no, se quita. Los nombres se guardan solo en el iPhone.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {ajustes.alias_terceros.map((a) => (
-            <span key={a.alias} className="inline-flex items-center gap-1 rounded-full bg-zinc-100 py-1 pr-1 pl-3 text-sm dark:bg-zinc-800">
-              {a.alias}
-              <button
-                type="button"
-                aria-label={`Quitar ${a.alias}`}
-                className="rounded-full p-0.5 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-700"
-                onClick={() => cambiar({ alias_terceros: ajustes.alias_terceros.filter((x) => x.alias !== a.alias) })}
-              >
-                <X className="size-3.5" />
-              </button>
-            </span>
+        <ul className="space-y-3">
+          {ajustes.alias_terceros.map((a, i) => (
+            <li key={a.alias} className="rounded-[10px] bg-zinc-50 p-3 dark:bg-zinc-800/40">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[15px] font-medium">{a.alias}</span>
+                <button
+                  type="button"
+                  className="boton-texto text-xs text-red-600 dark:text-red-500"
+                  onClick={() => cambiar({ alias_terceros: ajustes.alias_terceros.filter((x) => x.alias !== a.alias) })}
+                >
+                  Quitar alias
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {a.patrones.map((p) => (
+                  <span key={p} className="inline-flex items-center gap-1 rounded-full bg-white py-0.5 pr-1 pl-2.5 text-[13px] dark:bg-zinc-900">
+                    {p}
+                    <button
+                      type="button"
+                      aria-label={`Quitar ${p}`}
+                      className="rounded-full p-0.5 text-zinc-400"
+                      onClick={() => cambiar({ alias_terceros: ajustes.alias_terceros.map((x, j) => (j === i ? { ...x, patrones: x.patrones.filter((y) => y !== p) } : x)) })}
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </span>
+                ))}
+                {!a.patrones.length && <span className="text-xs text-zinc-500">Sin nombres: no sustituye nada</span>}
+              </div>
+              <input
+                className="campo mt-2"
+                placeholder={a.alias === 'Empresa' ? 'Nombre de la empresa, como aparece en BBVA' : 'Añadir un nombre'}
+                maxLength={60}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return
+                  e.preventDefault()
+                  const v = e.currentTarget.value.trim()
+                  if (!v) return
+                  if (contieneIdentificativo(v)) {
+                    setError('El nombre no puede contener números de cuenta, tarjeta ni DNI')
+                    return
+                  }
+                  cambiar({ alias_terceros: ajustes.alias_terceros.map((x, j) => (j === i && !x.patrones.includes(v) ? { ...x, patrones: [...x.patrones, v] } : x)) })
+                  e.currentTarget.value = ''
+                }}
+              />
+            </li>
           ))}
-        </div>
+        </ul>
         <div className="flex gap-2">
           <input
-            className="campo max-w-60"
+            className="campo"
             placeholder="Nuevo alias"
             maxLength={30}
             value={nuevoAlias}
@@ -116,11 +151,18 @@ export function General() {
               }
             }}
           />
-          <button type="button" className="boton-secundario" onClick={anadirAlias}>
+          <button type="button" className="boton-secundario shrink-0" onClick={anadirAlias}>
             <Plus className="size-4" /> Añadir
           </button>
         </div>
+        <p className="text-xs text-zinc-500">Escribe el nombre y pulsa Intro. Guarda los cambios con «Guardar ajustes».</p>
       </section>
+
+      <Link to="/ajustes/reglas" className="lista fila">
+        <span className="flex-1 text-[15px]">Reglas de categorización</span>
+        <span className="text-[15px] text-zinc-500">{db.reglas.filter((r) => r.activa).length} activas</span>
+        <ChevronRight className="size-4 text-zinc-400" />
+      </Link>
 
       {deuda && (
         <section className="tarjeta space-y-2">

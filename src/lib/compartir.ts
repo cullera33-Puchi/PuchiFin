@@ -68,3 +68,21 @@ export async function copiarTexto(texto: string): Promise<boolean> {
     return ok
   }
 }
+
+/** Comparte varios archivos de una vez (iPhone) o los descarga uno a uno */
+export async function compartirArchivos(archivos: { blob: Blob; nombre: string }[], titulo: string): Promise<ResultadoCompartir> {
+  try {
+    const files = archivos.map((a) => new File([a.blob], a.nombre, { type: a.blob.type }))
+    if (navigator.canShare?.({ files })) {
+      await navigator.share({ files, title: titulo })
+      registrar('info', 'Archivos compartidos', { n: files.length })
+      return 'compartido'
+    }
+  } catch (e) {
+    if ((e as Error)?.name === 'AbortError') return 'cancelado'
+    registrar('aviso', `Compartir no disponible: ${(e as Error)?.message ?? e}`)
+  }
+  archivos.forEach((a, i) => setTimeout(() => descargar(a.blob, a.nombre), i * 400))
+  registrar('info', 'Archivos descargados', { n: archivos.length })
+  return 'descargado'
+}
