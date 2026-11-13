@@ -2,6 +2,14 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.18.0. Tira de periodos, aviso de importación y registro más limpio (13 de noviembre de 2026)
+
+- `TiraPeriodos` (`src/componentes/TiraPeriodos.tsx`, `opcionesMeses`, `opcionesAnios`): botones de 48 px que se deslizan de lado, el elegido resaltado y centrado. Sustituye a las flechas en el Extracto, en Informes y en la categoría de un informe. En el informe anual, tocar la barra de un mes abre ese mes arriba del todo.
+- `avisoImportacion` (`src/lib/avisos.ts`, `DIAS_AVISO_IMPORTACION` = 5): cuentas y tarjetas activas ya importadas alguna vez cuya última importación real es de hace 5 días o más; aviso en el Extracto con enlace a Importar.
+- Registro (`src/lib/registro.ts`): `sanearDescripcion` quita comercios, importes y nombres de categoría de las descripciones de los cambios (también de lo ya anotado, al leerlo); las entradas iguales seguidas en 10 minutos se agrupan con recuento (`n`, «(×N)»). En Herramientas, «Borrar» a la vista con confirmación y Deshacer.
+- Análisis del registro enviado por el usuario: sin errores; un fallo puntual de red al buscar actualización; comercios en las descripciones de los cambios (corregido).
+- Pruebas: 335 tests.
+
 ## v0.17.0. Crear una categoría al recategorizar, con aviso de parecidas (13 de noviembre de 2026)
 
 - `categoriasParecidas` (`src/datos/parecidas.ts`): igual sin acentos, mayúsculas ni plural; parecida (una dentro de otra, errata o palabra en común); sinónimo (lista corta de grupos habituales). Ordenadas de más a menos parecida. Tests en `parecidas.test.ts`.

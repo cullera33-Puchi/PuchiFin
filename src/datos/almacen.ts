@@ -5,7 +5,7 @@
  * registro). Cada cambio pasa por cambiar(), que aplica una operación pura, avisa a la interfaz y
  * guarda enseguida. Nada sale del dispositivo: para llevar los datos a otro, se exporta un archivo.
  */
-import { registrar } from '../lib/registro'
+import { registrar, sanearDescripcion } from '../lib/registro'
 import { VERSION_ESQUEMA, type BaseDatos } from '../lib/tipos'
 import { migrar } from './archivo'
 import { ErrorDatos, comprobarBaseDatos, datosIniciales } from './operaciones'
@@ -120,7 +120,7 @@ export async function cambiar(operacion: (db: BaseDatos) => BaseDatos, descripci
   actual = nuevo
   oyentes.forEach((f) => f())
   await guardar(nuevo)
-  if (descripcion) registrar('info', descripcion)
+  if (descripcion) registrar('info', sanearDescripcion(descripcion))
 }
 
 /** Sustituye todos los datos (importar un archivo o restaurar una copia) */

@@ -1,10 +1,11 @@
-import { ChartColumn, Check, ChevronLeft, ChevronRight, Sheet, X } from 'lucide-react'
+import { ChartColumn, Check, ChevronRight, Sheet, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts'
 import { BarraNavegacion, Encabezado } from '../componentes/Encabezado'
 import { FilaMovimientoDeslizable } from '../componentes/FilaMovimientoDeslizable'
 import { Deslizable } from '../componentes/gestos'
+import { opcionesAnios, opcionesMeses, TiraPeriodos } from '../componentes/TiraPeriodos'
 import { Segmentado, useInterfaz } from '../componentes/Interfaz'
 import { DetalleMovimiento } from '../componentes/movimientos'
 import { useDatos } from '../datos/ProveedorDatos'
@@ -50,6 +51,15 @@ function useEstadoInforme() {
   return { hoy, vista, escala, periodo, ir, consulta, sub, elegirSub }
 }
 
+/** Desde el informe anual, tocar la barra de un mes abre ese mes, arriba del todo */
+const irAlMes = (ir: (c: { escala?: Escala; p?: string }) => void, mes: string) => {
+  ir({ escala: 'mes', p: mes })
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+/** Opciones de la tira de periodos: de los primeros datos a hoy */
+const tiraDe = (escala: Escala, primero: string, hoy: string) => (escala === 'mes' ? opcionesMeses(primero.slice(0, 7), hoy.slice(0, 7)) : opcionesAnios(primero, hoy))
+
 const nombrePeriodo = (p: PeriodoInforme) => (p.escala === 'mes' ? mesLargo(`${p.clave}-01`) : `Año ${p.clave}`)
 
 export function Informes() {
@@ -77,21 +87,15 @@ export function Informes() {
         <Segmentado etiqueta="Qué ver" opciones={[['gasto', 'Gastos'], ['ingreso', 'Ingresos']]} valor={vista} onCambio={(v) => ir({ vista: v })} />
         <Segmentado etiqueta="Periodo" opciones={[['mes', 'Mes'], ['anio', 'Año']]} valor={escala} onCambio={(e) => ir({ escala: e })} />
       </div>
-      <div className="mb-3 flex items-center gap-1">
-        <button className="boton-icono" aria-label="Periodo anterior" disabled={!hayAnterior} onClick={() => ir({ p: anterior.clave })}>
-          <ChevronLeft className="size-6" strokeWidth={2} />
-        </button>
-        <h2 className="flex-1 text-center text-[17px] font-semibold">{nombrePeriodo(periodo)}</h2>
-        <button className="boton-icono" aria-label="Periodo siguiente" disabled={!haySiguiente} onClick={() => ir({ p: siguiente.clave })}>
-          <ChevronRight className="size-6" strokeWidth={2} />
-        </button>
+      <div className="mb-3">
+        <TiraPeriodos etiqueta="Periodo del informe" opciones={tiraDe(escala, primero, hoy)} valor={periodo.clave} onElegir={(p) => ir({ p })} />
       </div>
 
       <Deslizable onAnterior={() => ir({ p: anterior.clave })} onSiguiente={() => ir({ p: siguiente.clave })} hayAnterior={hayAnterior} haySiguiente={haySiguiente}>
         <div className="space-y-4">
           <Totales informe={informe} onVista={(v) => ir({ vista: v })} />
           <PanelQuesito informe={informe} onAbrir={(id) => navegar(`/informes/categoria/${id ?? 'sin'}?${consulta}`)} />
-          <Evolucion db={db} informe={informe} onPeriodo={(p) => ir({ p })} />
+          <Evolucion db={db} informe={informe} onPeriodo={(p) => (p.length === 7 && escala === 'anio' ? irAlMes(ir, p) : ir({ p }))} />
         </div>
       </Deslizable>
     </>
@@ -273,7 +277,7 @@ function Evolucion({ db, informe, onPeriodo, categoria }: { db: ReturnType<typeo
               dataKey="importe"
               radius={[4, 4, 0, 0]}
               maxBarSize={28}
-              onClick={(d) => periodo.escala === 'mes' && onPeriodo((d as unknown as { clave: string }).clave)}
+              onClick={(d) => onPeriodo((d as unknown as { clave: string }).clave)}
               label={(props: { x?: number | string; y?: number | string; width?: number | string; value?: unknown }) =>
                 Number(props.value) ? (
                   <text x={Number(props.x) + Number(props.width) / 2} y={Number(props.y) - 5} textAnchor="middle" fontSize={10} fill="var(--graf-texto)">
@@ -307,9 +311,7 @@ export function InformeCategoria() {
   const nombreSub = porcionSub?.nombre ?? (sub ? db.categorias.find((c) => c.id === sub)?.nombre : undefined)
   const movimientos = sub === undefined ? informe.movimientos : informe.movimientos.filter((m) => m.categoria_id === sub)
   const totalVisto = Math.round((vista === 'gasto' ? -1 : 1) * movimientos.reduce((s, m) => s + m.importe, 0) * 100) / 100
-  const anterior = moverPeriodo(periodo, -1)
-  const siguiente = moverPeriodo(periodo, 1)
-  const haySiguiente = siguiente.clave <= periodoDeFecha(periodo.escala, hoy).clave
+  const primero = useMemo(() => db.movimientos.reduce((min, m) => (m.fecha_operacion < min ? m.fecha_operacion : min), hoy), [db.movimientos, hoy])
 
   const exportar = async () => {
     const r = await (await import('../lib/exportarExcel')).exportarVista(db, `informe ${categoria?.nombre ?? 'sin categoria'}${nombreSub ? ` ${nombreSub}` : ''} ${periodo.clave}`, movimientos, [
@@ -335,20 +337,14 @@ export function InformeCategoria() {
           </button>
         }
       />
-      <div className="mb-3 flex items-center gap-1">
-        <button className="boton-icono" aria-label="Periodo anterior" onClick={() => ir({ p: anterior.clave })}>
-          <ChevronLeft className="size-6" strokeWidth={2} />
-        </button>
-        <h2 className="flex-1 text-center text-[17px] font-semibold">{nombrePeriodo(periodo)}</h2>
-        <button className="boton-icono" aria-label="Periodo siguiente" disabled={!haySiguiente} onClick={() => ir({ p: siguiente.clave })}>
-          <ChevronRight className="size-6" strokeWidth={2} />
-        </button>
+      <div className="mb-3">
+        <TiraPeriodos etiqueta="Periodo del informe" opciones={tiraDe(periodo.escala, primero, hoy)} valor={periodo.clave} onElegir={(p) => ir({ p })} />
       </div>
       {/* Sin cambio de mes deslizando: en una pantalla apilada, deslizar a la derecha es volver */}
       <div>
         <div className="space-y-4">
           {informe.porciones.length > 1 && <PanelQuesito informe={informe} elegida={sub} onElegir={(id) => elegirSub(id === sub || !id ? undefined : id)} />}
-          <Evolucion db={db} informe={informe} categoria={categoriaId} onPeriodo={(p) => ir({ p })} />
+          <Evolucion db={db} informe={informe} categoria={categoriaId} onPeriodo={(p) => (p.length === 7 && periodo.escala === 'anio' ? irAlMes(ir, p) : ir({ p }))} />
           {informe.porciones.length > 1 && (
             <div className="flex items-center gap-2 px-1">
               <p className="min-w-0 flex-1 text-[13px] text-zinc-500">

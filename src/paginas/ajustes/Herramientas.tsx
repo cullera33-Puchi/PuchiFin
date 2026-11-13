@@ -229,7 +229,13 @@ export function Herramientas() {
     }
     if (await copiarTexto(texto)) avisar('Registro copiado. Pégalo en el chat')
   }
-  const borrarReg = () => {
+  const borrarReg = async () => {
+    const ok = await confirmar({
+      titulo: 'Borrar el registro',
+      texto: `Se borran ${entradas.length} entradas del registro. Tus datos no se tocan. Podrás deshacerlo durante unos segundos.`,
+      aceptar: 'Borrar',
+    })
+    if (!ok) return
     const antes = borrarRegistro()
     setVerRegistro(false)
     avisar('Registro borrado', { texto: 'Deshacer', fn: () => recuperarRegistro(antes) })
@@ -388,7 +394,7 @@ export function Herramientas() {
 
       <SeccionEmpezarDeCero />
 
-      <Seccion titulo="Registro" nota="Errores y eventos de la app. Cópialo o compártelo para pegarlo en el chat. No incluye conceptos ni importes.">
+      <Seccion titulo="Registro" nota="Errores y eventos de la app. Cópialo o compártelo para pegarlo en el chat. No incluye comercios, importes ni nombres; lo repetido seguido sale una vez con el número de veces.">
         <div className="flex flex-wrap items-center gap-2">
           <span className="mr-auto text-sm">{entradas.length} entradas</span>
           <button className="boton-secundario" onClick={() => setVerRegistro(true)}>
@@ -399,6 +405,9 @@ export function Herramientas() {
           </button>
           <button className="boton-secundario" onClick={compartirRegistro}>
             <Share2 className="size-4" strokeWidth={2} /> Compartir
+          </button>
+          <button className="boton-texto px-2 text-red-600 dark:text-red-500" disabled={!entradas.length} onClick={borrarReg}>
+            Borrar
           </button>
         </div>
       </Seccion>

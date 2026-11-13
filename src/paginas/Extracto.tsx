@@ -1,13 +1,14 @@
-import { ChartColumn, ChevronLeft, ChevronRight, FileText, FlaskConical, HardDriveDownload, Landmark, Sheet, Sparkles, Tag, Upload } from 'lucide-react'
+import { ChartColumn, ChevronRight, FileText, FlaskConical, HardDriveDownload, Landmark, Sheet, Sparkles, Tag, Upload } from 'lucide-react'
 import { useMemo } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Aviso, Encabezado } from '../componentes/Encabezado'
 import { Deslizable } from '../componentes/gestos'
+import { opcionesMeses, TiraPeriodos } from '../componentes/TiraPeriodos'
 import { Baldosa } from '../componentes/Icono'
 import { useInterfaz } from '../componentes/Interfaz'
 import { contarDatosPrueba } from '../datos/operaciones'
 import { useDatos } from '../datos/ProveedorDatos'
-import { avisoExportacion } from '../lib/avisos'
+import { avisoExportacion, avisoImportacion } from '../lib/avisos'
 import { calcularExtracto, mesDe } from '../lib/extracto'
 import { mesEfectivo } from '../lib/imputacion'
 import { hoyIso, mesLargo, sumarMeses } from '../lib/fechas'
@@ -39,7 +40,16 @@ export function Extracto() {
     [db],
   )
   const aviso = avisoExportacion(db)
+  const importar = useMemo(() => avisoImportacion(db), [db])
   const irA = (m: string) => setParams({ mes: m }, { replace: true })
+  // Meses de la tira: del primero con datos al último (el en curso o uno posterior imputado, como la nómina)
+  const meses = useMemo(() => {
+    const efectivos = db.movimientos.map(mesEfectivo)
+    const actual = mesDe(hoyIso())
+    const desde = efectivos.reduce((min, x) => (x < min ? x : min), actual)
+    const hasta = efectivos.reduce((max, x) => (x > max ? x : max), actual)
+    return opcionesMeses(desde < mes ? desde : mes, hasta > mes ? hasta : mes)
+  }, [db.movimientos, mes])
   const anterior = sumarMeses(`${mes}-01`, -1).slice(0, 7)
   const siguiente = sumarMeses(`${mes}-01`, 1).slice(0, 7)
   const puedeSiguiente = siguiente <= mesDe(hoyIso()) || e.haySiguiente
@@ -101,6 +111,19 @@ export function Extracto() {
             </span>
           </Aviso>
         )}
+        {importar && (
+          <Link to="/movimientos/importar" className="lista fila">
+            <Baldosa glifo={Upload} color="#007AFF" tamano="sm" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px]">Sube los movimientos del banco</span>
+              <span className="block text-xs text-zinc-500">
+                {importar.cuentas.length === 1 ? importar.cuentas[0] : `${importar.cuentas.slice(0, -1).join(', ')} y ${importar.cuentas[importar.cuentas.length - 1]}`}
+                {`: última importación hace ${importar.dias} días`}
+              </span>
+            </span>
+            <ChevronRight className="size-4 text-zinc-400" />
+          </Link>
+        )}
         {aviso && (
           <Aviso tipo="info">
             <span className="flex flex-wrap items-center gap-2">
@@ -113,14 +136,8 @@ export function Extracto() {
         )}
       </div>
 
-      <div className="mb-3 flex items-center gap-1">
-        <button className="boton-icono" aria-label="Mes anterior" disabled={!e.hayAnterior} onClick={() => irA(anterior)}>
-          <ChevronLeft className="size-6" strokeWidth={2} />
-        </button>
-        <h2 className="flex-1 text-center text-[17px] font-semibold">{mesLargo(`${mes}-01`)}</h2>
-        <button className="boton-icono" aria-label="Mes siguiente" disabled={!puedeSiguiente} onClick={() => irA(siguiente)}>
-          <ChevronRight className="size-6" strokeWidth={2} />
-        </button>
+      <div className="mb-3">
+        <TiraPeriodos etiqueta="Mes del extracto" opciones={meses} valor={mes} onElegir={irA} />
       </div>
 
       <Deslizable onAnterior={() => irA(anterior)} onSiguiente={() => irA(siguiente)} hayAnterior={e.hayAnterior} haySiguiente={puedeSiguiente}>

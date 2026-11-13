@@ -7,6 +7,7 @@ import {
   entradasRegistro,
   recuperarRegistro,
   registrar,
+  sanearDescripcion,
   textoRegistro,
 } from './registro'
 
@@ -51,5 +52,29 @@ describe('registro', () => {
     registrar('info', 'b')
     recuperarRegistro(antes)
     expect(entradasRegistro().map((e) => e.m)).toEqual(['a', 'b'])
+  })
+})
+
+describe('registro sin datos personales y sin ruido', () => {
+  it('quita comercios, importes y categorías de las descripciones de los cambios', () => {
+    expect(sanearDescripcion('Comercio Zeta: se queda en Restaurantes, Cafeterías')).toBe('Mejora de categoría descartada')
+    expect(sanearDescripcion('7 movimientos: Hijos, Cuidado')).toBe('7 movimientos: categoría cambiada')
+    expect(sanearDescripcion('3 cargos de 12,99 €: Ocio, Juegos')).toBe('3 cargos de (importe): categoría cambiada')
+    expect(sanearDescripcion('Jardinería. Regla creada para las próximas')).toBe('Categoría elegida. Regla creada para las próximas')
+    expect(sanearDescripcion('Tipo: Pago de deuda')).toBe('Tipo cambiado')
+    expect(sanearDescripcion('Copia diaria guardada en el dispositivo')).toBe('Copia diaria guardada en el dispositivo')
+  })
+
+  it('agrupa lo mismo repetido seguido en una entrada con recuento', () => {
+    registrar('info', 'Fuera del extracto')
+    registrar('info', 'Fuera del extracto')
+    registrar('info', 'Fuera del extracto')
+    registrar('info', 'Otra cosa')
+    const e = entradasRegistro()
+    expect(e.map((x) => [x.m, x.n])).toEqual([
+      ['Fuera del extracto', 3],
+      ['Otra cosa', undefined],
+    ])
+    expect(textoRegistro()).toContain('Fuera del extracto (×3)')
   })
 })

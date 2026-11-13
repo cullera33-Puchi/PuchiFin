@@ -16,6 +16,27 @@ export interface Entrada {
   l: Nivel
   m: string
   x?: string
+  /** Veces seguidas que se ha repetido la misma entrada (se anota una sola con el recuento) */
+  n?: number
+}
+
+/** Las entradas iguales seguidas en este intervalo se agrupan en una */
+const AGRUPAR_MS = 10 * 60 * 1000
+
+const IMPORTE = /[-+]?\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?\s?€/g
+
+/**
+ * Las descripciones de los cambios son las del aviso en pantalla y pueden llevar comercios, importes o
+ * nombres de categorías. En el registro solo queda qué se hizo y cuántos.
+ */
+export function sanearDescripcion(m: string): string {
+  return m
+    .replace(IMPORTE, '(importe)')
+    .replace(/«[^»]*»/g, '«…»')
+    .replace(/^.*: se queda en .*$/, 'Mejora de categoría descartada')
+    .replace(/^.*\. Regla creada para las próximas$/, 'Categoría elegida. Regla creada para las próximas')
+    .replace(/^(\d+ [^:]+):.*$/, '$1: categoría cambiada')
+    .replace(/^Tipo: .*$/, 'Tipo cambiado')
 }
 
 export const CLAVE_REGISTRO = 'puchifin-registro'
@@ -27,7 +48,8 @@ const oyentes = new Set<() => void>()
 function leer(): Entrada[] {
   try {
     const v = JSON.parse(localStorage.getItem(CLAVE_REGISTRO) ?? '[]')
-    return Array.isArray(v) ? v : []
+    // Lo anotado por versiones anteriores pasa por el mismo saneado (comercios e importes fuera)
+    return Array.isArray(v) ? v.map((e: Entrada) => (e.l === 'info' ? { ...e, m: sanearDescripcion(e.m) } : e)) : []
   } catch {
     return []
   }
@@ -54,7 +76,11 @@ export function registrar(nivel: Nivel, mensaje: string, extra?: unknown): void 
     }
     e.x = enmascararIdentificativos(x)
   }
-  entradas = [...entradas, e].slice(-MAX_ENTRADAS)
+  // Lo mismo repetido seguido (por ejemplo, categorizar uno a uno) cuenta como una entrada con recuento
+  const ultima = entradas[entradas.length - 1]
+  if (ultima && ultima.l === e.l && ultima.m === e.m && ultima.x === e.x && Date.parse(e.t) - Date.parse(ultima.t) < AGRUPAR_MS) {
+    entradas = [...entradas.slice(0, -1), { ...ultima, t: e.t, n: (ultima.n ?? 1) + 1 }]
+  } else entradas = [...entradas, e].slice(-MAX_ENTRADAS)
   guardar()
 }
 
@@ -99,7 +125,7 @@ export function textoRegistro(resumenDatos?: string): string {
     .join(' | ')
   const lineas = entradas.map((e) => {
     const t = e.t.replace('T', ' ').slice(5, 19)
-    return `${t} [${e.l}] ${e.m}${e.x ? ` | ${e.x}` : ''}`
+    return `${t} [${e.l}] ${e.m}${e.n ? ` (×${e.n})` : ''}${e.x ? ` | ${e.x}` : ''}`
   })
   return `${cabecera}\n${lineas.length ? lineas.join('\n') : '(sin entradas)'}`
 }

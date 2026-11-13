@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.18.0",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Cambiar de mes o de año es más cómodo: una tira de botones grandes que se desliza de lado, en el Extracto y en Informes. En el informe anual, toca la barra de un mes para abrirlo.",
+      "Aviso en el Extracto cuando una cuenta o la tarjeta lleva 5 días o más sin subir datos del banco, con acceso directo a Importar.",
+      "Registro: botón «Borrar» a la vista (con confirmación y Deshacer). Ya no anota comercios, importes ni categorías, y lo repetido seguido sale una sola vez con el número de veces."
+    ]
+  },
+  {
     "version": "0.17.0",
     "fecha": "2026-11-13",
     "cambios": [

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { datosIniciales } from '../datos/operaciones'
 import { generarDatosPrueba } from './datosPrueba'
-import { avisoExportacion } from './avisos'
+import { avisoExportacion, avisoImportacion } from './avisos'
 import type { Movimiento } from './tipos'
 
 describe('avisoExportacion', () => {
@@ -19,5 +19,36 @@ describe('avisoExportacion', () => {
     expect(avisoExportacion(conReal, null)).toMatch(/Todavía no/)
     expect(avisoExportacion(conReal, '2026-11-01T10:00:00Z', new Date('2026-11-20T10:00:00Z'))).toMatch(/hace 19 días/)
     expect(avisoExportacion(conReal, '2026-11-10T10:00:00Z', new Date('2026-11-20T10:00:00Z'))).toBeNull()
+  })
+})
+
+describe('avisoImportacion', () => {
+  const db = datosIniciales()
+  const [principal, segunda, tarjeta] = db.cuentas
+  const imp = (cuenta_id: string, created_at: string, origen: 'bbva_cuenta' | 'datos_prueba' = 'bbva_cuenta') => ({
+    id: `${cuenta_id}${created_at}`, cuenta_id, origen, fecha_desde: null, fecha_hasta: null, movimientos_nuevos: 1, movimientos_duplicados: 0,
+    movimientos_descartados: 0, estado: 'confirmada' as const, modificados: [], created_at,
+  })
+  const hoy = new Date('2026-11-20T10:00:00Z')
+
+  it('no avisa sin importaciones reales', () => {
+    expect(avisoImportacion(db, hoy)).toBeNull()
+    expect(avisoImportacion({ ...db, importaciones: [imp(principal.id, '2026-10-01T10:00:00Z', 'datos_prueba')] }, hoy)).toBeNull()
+  })
+
+  it('avisa de las cuentas sin subir datos desde hace 5 días o más, la más atrasada primero', () => {
+    const r = avisoImportacion(
+      {
+        ...db,
+        importaciones: [
+          imp(principal.id, '2026-11-18T10:00:00Z'),
+          imp(segunda.id, '2026-11-15T09:00:00Z'),
+          imp(tarjeta.id, '2026-11-02T10:00:00Z'),
+          imp(tarjeta.id, '2026-11-10T10:00:00Z'),
+        ],
+      },
+      hoy,
+    )
+    expect(r).toEqual({ dias: 10, cuentas: [tarjeta.alias, segunda.alias] })
   })
 })
