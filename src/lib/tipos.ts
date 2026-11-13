@@ -144,8 +144,6 @@ export interface AliasTercero {
 }
 
 export interface Ajustes {
-  fecha_inicio: string
-  fecha_corte_fintonic: string
   alias_terceros: AliasTercero[]
   dias_aviso_reembolso: number
   umbral_aviso_presupuesto: number
@@ -157,7 +155,7 @@ export interface Ajustes {
   version_logica: string | null
 }
 
-export const VERSION_ESQUEMA = 7
+export const VERSION_ESQUEMA = 8
 
 export interface BaseDatos {
   esquema: number

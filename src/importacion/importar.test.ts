@@ -80,9 +80,9 @@ describe('importación completa con los Excel de prueba', () => {
   const segunda = importar(db, 'cuenta 2')
   db = segunda.db
 
-  it('descarta lo anterior a la fecha de inicio', () => {
-    expect(tarjeta.p.anteriores).toBeGreaterThan(0)
-    expect(db.movimientos.every((m) => m.fecha_operacion >= '2026-10-01')).toBe(true)
+  it('entra todo lo que trae el fichero, sin fecha de inicio', () => {
+    expect(db.movimientos.some((m) => m.fecha_operacion < '2026-10-01')).toBe(true)
+    expect(tarjeta.p.nuevos.length).toBe(leerFichero(fichero('tarjeta')).filas.length)
   })
 
   it('no guarda ningún dato identificativo ni nombres sin alias', () => {
@@ -112,7 +112,7 @@ describe('importación completa con los Excel de prueba', () => {
     const base = { ...datosIniciales(), ajustes: db.ajustes }
     const primero = confirmarImportacion(base, proponer(base, leerFichero(parcial), base.cuentas[2].id), { aceptadas: new Set() })
     const completo = proponer(primero, leerFichero(fichero('tarjeta')), primero.cuentas[2].id)
-    expect(completo.nuevos.length).toBe(10 - completo.anteriores)
+    expect(completo.nuevos.length).toBe(10)
   })
 
   it('el saldo de las dos cuentas cuadra con el del banco tras importar', () => {

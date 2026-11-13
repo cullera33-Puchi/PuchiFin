@@ -54,7 +54,7 @@ Fases 1 a 3 de la hoja de ruta. Las fases 4 a 6 quedan fuera hasta nueva indicac
 ### Fase 2. Importación BBVA
 
 - Lector de Excel de cuenta y de tarjeta. El mapeo de columnas va en un fichero de configuración por origen, no en el código.
-- Anonimización, normalización, deduplicación, fecha de inicio 1 de octubre de 2026, reglas de categorización, traspasos internos y pantalla de revisión.
+- Anonimización, normalización, deduplicación (sin fecha de inicio desde la v0.14.0: entra todo lo que traen los Excel), reglas de categorización, traspasos internos y pantalla de revisión.
 - Opción de deshacer una importación completa.
 - Se cierra cuando octubre y noviembre están importados sin duplicados, sin datos identificativos y sin doble cómputo de la tarjeta.
 
@@ -73,7 +73,7 @@ Se mantienen en todas las fases. Están en Ajustes, Herramientas.
 - **Versiones y novedades.** Cada versión publicada sube `version` en `package.json`, añade su entrada técnica a `CHANGELOG.md` y de 3 a 5 líneas para el usuario en `public/novedades.json` (la más reciente arriba, campos `version`, `fecha` y `cambios`). Sin ese cambio, los dispositivos no ven las novedades. Al detectar una versión nueva, la app avisa «Nueva versión disponible» y «Actualizar» muestra las novedades que faltan antes de aplicarla.
 - **Registro.** `registrar()` de `src/lib/registro.ts` anota errores y eventos en el dispositivo (400 entradas) para copiarlo al chat. Toda operación nueva relevante (importación, copia, restauración, exportación, PDF, errores al guardar) se registra. Nunca conceptos, importes ni nombres: solo recuentos e identificadores internos. Si se cuela un IBAN, tarjeta o DNI, se enmascara.
 - **Copias de seguridad y archivo.** Copia diaria en el dispositivo (IndexedDB, 7 últimas), copia manual, exportar a archivo JSON e importar o restaurar, que sustituye todo y antes guarda una copia del estado actual. Si cambia el modelo de datos, subir `VERSION_ESQUEMA` en `src/lib/tipos.ts` y añadir la adaptación en `migrar()` de `src/datos/archivo.ts`, para que los archivos antiguos se sigan importando.
-- **Datos de prueba.** Movimientos inventados desde la fecha de inicio hasta hoy, colgados de importaciones con origen `datos_prueba`: se eliminan de una vez sin tocar lo real. Viajan en el archivo exportado como el resto de datos. El extracto, los resúmenes y el PDF avisan cuando hay datos de prueba. Si se añaden reglas o tipos nuevos, el generador debe cubrirlos.
+- **Datos de prueba.** Movimientos inventados del mes en curso y los dos anteriores, colgados de importaciones con origen `datos_prueba`: se eliminan de una vez sin tocar lo real. Viajan en el archivo exportado como el resto de datos. El extracto, los resúmenes y el PDF avisan cuando hay datos de prueba. Si se añaden reglas o tipos nuevos, el generador debe cubrirlos.
 - **Estilo iOS (v0.3.0).** Iconos de trazo fino; los de categorías y cuentas, en baldosas de color (`Baldosa`) con el catálogo de `src/componentes/iconos.ts`. Nada de emojis como iconos. Paleta del sistema de iOS, interruptores en lugar de casillas, controles segmentados, listas agrupadas con chevrón y botones de texto o de icono sin marco. Toda pantalla nueva sigue este estilo.
 - **Pruebas en GitHub.** `.github/workflows/pruebas.yml` ejecuta los tests y el build en cada envío.
 
@@ -123,7 +123,7 @@ Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alt
 | Continua | Hojas con campos: la hoja sube con el teclado (guía 6.4); las acciones en la cabecera ya están (v0.11.0) | CV | Media | Media |
 | Continua | Menú de pulsación larga en las filas (guía 7) y búsqueda con «Cancelar» | CV | Media | Media |
 | Continua | Cambiar de pestaña deslizando y recolocación animada de las listas (guía 4.1 y 5) | CV | Baja | Media |
-| Más adelante | Fase 5: histórico de Fintonic y previsiones (cierre de mes, estacionalidad, gastos atípicos) | F | Baja | Alta |
+| Más adelante | Fase 5: previsiones (cierre de mes, estacionalidad, gastos atípicos). La carga de Fintonic se descarta: el histórico entra con los Excel de BBVA | F | Baja | Alta |
 | Más adelante | Fase 6: Face ID, notificaciones, importación de PDF, otras entidades (la sugerencia por similitud ya está, v0.9.0) | F | Baja | Media |
 | Decisión | Historial de git y descripciones de PR con datos de las primeras versiones; repositorio privado (exige otro alojamiento gratuito) | T | Pendiente del usuario | Baja |
 
@@ -137,6 +137,7 @@ Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alt
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.14.0 (13/11/2026): sin fecha de inicio ni corte con Fintonic (decisión del usuario): entra todo lo que traen los Excel. Esquema 8 (se quitan `fecha_inicio` y `fecha_corte_fintonic` de los ajustes). El cuadre de la tarjeta toma como referencia la primera compra importada; los datos y Excel de prueba cubren el mes en curso y los dos anteriores.
 - v0.13.0 (13/11/2026): respuestas del usuario a la revisión del año. Esquema 7 (`actualizarCatalogo`, mismos identificadores): Transporte > Taxi y VTC (los taxis siguen proponiéndose como posible gasto de empleado), IBI y tasas pasa de Vivienda a Impuestos, y categorías nuevas Cuidado personal, Mascotas, Formación y Efectivo, con sus reglas. Fraccionamiento de gastos como traspaso; PayPal a Compras > Hogar por defecto.
 - v0.12.0 (13/11/2026): lo aprendido del resumen de un año de movimientos reales (solo cadenas públicas y palabras genéricas en el código; las reglas personales viven en el dispositivo). Etiqueta de categoría de BBVA fuera del nombre del comercio, liquidación de la tarjeta como la llama BBVA, operaciones financiadas, diccionario ampliado y prioridades, y reglas importadas por palabra clave y de tipo.
 - v0.11.2 (13/11/2026): las copias muestran también el número de reglas y la copia manual ofrece guardar en Archivos; test de copia y restauración completa.
@@ -144,7 +145,7 @@ Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alt
 - v0.11.0 (13/11/2026): hoja de movimiento, interruptores Liquid Glass y categorizar con Claude. Pendiente de validar por el usuario.
   - `Hoja` admite `listo` (botón de texto a la derecha de la cabecera, como «Listo» en iOS) y se cierra arrastrando hacia abajo desde el contenido cuando está arriba del todo. `DetalleMovimiento` rediseñado: baldosa e importe grandes, filas agrupadas (Categoría, Tipo como lista con marca y descripción, Cuenta en el mes siguiente), nota que se guarda sola con «Guardando… / Guardada» y cada cambio con Deshacer. `useElegirCategoria`: sin parecidos, la categoría se aplica directamente con su regla, sin hoja intermedia (también al deslizar).
   - `Interruptor` al estilo Liquid Glass: carril de 64 por 28, botón en cápsula y lente de cristal al pulsar, con zona táctil de 44.
-  - Categorizar con Claude (Ajustes, Herramientas; `src/importacion/claude.ts`): resumen de comercios anonimizado de cualquier periodo (también anterior a la fecha de inicio), sin fechas, saldos, cuentas ni nombres, que no se guarda; se ve antes de copiarlo o compartirlo. Importar reglas pegadas («clave, tabulador, Categoría > Subcategoría») con vista previa, errores por línea, aplicación opcional a lo pendiente y Deshacer. Las reglas son manuales y solo viven en el dispositivo; nada va al código.
+  - Categorizar con Claude (Ajustes, Herramientas; `src/importacion/claude.ts`): resumen de comercios anonimizado de cualquier periodo, sin fechas, saldos, cuentas ni nombres, que no se guarda; se ve antes de copiarlo o compartirlo. Importar reglas pegadas («clave, tabulador, Categoría > Subcategoría») con vista previa, errores por línea, aplicación opcional a lo pendiente y Deshacer. Las reglas son manuales y solo viven en el dispositivo; nada va al código.
 - v0.10.0 (13/11/2026): categorización eficiente. Pendiente de validar por el usuario.
   - Catálogo: «Restaurantes y ocio» se separa en Restaurantes (Restaurantes, Cafeterías, Comida rápida y a domicilio, Bares y copas) y Ocio (Planes y salidas, Cine y espectáculos, Cultura, Deporte, Juegos); Suscripciones con una subcategoría por plataforma (`PLATAFORMAS`) más Otras plataformas, Software y Cuotas. Esquema 6: `actualizarCatalogo` adapta los datos anteriores sin cambiar identificadores (nada pierde su categoría).
   - Diccionario de la app (`REGLAS_BASE`) ampliado a 63 reglas con unos 650 comercios y palabras clave españolas y catalanas; las plataformas mandan sobre las reglas generales; las reglas existentes conservan su nombre para que se actualicen en el dispositivo. Test con conceptos típicos (`src/importacion/diccionario.test.ts`). Expresiones compiladas en caché.
@@ -188,11 +189,11 @@ Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alt
 
 ## 1. Objetivo y alcance
 
-App web privada que sustituye a Fintonic. Importa los movimientos de BBVA (dos cuentas y una tarjeta de crédito) desde octubre de 2026, los categoriza y muestra un extracto mensual con el gasto real, sin los gastos de empleado. Uso personal, un solo usuario, en móvil y escritorio.
+App web privada que sustituye a Fintonic. Importa los movimientos de BBVA (dos cuentas y una tarjeta de crédito) de cualquier periodo, los categoriza y muestra un extracto mensual con el gasto real, sin los gastos de empleado. Uso personal, un solo usuario, en móvil y escritorio.
 
 **Dentro de la v1**
 
-- Punto de partida en octubre de 2026: se importan octubre y noviembre de BBVA.
+- Sin fecha de inicio: entra todo lo que traen los Excel de BBVA, también el histórico (decisión del usuario, v0.14.0).
 - Importación periódica de los Excel de BBVA, cuenta y tarjeta por separado.
 - Categorías predeterminadas ampliables, categorización automática por reglas y corrección manual.
 - Gastos de empleado y sus reembolsos, que se marcan rápido y no computan.
@@ -200,7 +201,7 @@ App web privada que sustituye a Fintonic. Importa los movimientos de BBVA (dos c
 
 **Fuera de la v1**
 
-- Carga del histórico de Fintonic (fase 5) e importación de PDF.
+- Importación de PDF. La carga de Fintonic se descarta: el histórico entra con los Excel de BBVA.
 - Conexión directa con el banco (PSD2): exige un agregador de pago y no aporta frente a la carga manual mensual.
 - Análisis predictivo, que entra por fases según la hoja de ruta.
 - Otras entidades bancarias, aunque el importador queda preparado para añadir formatos.
@@ -238,13 +239,12 @@ El fichero se limpia en el dispositivo antes de guardar nada, y la importación 
 
 ## 3. Importación de ficheros
 
-La v1 solo importa de BBVA. Fintonic entra en la fase 5. Cada origen tiene su plantilla de lectura, y la app reconoce el origen por las cabeceras del fichero sin pedir que se elija.
+La app solo importa de BBVA (la carga de Fintonic se descarta). Cada origen tiene su plantilla de lectura, y la app reconoce el origen por las cabeceras del fichero sin pedir que se elija.
 
 | Origen | Formato | Uso |
 | --- | --- | --- |
 | BBVA cuenta | Excel desde bbva.es | Importación periódica (dos cuentas) |
 | BBVA tarjeta de crédito | Excel desde bbva.es | Importación periódica |
-| Fintonic | Excel exportado | Fase 5: carga del histórico hasta septiembre de 2026, una sola vez |
 
 **Flujo de importación**
 
@@ -264,11 +264,9 @@ La v1 solo importa de BBVA. Fintonic entra en la fase 5. Cada origen tiene su pl
 - Si dos movimientos legítimos coinciden en todo (dos cafés iguales el mismo día), se conserva el número de repeticiones del fichero.
 - Un fichero que se solapa con otro ya importado solo añade lo que falta.
 
-**Fecha de inicio y corte con Fintonic**
+**Sin fecha de inicio**
 
-- La app empieza el 1 de octubre de 2026. Los movimientos de BBVA anteriores se descartan al importar.
-- Cuando se cargue Fintonic, aportará solo hasta el 30 de septiembre de 2026, sin solape con BBVA.
-- La fecha de corte se guarda en ajustes y se puede mover.
+- Desde la v0.14.0 no hay fecha de inicio ni corte con Fintonic: entra todo lo que traen los Excel de BBVA. La deduplicación evita repetir lo ya importado.
 
 **Plantillas de lectura**
 
@@ -290,7 +288,7 @@ Nueve colecciones, más los ajustes, en el documento de datos del dispositivo (`
 | compromisos | Deuda pendiente, colchón, ventana de pago, mes de referencia, intereses |
 | eventos_previstos | Fecha, concepto, importe, categoría |
 
-Los ajustes generales (fecha de inicio, fecha de corte con Fintonic, lista de alias de terceros, umbrales) van en `ajustes`, dentro del mismo documento.
+Los ajustes generales (lista de alias de terceros, umbrales, días de fin de mes, zona de casa) van en `ajustes`, dentro del mismo documento.
 
 Cuentas previstas: dos cuentas bancarias, una tarjeta de crédito y una hipoteca. La hipoteca no tiene movimientos propios: su cuota se carga en una de las cuentas y computa en Vivienda, subcategoría Hipoteca.
 
@@ -312,7 +310,7 @@ La app trae un catálogo predeterminado de categorías que se puede ampliar, y l
 
 **Punto de partida**
 
-- Catálogo predeterminado de gasto e ingreso (tabla inferior). Cuando se cargue el histórico (fase 5), cada categoría de Fintonic se asigna a una del catálogo mediante una tabla de equivalencias.
+- Catálogo predeterminado de gasto e ingreso (tabla inferior). El histórico entra con los Excel de BBVA y se categoriza con las mismas reglas.
 - Se pueden crear categorías y subcategorías nuevas, con icono y color, y renombrar, fusionar o desactivar las existentes. Los movimientos asociados se reasignan.
 
 | Categoría | Subcategorías predeterminadas |
@@ -392,7 +390,6 @@ El gasto se computa en el movimiento de la tarjeta, no en el cargo mensual de la
 - **Cuotas de pago aplazado:** los intereses y comisiones sí computan (Comisiones e intereses); el principal ya se contó en la compra.
 - **Movimientos entre cuentas propias:** cualquier transferencia entre dos cuentas dadas de alta se marca como traspaso interno en ambos lados.
 - **Devoluciones en tarjeta:** se registran con importe positivo en la categoría de la compra y restan gasto.
-- **Histórico de Fintonic (fase 5):** verificar si Fintonic ya excluía las liquidaciones. Si no, se aplica la misma regla al cargarlo.
 
 ## 8. Extracto mensual y vistas
 
@@ -508,7 +505,7 @@ Navegación con barra inferior de cinco pestañas: Extracto, Movimientos, Inform
 
 ## 13. Hoja de ruta
 
-La v1 trabaja solo con BBVA desde octubre de 2026 y queda completa al cerrar la fase 4. El histórico de Fintonic y el análisis predictivo entran en la fase 5. Todo se calcula en la propia app, sin servicios de pago.
+La v1 trabaja solo con BBVA desde octubre de 2026 y queda completa al cerrar la fase 4. El análisis predictivo entra en la fase 5 (la carga de Fintonic se descarta). Todo se calcula en la propia app, sin servicios de pago.
 
 | Fase | Contenido | Se cierra cuando |
 | --- | --- | --- |
@@ -517,7 +514,7 @@ La v1 trabaja solo con BBVA desde octubre de 2026 y queda completa al cerrar la 
 | 2. Importación BBVA | Cuentas y tarjeta, anonimización, deduplicación, reglas, revisión y traspasos internos | Octubre y noviembre importados sin duplicados, sin datos identificativos y sin doble cómputo de la tarjeta |
 | 3. Extracto y gastos de empleado | Extracto mensual, marcado rápido, conciliación de reembolsos y vistas de análisis | Octubre y noviembre cerrados con los reembolsos conciliados |
 | 4. Presupuestos, plan de pagos y Claude | Presupuesto por categoría, plan de pagos de la deuda familiar con proyección y simulación, y botón Analizar con Claude | Presupuesto de diciembre definido, pago del verano de 2027 proyectado y primer análisis hecho en Claude |
-| 5. Histórico y análisis predictivo | Carga de Fintonic hasta septiembre de 2026 y marcado a posteriori de gastos de empleado. Proyección de cierre de mes, gastos recurrentes (suscripciones, seguros, IBI), previsión de gastos anuales por estacionalidad y alerta de gastos atípicos | Histórico cargado sin solapes y previsiones contrastadas con el real de tres meses |
+| 5. Análisis predictivo | Marcado a posteriori de gastos de empleado del histórico. Proyección de cierre de mes, gastos recurrentes (suscripciones, seguros, IBI), previsión de gastos anuales por estacionalidad y alerta de gastos atípicos | Previsiones contrastadas con el real de tres meses |
 | 6. Mejoras | Importación de PDF, Face ID, sugerencia de categoría por similitud, notificaciones, otras entidades | Según uso |
 
 ## 14. Decisiones abiertas
@@ -526,6 +523,5 @@ La v1 trabaja solo con BBVA desde octubre de 2026 y queda completa al cerrar la 
 - [ ] Excel de la tarjeta de crédito de BBVA para fijar su plantilla.
 - [ ] Confirmar el ordenante y el concepto con los que llega la transferencia de reembolso.
 - [ ] Confirmar si la deuda familiar tiene intereses y si el colchón se mide sobre el saldo conjunto.
-- [ ] Recuperar el Excel de Fintonic antes de la fase 5.
 - [ ] Confirmar la entidad de cada cuenta y de la hipoteca, y desde qué cuenta se paga la cuota.
 - [ ] Comprobar que claude.ai sigue admitiendo el prompt prellenado por enlace.

@@ -105,7 +105,7 @@ describe('sugerencias dudosas en la importación', () => {
     const base = { ...db0, movimientos: [] }
     const dudosa = { ...mov({ concepto_limpio: 'Cafe Roma' }), fila: 1, sugerencia: { tipo: 'gasto_empleado' as const, motivo: '', regla_id: null, confianza: 0.6 } }
     const segura = { ...mov({ concepto_limpio: 'Taxi Sol', fecha_operacion: '2026-11-18' }), fila: 2, sugerencia: { tipo: 'gasto_empleado' as const, motivo: '', regla_id: null, confianza: 0.85 } }
-    const p = { origen: 'bbva_tarjeta' as const, nombrePlantilla: '', cuenta_id: tarjeta.id, nuevos: [dudosa, segura], duplicados: 0, repetidos: [], anteriores: 0, ilegibles: [], fecha_desde: null, fecha_hasta: null, traspasos: [], avisos: [], problemas: [], alMesSiguiente: [] }
+    const p = { origen: 'bbva_tarjeta' as const, nombrePlantilla: '', cuenta_id: tarjeta.id, nuevos: [dudosa, segura], duplicados: 0, repetidos: [], ilegibles: [], fecha_desde: null, fecha_hasta: null, traspasos: [], avisos: [], problemas: [], alMesSiguiente: [] }
     const r = confirmarImportacion(base, p, { aceptadas: new Set() })
     expect(r.movimientos.find((m) => m.id === dudosa.id)!.revisado_empleado).toBe(false)
     expect(r.movimientos.find((m) => m.id === segura.id)!.revisado_empleado).toBe(true)

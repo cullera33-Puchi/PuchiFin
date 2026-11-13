@@ -71,8 +71,6 @@ const CATALOGO: [string, string, string, Naturaleza, string[]][] = [
 ]
 
 export const AJUSTES_POR_DEFECTO: Ajustes = {
-  fecha_inicio: '2026-10-01',
-  fecha_corte_fintonic: '2026-09-30',
   alias_terceros: [
     { alias: 'Empresa', patrones: [] },
     { alias: 'Familia', patrones: [] },
@@ -260,7 +258,6 @@ export function fusionarCategoria(db: BaseDatos, origen: string, destino: string
 
 export function guardarAjustes(db: BaseDatos, cambios: Partial<Ajustes>): BaseDatos {
   const a = { ...db.ajustes, ...cambios }
-  if (!(a.fecha_corte_fintonic < a.fecha_inicio)) throw new ErrorDatos('La fecha de corte con Fintonic debe ser anterior a la fecha de inicio')
   if (!(a.dias_aviso_reembolso > 0)) throw new ErrorDatos('Los días de aviso deben ser mayores que cero')
   if (!(a.umbral_aviso_presupuesto >= 1 && a.umbral_aviso_presupuesto <= 100)) throw new ErrorDatos('El umbral de presupuesto va de 1 a 100')
   if (!(a.dias_fin_de_mes >= 0 && a.dias_fin_de_mes <= 10)) throw new ErrorDatos('Los días de fin de mes van de 0 a 10')

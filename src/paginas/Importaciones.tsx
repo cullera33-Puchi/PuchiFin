@@ -41,7 +41,6 @@ export function Importaciones() {
                   <p className="text-xs text-zinc-500">
                     {formatearFecha(i.created_at)}. {i.movimientos_nuevos} nuevos
                     {i.movimientos_duplicados ? `, ${i.movimientos_duplicados} ya importados` : ''}
-                    {i.movimientos_descartados ? `, ${i.movimientos_descartados} anteriores al inicio` : ''}
                     {i.fecha_desde ? `. Del ${formatearFecha(i.fecha_desde)} al ${formatearFecha(i.fecha_hasta ?? i.fecha_desde)}` : ''}
                     {deshecha ? '. Deshecha' : ''}
                   </p>

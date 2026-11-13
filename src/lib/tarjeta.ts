@@ -79,9 +79,8 @@ export function cuadrarLiquidaciones(db: BaseDatos, extra: Movimiento[] = []): C
     const delMes = dias.filter((d) => d.startsWith(mes))
     const compras = delMes.reduce((s, d) => s + porDia.get(d)!, 0)
     const hayAntes = dias.some((d) => d < l.fecha_operacion && d >= limite)
-    const inicio = db.ajustes.fecha_inicio
-    // Un cargo de las primeras semanas liquida compras de antes de la fecha de inicio, que no se importan
-    const estado: EstadoLiquidacion = l.fecha_operacion < sumarDias(inicio, 28) ? 'anterior_al_inicio' : hayAntes ? 'no_cuadra' : 'sin_tarjeta'
+    // Un cargo en las primeras semanas de lo importado de la tarjeta liquida compras anteriores, que no están
+    const estado: EstadoLiquidacion = dias.length && l.fecha_operacion < sumarDias(dias[0], 28) ? 'anterior_al_inicio' : hayAntes ? 'no_cuadra' : 'sin_tarjeta'
     return { movimiento: l, estado, desde: `${mes}-01`, hasta: sumarDias(`${l.fecha_operacion.slice(0, 7)}-01`, -1), compras: compras / 100, diferencia: (objetivo - compras) / 100 }
   })
 }

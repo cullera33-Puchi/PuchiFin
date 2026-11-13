@@ -43,10 +43,6 @@ export function General() {
   const guardar = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
-    if (ajustes.fecha_corte_fintonic >= ajustes.fecha_inicio) {
-      setError('La fecha de corte con Fintonic debe ser anterior a la fecha de inicio')
-      return
-    }
     const err = await intentar((d) => guardarAjustes(d, ajustes), 'Ajustes guardados')
     if (err) setError(err)
     else setGuardado(true)
@@ -54,21 +50,6 @@ export function General() {
 
   return (
     <form onSubmit={guardar} className="space-y-4">
-      <section className="tarjeta space-y-3">
-        <h2 className="text-sm font-semibold">Fechas</h2>
-        <div className="grid gap-3">
-          <label>
-            <span className="etiqueta">Fecha de inicio de la app</span>
-            <input type="date" className="campo" value={ajustes.fecha_inicio} onChange={(e) => cambiar({ fecha_inicio: e.target.value })} />
-            <span className="mt-1 block text-xs text-zinc-500">Los movimientos de BBVA anteriores se descartan al importar.</span>
-          </label>
-          <label>
-            <span className="etiqueta">Fecha de corte con Fintonic</span>
-            <input type="date" className="campo" value={ajustes.fecha_corte_fintonic} onChange={(e) => cambiar({ fecha_corte_fintonic: e.target.value })} />
-            <span className="mt-1 block text-xs text-zinc-500">El histórico de Fintonic (fase 5) llega hasta esta fecha.</span>
-          </label>
-        </div>
-      </section>
 
       <section className="tarjeta space-y-3">
         <h2 className="text-sm font-semibold">Umbrales</h2>

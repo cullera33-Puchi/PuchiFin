@@ -162,7 +162,6 @@ export function Importar() {
         origen: propuesta.origen,
         nuevos: propuesta.nuevos.length,
         duplicados: propuesta.duplicados,
-        anteriores: propuesta.anteriores,
         empleado: aceptadas.size,
         traspasos: propuesta.traspasos.length,
         cuadra: cuadre?.conSaldo ? cuadre.cuadra : null,
@@ -303,7 +302,7 @@ export function Importar() {
                 ))}
               </select>
             </label>
-            <dl className="grid grid-cols-3 gap-2 text-center">
+            <dl className="grid grid-cols-2 gap-2 text-center">
               <div className="rounded-[10px] bg-zinc-50 py-2 dark:bg-zinc-800/50">
                 <dt className="text-[11px] text-zinc-500">Nuevos</dt>
                 <dd className="text-lg font-semibold">{propuesta.nuevos.length}</dd>
@@ -311,10 +310,6 @@ export function Importar() {
               <div className="rounded-[10px] bg-zinc-50 py-2 dark:bg-zinc-800/50">
                 <dt className="text-[11px] text-zinc-500">Ya importados</dt>
                 <dd className="text-lg font-semibold">{propuesta.duplicados}</dd>
-              </div>
-              <div className="rounded-[10px] bg-zinc-50 py-2 dark:bg-zinc-800/50">
-                <dt className="text-[11px] text-zinc-500">Antes del inicio</dt>
-                <dd className="text-lg font-semibold">{propuesta.anteriores}</dd>
               </div>
             </dl>
           </div>

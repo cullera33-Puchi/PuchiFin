@@ -38,6 +38,13 @@ describe('exportar e importar', () => {
   it('completa las listas que falten', () => {
     const a = validarArchivo({ app: 'puchifin', datos: { cuentas: [] } })
     expect(a.datos.movimientos).toEqual([])
-    expect(a.datos.ajustes.fecha_inicio).toBe('2026-10-01')
+    expect(a.datos.ajustes.dias_fin_de_mes).toBe(5)
+  })
+
+  it('los archivos con fecha de inicio y corte con Fintonic se importan sin ellas (esquema 8)', () => {
+    const a = validarArchivo({ app: 'puchifin', datos: { esquema: 7, cuentas: [], ajustes: { fecha_inicio: '2026-10-01', fecha_corte_fintonic: '2026-09-30', dias_fin_de_mes: 3 } } })
+    expect(a.datos.ajustes).not.toHaveProperty('fecha_inicio')
+    expect(a.datos.ajustes).not.toHaveProperty('fecha_corte_fintonic')
+    expect(a.datos.ajustes.dias_fin_de_mes).toBe(3)
   })
 })

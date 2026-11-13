@@ -1,6 +1,6 @@
 /**
  * Categorizar con Claude en el chat, sin que ningún dato personal llegue al código:
- *   1. Resumen de comercios: se leen los Excel de BBVA (también los anteriores a la fecha de inicio),
+ *   1. Resumen de comercios: se leen los Excel de BBVA de cualquier periodo,
  *      se anonimizan igual que al importar y se agrupan por comercio. Solo sale el comercio, cuántas
  *      veces aparece, el importe total y medio y la categoría que pondría hoy la app. Sin fechas,
  *      saldos, cuentas ni nombres. No se guarda nada en el dispositivo.

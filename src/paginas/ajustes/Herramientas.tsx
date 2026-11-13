@@ -24,7 +24,7 @@ import {
   type MetaCopia,
 } from '../../lib/copias'
 import { generarDatosPrueba } from '../../lib/datosPrueba'
-import { hoyIso } from '../../lib/fechas'
+import { hoyIso, primeroDeMes, sumarMeses } from '../../lib/fechas'
 import { formatearFecha, plural } from '../../lib/formato'
 import { borrarRegistro, entradasRegistro, recuperarRegistro, registrar, suscribirRegistro, textoRegistro } from '../../lib/registro'
 import { APP_VERSION } from '../../lib/version'
@@ -42,6 +42,9 @@ function Seccion({ titulo, nota, children }: { titulo: string; nota?: ReactNode;
     </section>
   )
 }
+
+/** Los datos y Excel de prueba cubren el mes en curso y los dos anteriores */
+const inicioPrueba = () => sumarMeses(primeroDeMes(hoyIso()), -2)
 
 const hora = (iso: string) => new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
 const cuando = (iso: string) => `del ${formatearFecha(iso)} a las ${hora(iso)}`
@@ -188,7 +191,7 @@ export function Herramientas() {
     let n = 0
     const err = await intentar((d) => {
       if (contarDatosPrueba(d)) throw new Error('Ya hay datos de prueba')
-      const p = generarDatosPrueba({ cuentas: d.cuentas, categorias: d.categorias, desde: d.ajustes.fecha_inicio, hasta: hoyIso() })
+      const p = generarDatosPrueba({ cuentas: d.cuentas, categorias: d.categorias, desde: inicioPrueba(), hasta: hoyIso() })
       n = p.movimientos.length
       return {
         ...d,
@@ -355,7 +358,7 @@ export function Herramientas() {
             className="boton-secundario"
             onClick={async () => {
               const { escribirXlsx, generarExcelPrueba } = await import('../../importacion/excelPrueba')
-              const excels = generarExcelPrueba({ desde: db.ajustes.fecha_inicio, hasta: hoyIso() })
+              const excels = generarExcelPrueba({ desde: inicioPrueba(), hasta: hoyIso() })
               const tipo = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
               const r = await compartirArchivos(excels.map((x) => ({ blob: new Blob([escribirXlsx(x.filas) as BlobPart], { type: tipo }), nombre: x.nombre })), 'Excel de prueba de PuchiFin')
               if (r === 'descargado') avisar('Excel de prueba descargados')

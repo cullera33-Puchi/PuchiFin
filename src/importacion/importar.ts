@@ -29,7 +29,6 @@ export interface Propuesta {
   duplicados: number
   /** Filas que ya estaban guardadas (o repetidas en el fichero): no se importan */
   repetidos: { fila: number; fecha: string; concepto: string; importe: number }[]
-  anteriores: number
   ilegibles: number[]
   fecha_desde: string | null
   fecha_hasta: string | null
@@ -127,7 +126,7 @@ export function cuentaSugerida(db: BaseDatos, lectura: Lectura, ultima?: string)
 
 /** La cuenta tiene movimientos con saldo en las fechas del fichero, pero ninguno coincide: el fichero es de otra */
 export function descartadaPorSaldo(db: BaseDatos, lectura: Lectura, cuenta_id: string): boolean {
-  const filas = lectura.filas.filter((f) => f.saldo !== null && f.fecha_operacion >= db.ajustes.fecha_inicio)
+  const filas = lectura.filas.filter((f) => f.saldo !== null)
   if (!filas.length) return false
   const fechas = filas.map((f) => f.fecha_operacion).sort()
   const desde = fechas[0]
@@ -146,18 +145,12 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
   const aprendidas = categoriasAprendidas(db)
   const creado = new Date().toISOString()
 
-  let anteriores = 0
   let duplicados = 0
   const repetidos: Propuesta['repetidos'] = []
   const nuevos: MovimientoPropuesto[] = []
   const filasOrdenadas = [...lectura.filas].sort((a, b) => a.fecha_operacion.localeCompare(b.fecha_operacion) || b.numero - a.numero)
-  const filas = filasOrdenadas.flatMap((f) => {
-    if (f.fecha_operacion < db.ajustes.fecha_inicio) {
-      anteriores++
-      return []
-    }
-    return [{ f, ...conceptosDeFila(f, alias) }]
-  })
+  // Entra todo lo que trae el fichero, sin fecha de inicio
+  const filas = filasOrdenadas.map((f) => ({ f, ...conceptosDeFila(f, alias) }))
 
   // Deduplicación contra lo ya guardado en esta cuenta, emparejando uno a uno (dos cafés iguales el
   // mismo día son dos movimientos). Primero por el saldo del banco tras el movimiento, que no depende
@@ -320,7 +313,6 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
     nuevos,
     duplicados,
     repetidos,
-    anteriores,
     ilegibles: lectura.ilegibles,
     fecha_desde: fechas[0] ?? null,
     fecha_hasta: fechas[fechas.length - 1] ?? null,
@@ -352,7 +344,7 @@ export function confirmarImportacion(db: BaseDatos, p: Propuesta, decisiones: De
     fecha_hasta: p.fecha_hasta,
     movimientos_nuevos: p.nuevos.length,
     movimientos_duplicados: p.duplicados,
-    movimientos_descartados: p.anteriores,
+    movimientos_descartados: 0,
     estado: 'confirmada',
     modificados: [],
     created_at: new Date().toISOString(),

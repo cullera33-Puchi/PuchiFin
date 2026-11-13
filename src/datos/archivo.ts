@@ -90,6 +90,11 @@ export function migrar(d: Partial<BaseDatos>): BaseDatos {
   }
   // Esquema 4 (v0.7.0): saldo confirmado con el banco en cada cuenta
   // Esquema 6 (v0.10.0): Restaurantes y Ocio por separado, suscripciones por plataforma (mismos identificadores)
+  // Esquema 8 (v0.14.0): sin fecha de inicio ni corte con Fintonic; entra todo lo que traen los Excel
+  if (desde < 8) {
+    const { fecha_inicio: _i, fecha_corte_fintonic: _f, ...resto } = datos.ajustes as typeof datos.ajustes & { fecha_inicio?: string; fecha_corte_fintonic?: string }
+    datos.ajustes = resto
+  }
   // Esquema 7 (v0.13.0): taxis, IBI y tasas en Impuestos, Cuidado personal, Mascotas, Formación y Efectivo
   if (desde < 7) datos.categorias = actualizarCatalogo(datos.categorias)
   // Esquema 5 (v0.8.0): versión de la lógica aplicada a lo pendiente (null: se aplica al arrancar)

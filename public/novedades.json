@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.14.0",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Ya no hay fecha de inicio: al importar entra todo lo que trae el Excel de BBVA, también el histórico.",
+      "Fuera la parte de Fintonic y las fechas de Ajustes.",
+      "Los movimientos repetidos siguen sin entrar dos veces aunque pegues periodos que se solapen."
+    ]
+  },
+  {
     "version": "0.13.0",
     "fecha": "2026-11-13",
     "cambios": [

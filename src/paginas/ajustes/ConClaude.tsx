@@ -103,7 +103,7 @@ function HojaResumen({ abierta, onCerrar }: { abierta: boolean; onCerrar: () => 
     >
       <div className="space-y-4">
         <p className="text-[15px] text-zinc-600 dark:text-zinc-400">
-          Añade los Excel de BBVA de todo el periodo que quieras (cuentas y tarjeta), también anteriores a la fecha de inicio. Se leen y se anonimizan aquí; no se guardan.
+          Añade los Excel de BBVA de todo el periodo que quieras (cuentas y tarjeta). Se leen y se anonimizan aquí; no se guardan.
         </p>
         <div className="flex flex-wrap gap-2">
           <button className="boton-primario" onClick={() => entrada.current?.click()}>

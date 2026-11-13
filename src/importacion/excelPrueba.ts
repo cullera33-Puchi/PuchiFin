@@ -6,7 +6,7 @@
  *   titular en los traspasos y del ordenante en las transferencias;
  * - referencias de adeudo largas, un IBAN y un DNI en las observaciones;
  * - compras del fin de semana con Fecha valor el sábado y Fecha el lunes;
- * - movimientos anteriores a la fecha de inicio y dos cafés iguales el mismo día.
+ * - movimientos de antes del periodo pedido y dos cafés iguales el mismo día.
  * La tarjeta de crédito usa el mismo formato sin la columna Disponible (pendiente de confirmar).
  * Ningún dato es real.
  */

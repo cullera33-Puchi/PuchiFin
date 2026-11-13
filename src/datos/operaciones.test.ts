@@ -34,7 +34,6 @@ describe('datosIniciales', () => {
     expect(db.categorias.filter((c) => !c.padre_id)).toHaveLength(19)
     expect(db.categorias.filter((c) => c.padre_id)).toHaveLength(67)
     expect(db.categorias.filter((c) => c.naturaleza === 'ingreso')).toHaveLength(3)
-    expect(db.ajustes.fecha_inicio).toBe('2026-10-01')
     expect(db.compromisos[0]).toMatchObject({ nombre: 'Deuda familiar', deuda_inicial: 0, colchon: 0, mes_referencia: 7 })
   })
 
@@ -107,7 +106,6 @@ describe('ajustes', () => {
   const db = datosIniciales()
 
   it('valida fechas y datos identificativos', () => {
-    expect(() => guardarAjustes(db, { fecha_corte_fintonic: '2026-10-01' })).toThrow(/anterior/)
     expect(() => guardarAjustes(db, { alias_terceros: [{ alias: 'Familia', patrones: ['X1234567L'] }] })).toThrow(/NIE/)
     expect(guardarAjustes(db, { dias_aviso_reembolso: 45 }).ajustes.dias_aviso_reembolso).toBe(45)
   })

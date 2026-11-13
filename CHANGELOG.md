@@ -2,6 +2,13 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.14.0. Sin fecha de inicio (13 de noviembre de 2026)
+
+- La importación ya no descarta nada por fecha: entra todo lo que trae el Excel (también el histórico). Fuera la sección Fechas de Ajustes, la validación de la fecha de corte y el contador «Antes del inicio».
+- Esquema 8: `fecha_inicio` y `fecha_corte_fintonic` salen de los ajustes; `migrar()` las quita de los datos y archivos anteriores.
+- Liquidación de la tarjeta: el estado «anterior al inicio» se calcula con la primera compra importada de la tarjeta. Datos y Excel de prueba: mes en curso y los dos anteriores.
+- Pruebas: 334 tests.
+
 ## v0.13.0. Taxis, IBI en Impuestos y categorías nuevas (13 de noviembre de 2026)
 
 - Catálogo (esquema 7, `actualizarCatalogo` idempotente y sin cambiar identificadores): Transporte > Taxi y VTC; IBI y tasas pasa de Vivienda a Impuestos; nuevas Cuidado personal (Peluquería y estética, Perfumería y cosmética, Masajes y bienestar), Mascotas (Veterinario, Comida y accesorios), Formación (Estudios, Cursos y plataformas) y Efectivo (Retiradas de cajero).
