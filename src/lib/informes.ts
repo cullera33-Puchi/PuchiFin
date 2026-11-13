@@ -52,6 +52,8 @@ export interface Informe {
   porciones: Porcion[]
   /** Movimientos de la vista (de la categoría pedida si la hay), del más reciente al más antiguo */
   movimientos: Movimiento[]
+  /** Vista mensual: el mismo mes del año anterior (mismos días si está en curso), si hay datos */
+  haceUnAno: { totales: Totales; total: number } | null
 }
 
 /** Recorte del periodo anterior cuando el actual está en curso: mismos días (mes) o misma fecha (año) */
@@ -141,7 +143,16 @@ export function calcularInforme(db: BaseDatos, periodo: PeriodoInforme, vista: V
     .filter((p) => Math.abs(p.importe) >= 0.005)
     .sort((a, b) => b.importe - a.importe)
 
+  // El mismo mes del año anterior (en la vista anual, el periodo anterior ya es el año pasado)
+  let haceUnAno: Informe['haceUnAno'] = null
+  if (periodo.escala === 'mes') {
+    const movs = delPeriodo({ escala: 'mes', clave: sumarMeses(`${periodo.clave}-01`, -12).slice(0, 7) }, corte)
+    if (movs.length)
+      haceUnAno = { totales: calcularTotales(movs, db.categorias), total: redondear(deLaVista(movs).reduce((s, m) => s + signo * m.importe, 0)) }
+  }
+
   return {
+    haceUnAno,
     periodo,
     anterior,
     enCurso,

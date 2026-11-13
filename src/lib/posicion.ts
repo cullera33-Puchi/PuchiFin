@@ -5,7 +5,7 @@
  */
 import { sumarDias, sumarMeses } from './fechas'
 import { cuadrarCuenta } from './saldos'
-import { pendienteTarjeta, type PendienteTarjeta } from './tarjeta'
+import { cuadrarLiquidaciones, pendienteTarjeta, type PendienteTarjeta } from './tarjeta'
 import type { BaseDatos, Cuenta } from './tipos'
 
 const redondear = (n: number) => Math.round(n * 100) / 100
@@ -26,8 +26,8 @@ export interface Posicion {
   capital: number
   /** Fecha más reciente de los saldos */
   fecha: string
-  /** Saldo de las cuentas a final de cada mes (los últimos 12 con datos) y el actual al final */
-  evolucion: { mes: string; saldo: number }[]
+  /** A final de cada mes (los últimos 12 con datos) y hoy al final: saldo de las cuentas y capital */
+  evolucion: { mes: string; saldo: number; capital: number }[]
   /** Diferencia del saldo de las cuentas frente al cierre del mes anterior */
   variacionMes: number | null
 }
@@ -60,12 +60,17 @@ export function calcularPosicion(db: BaseDatos, meses = 12): Posicion | null {
   const actual = fecha.slice(0, 7)
   const lista: string[] = []
   for (let m = mesAnterior(actual), i = 0; i < meses - 1; i++, m = mesAnterior(m)) lista.unshift(m)
+  const liquidaciones = cuadrarLiquidaciones(db)
   const cierres = lista
     .map((mes) => {
-      const saldos = cuentas.map((c) => saldoA(db, c.cuenta.id, finDeMes(mes))).filter((x): x is number => x !== null)
-      return saldos.length ? { mes, saldo: redondear(saldos.reduce((s, x) => s + x, 0)) } : null
+      const dia = finDeMes(mes)
+      const saldos = cuentas.map((c) => saldoA(db, c.cuenta.id, dia)).filter((x): x is number => x !== null)
+      if (!saldos.length) return null
+      const saldo = redondear(saldos.reduce((s, x) => s + x, 0))
+      const pendiente = tarjetas.reduce((s, t) => s + pendienteTarjeta(db, t.cuenta.id, dia, liquidaciones).importe, 0)
+      return { mes, saldo, capital: redondear(saldo + pendiente) }
     })
-    .filter((x): x is { mes: string; saldo: number } => !!x)
+    .filter((x): x is { mes: string; saldo: number; capital: number } => !!x)
   const anterior = cierres.find((c) => c.mes === mesAnterior(actual))
   return {
     cuentas,
@@ -73,7 +78,7 @@ export function calcularPosicion(db: BaseDatos, meses = 12): Posicion | null {
     bancos,
     capital,
     fecha,
-    evolucion: [...cierres, { mes: actual, saldo: bancos }],
+    evolucion: [...cierres, { mes: actual, saldo: bancos, capital }],
     variacionMes: anterior ? redondear(bancos - anterior.saldo) : null,
   }
 }

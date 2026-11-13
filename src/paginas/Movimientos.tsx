@@ -52,8 +52,18 @@ export function Movimientos() {
     }
   }, [])
   const [params, setParams] = useSearchParams()
-  const [busqueda, setBusqueda] = useState('')
-  const [filtros, setFiltros] = useState<Filtros>(() => ({ ...SIN_FILTROS, categoria: params.get('sin') ? null : undefined }))
+  // Se puede llegar con una búsqueda hecha (desde Informes: un comercio y un mes)
+  const [busqueda, setBusqueda] = useState(() => params.get('q') ?? '')
+  const [filtros, setFiltros] = useState<Filtros>(() => ({ ...SIN_FILTROS, categoria: params.get('sin') ? null : undefined, mes: params.get('mes') }))
+  const [buscando, setBuscando] = useState(false)
+  const campo = useRef<HTMLInputElement>(null)
+  const cancelarBusqueda = () => {
+    setBusqueda('')
+    setBuscando(false)
+    campo.current?.blur()
+    if (params.get('q')) setParams({}, { replace: true })
+  }
+  const cuentasFiltro = db.cuentas.filter((c) => c.activa && c.tipo !== 'hipoteca' && db.movimientos.some((m) => m.cuenta_id === c.id))
   const [verFiltros, setVerFiltros] = useState(false)
   const [limite, setLimite] = useState(PAGINA)
   const [seleccion, setSeleccion] = useState<Set<string> | null>(null)
@@ -90,7 +100,6 @@ export function Movimientos() {
   const total = Math.round(lista.reduce((s, m) => s + (m.tipo === 'normal' ? m.importe : 0), 0) * 100) / 100
 
   const chips: { texto: string; quitar: () => void }[] = []
-  if (filtros.cuenta) chips.push({ texto: db.cuentas.find((c) => c.id === filtros.cuenta)?.alias ?? '?', quitar: () => setFiltros({ ...filtros, cuenta: null }) })
   if (filtros.categoria) chips.push({ texto: nombreCategoria(db, filtros.categoria), quitar: () => setFiltros({ ...filtros, categoria: undefined }) })
   if (filtros.tipo) chips.push({ texto: NOMBRE_TIPO_MOVIMIENTO[filtros.tipo], quitar: () => setFiltros({ ...filtros, tipo: null }) })
   if (filtros.mes) chips.push({ texto: mesLargo(`${filtros.mes}-01`), quitar: () => setFiltros({ ...filtros, mes: null }) })
@@ -119,6 +128,7 @@ export function Movimientos() {
     const r = await (await import('../lib/exportarExcel')).exportarVista(db, 'movimientos', lista, [
       ['Movimientos filtrados', lista.length],
       ['Búsqueda', busqueda],
+      ...(filtros.cuenta ? [['Cuenta', db.cuentas.find((c) => c.id === filtros.cuenta)?.alias ?? '']] : []),
       ...chips.map((c) => ['Filtro', c.texto]),
       ['Total de los de tipo Normal', total],
     ])
@@ -154,16 +164,35 @@ export function Movimientos() {
         <div className="flex gap-2">
           <label className="flex flex-1 items-center gap-2 rounded-[10px] bg-zinc-200/70 px-3 py-2 dark:bg-zinc-800">
             <Search className="size-4 text-zinc-500" />
-            <input className="w-full bg-transparent outline-none" placeholder="Buscar concepto o nota" value={busqueda} onChange={(e) => { setBusqueda(e.target.value); setLimite(PAGINA) }} />
+            <input
+              ref={campo}
+              type="search"
+              enterKeyHint="search"
+              className="w-full bg-transparent outline-none [&::-webkit-search-cancel-button]:hidden"
+              placeholder="Buscar concepto o nota"
+              value={busqueda}
+              onFocus={() => setBuscando(true)}
+              onBlur={() => !busqueda && setBuscando(false)}
+              onChange={(e) => {
+                setBusqueda(e.target.value)
+                setLimite(PAGINA)
+              }}
+            />
             {busqueda && (
               <button aria-label="Borrar búsqueda" onClick={() => setBusqueda('')}>
                 <X className="size-4 text-zinc-500" />
               </button>
             )}
           </label>
-          <button className={`boton-icono ${chips.length ? 'bg-marca-50 dark:bg-marca-900/40' : ''}`} aria-label="Filtros" onClick={() => setVerFiltros(true)}>
-            <SlidersHorizontal className="size-5" strokeWidth={1.75} />
-          </button>
+          {buscando || busqueda ? (
+            <button className="boton-texto shrink-0 px-1 text-[17px]" onMouseDown={(e) => e.preventDefault()} onClick={cancelarBusqueda}>
+              Cancelar
+            </button>
+          ) : (
+            <button className={`boton-icono ${chips.length ? 'bg-marca-50 dark:bg-marca-900/40' : ''}`} aria-label="Filtros" onClick={() => setVerFiltros(true)}>
+              <SlidersHorizontal className="size-5" strokeWidth={1.75} />
+            </button>
+          )}
         </div>
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none]">
           <button
@@ -172,6 +201,23 @@ export function Movimientos() {
           >
             Sin categoría {sinCategoria}
           </button>
+          {cuentasFiltro.length > 1 &&
+            cuentasFiltro.map((c) => {
+              const activa = filtros.cuenta === c.id
+              return (
+                <button
+                  key={c.id}
+                  aria-pressed={activa}
+                  onClick={() => {
+                    setFiltros({ ...filtros, cuenta: activa ? null : c.id })
+                    setLimite(PAGINA)
+                  }}
+                  className={`shrink-0 rounded-full px-3 py-1 text-[13px] font-medium ${activa ? 'bg-marca-700 text-white' : 'bg-white text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200'}`}
+                >
+                  {c.alias}
+                </button>
+              )
+            })}
           {chips.map((c) => (
               <button key={c.texto} onClick={c.quitar} className="flex shrink-0 items-center gap-1 rounded-full bg-marca-700 px-3 py-1 text-[13px] font-medium text-white">
                 {c.texto} <X className="size-3.5" />

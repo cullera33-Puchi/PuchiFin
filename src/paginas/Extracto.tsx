@@ -1,4 +1,4 @@
-import { ChartColumn, ChevronRight, FileText, FlaskConical, HardDriveDownload, Landmark, Sheet, Sparkles, Tag, Upload } from 'lucide-react'
+import { ChartColumn, ChevronRight, ListChecks, FileText, FlaskConical, HardDriveDownload, Landmark, Sheet, Sparkles, Tag, Upload } from 'lucide-react'
 import { useMemo } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Aviso, Encabezado } from '../componentes/Encabezado'
@@ -10,7 +10,9 @@ import { useInterfaz } from '../componentes/Interfaz'
 import { contarDatosPrueba } from '../datos/operaciones'
 import { useDatos } from '../datos/ProveedorDatos'
 import { avisoExportacion, avisoImportacion } from '../lib/avisos'
-import { calcularExtracto, mesDe } from '../lib/extracto'
+import { mesPorCerrar, pasosCierre } from '../lib/cierre'
+import { ultimaExportacion } from '../lib/copias'
+import { calcularExtracto, fraseDelMes, mesDe } from '../lib/extracto'
 import { mesEfectivo } from '../lib/imputacion'
 import { hoyIso, mesLargo, sumarMeses } from '../lib/fechas'
 import { formatearImporte } from '../lib/formato'
@@ -42,6 +44,11 @@ export function Extracto() {
   )
   const aviso = avisoExportacion(db)
   const importar = useMemo(() => avisoImportacion(db), [db])
+  // Cierre de mes: el mes que se ve si ya pasó, o el anterior en los primeros días del mes
+  const actual = mesDe(hoyIso())
+  const mesCierre = mes < actual ? mes : mesPorCerrar(hoyIso())
+  const cierre = useMemo(() => (mesCierre && db.movimientos.length ? pasosCierre(db, mesCierre, ultimaExportacion()) : null), [db, mesCierre])
+  const cierreHechos = cierre ? cierre.filter((p) => p.hecho).length : 0
   const irA = (m: string) => setParams({ mes: m }, { replace: true })
   // Meses de la tira: del primero con datos al último (el en curso o uno posterior imputado, como la nómina)
   const meses = useMemo(() => {
@@ -74,16 +81,20 @@ export function Extracto() {
     if (r === 'descargado') avisar('Excel descargado')
   }
 
-  const indicadores: { etiqueta: string; valor: string; comp: { texto: string; tono: Tono } | null }[] = [
-    { etiqueta: 'Ingresos', valor: formatearImporte(t.ingresos), comp: comparar(t.ingresos, m?.ingresos, true) },
-    { etiqueta: 'Gastos', valor: formatearImporte(t.gastos), comp: comparar(t.gastos, m?.gastos, false) },
-    { etiqueta: 'Ahorro', valor: formatearImporte(t.ahorro), comp: m ? { texto: `Media: ${formatearImporte(m.ahorro)}`, tono: t.ahorro >= m.ahorro ? 'bueno' : 'malo' } : null },
+  // El mismo mes del año anterior (mismos días si el mes está en curso)
+  const a = e.haceUnAno
+  const indicadores: { etiqueta: string; valor: string; comp: { texto: string; tono: Tono } | null; anio: string | null }[] = [
+    { etiqueta: 'Ingresos', valor: formatearImporte(t.ingresos), comp: comparar(t.ingresos, m?.ingresos, true), anio: a ? formatearImporte(a.ingresos) : null },
+    { etiqueta: 'Gastos', valor: formatearImporte(t.gastos), comp: comparar(t.gastos, m?.gastos, false), anio: a ? formatearImporte(a.gastos) : null },
+    { etiqueta: 'Ahorro', valor: formatearImporte(t.ahorro), comp: m ? { texto: `Media: ${formatearImporte(m.ahorro)}`, tono: t.ahorro >= m.ahorro ? 'bueno' : 'malo' } : null, anio: a ? formatearImporte(a.ahorro) : null },
     {
       etiqueta: 'Tasa de ahorro',
       valor: t.tasaAhorro === null ? 'Sin ingresos' : porcentaje(t.tasaAhorro),
       comp: m?.tasaAhorro != null && t.tasaAhorro !== null ? { texto: `Media: ${porcentaje(m.tasaAhorro)}`, tono: t.tasaAhorro >= m.tasaAhorro ? 'bueno' : 'malo' } : null,
+      anio: a?.tasaAhorro != null ? porcentaje(a.tasaAhorro) : null,
     },
   ]
+  const frase = fraseDelMes(e, mesLargo(`${mes}-01`).split(' de ')[0].toLowerCase())
 
   return (
     <>
@@ -154,6 +165,7 @@ export function Extracto() {
           </div>
         ) : (
           <div className="space-y-4">
+            {frase && <p className="px-1 text-[15px] leading-snug">{frase}</p>}
             {m && (
               <p className="px-1 text-xs text-zinc-500">
                 Comparado con la media de {e.mesesMedia} {e.mesesMedia === 1 ? 'mes anterior' : 'meses anteriores'}
@@ -166,12 +178,23 @@ export function Extracto() {
                   <p className="text-xs text-zinc-500">{i.etiqueta}</p>
                   <p className="mt-0.5 text-lg font-semibold tabular-nums">{i.valor}</p>
                   {i.comp && <p className={`mt-0.5 text-[11px] leading-tight ${TONO[i.comp.tono]}`}>{i.comp.texto}</p>}
+                  {i.anio && <p className="mt-0.5 text-[11px] leading-tight text-zinc-500">Hace un año: {i.anio}</p>}
                 </div>
               ))}
             </div>
 
-            {(e.sinCategoria > 0 || descuadradas > 0 || mejoras > 0) && (
+            {(e.sinCategoria > 0 || descuadradas > 0 || mejoras > 0 || (cierre && cierreHechos < cierre.length)) && (
               <div className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
+                {cierre && mesCierre && cierreHechos < cierre.length && (
+                  <Link to={`/extracto/cierre?mes=${mesCierre}`} className="fila">
+                    <Baldosa glifo={ListChecks} color="#34C759" tamano="sm" />
+                    <span className="flex-1 text-[15px]">Cierre de {mesLargo(`${mesCierre}-01`).split(' de ')[0].toLowerCase()}</span>
+                    <span className="text-[15px] text-zinc-500 tabular-nums">
+                      {cierreHechos} de {cierre.length}
+                    </span>
+                    <ChevronRight className="size-4 text-zinc-400" />
+                  </Link>
+                )}
                 {descuadradas > 0 && (
                   <Link to="/ajustes/cuentas" className="fila">
                     <Baldosa glifo={Landmark} color="#FF9500" tamano="sm" />

@@ -4,6 +4,7 @@
  */
 import { calcularTotales, type Totales } from './resumen'
 import { sumarMeses } from './fechas'
+import { formatearRedondo } from './formato'
 import { fechaEfectiva, mesEfectivo } from './imputacion'
 import type { BaseDatos, Categoria, Movimiento } from './tipos'
 
@@ -59,6 +60,8 @@ export interface Extracto {
   /** Mes en curso: la media se calcula con los mismos días (del 1 a diaCorte) de los meses anteriores */
   enCurso: boolean
   diaCorte: number | null
+  /** El mismo mes del año anterior (con los mismos días si el mes está en curso), si hay datos */
+  haceUnAno: Totales | null
 }
 
 export function calcularExtracto(db: BaseDatos, mes: string, hoy?: string): Extracto {
@@ -105,10 +108,14 @@ export function calcularExtracto(db: BaseDatos, mes: string, hoy?: string): Extr
     })
     .sort((a, b) => b.importe - a.importe)
 
+  const mesAnio = sumarMeses(`${mes}-01`, -12).slice(0, 7)
+  const haceUnAno = meses.includes(mesAnio) ? calcularTotales(delPeriodo(mesAnio), db.categorias) : null
+
   return {
     mes,
     totales,
     media,
+    haceUnAno,
     mesesMedia: previos.length,
     categorias,
     sinCategoria: db.movimientos.filter((m) => m.tipo === 'normal' && !m.categoria_id).length,
@@ -167,4 +174,28 @@ export function cierreAnual(db: BaseDatos): ({ anio: string; meses: number } & T
     const movs = db.movimientos.filter((m) => fechaEfectiva(m).startsWith(anio))
     return { anio, meses: mesesConDatos(movs).length, ...calcularTotales(movs, db.categorias) }
   })
+}
+
+const eur = formatearRedondo
+
+/**
+ * El mes en una frase, para leerlo de un vistazo: lo gastado (hasta hoy si está en curso), frente a la
+ * media de los meses anteriores y la categoría que más se desvía hacia arriba.
+ */
+export function fraseDelMes(e: Extracto, nombreMes: string): string | null {
+  const t = e.totales
+  if (!t.movimientos) return null
+  const partes = [e.enCurso ? `Llevas ${eur(t.gastos)} gastados en ${nombreMes}` : `En ${nombreMes} gastaste ${eur(t.gastos)}`]
+  if (e.media && e.media.gastos > 0) {
+    const v = (t.gastos - e.media.gastos) / e.media.gastos
+    const cuando = e.enCurso ? ' a estas alturas del mes' : ''
+    partes[0] += Math.abs(v) < 0.05 ? `, en línea con tu media${cuando}` : `, un ${Math.round(Math.abs(v) * 100)} % ${v > 0 ? 'más' : 'menos'} que tu media${cuando}`
+  }
+  // La categoría que más sube frente a su media (al menos 30 € y un 15 %)
+  const sube = e.categorias
+    .filter((c) => c.media !== null && c.importe - c.media >= Math.max(30, c.media * 0.15))
+    .sort((a, b) => b.importe - b.media! - (a.importe - a.media!))[0]
+  if (sube) partes.push(`Lo que más sube: ${sube.nombre}, ${eur(sube.importe - sube.media!)} por encima de lo habitual`)
+  if (t.ingresos > 0) partes.push(t.ahorro >= 0 ? `Ahorras ${eur(t.ahorro)}` : `Gastas ${eur(-t.ahorro)} más de lo que ingresas`)
+  return `${partes.join('. ')}.`
 }

@@ -35,4 +35,14 @@ describe('posición global', () => {
     expect(p.evolucion[2].saldo).toBe(p.bancos)
     expect(p.variacionMes).toBeCloseTo(p.bancos - p.evolucion[1].saldo, 2)
   })
+
+  it('capital a final de mes: cuentas menos lo pendiente de la tarjeta en esa fecha', () => {
+    const db = conDatos('2026-09-01', '2026-11-20')
+    const p = calcularPosicion(db)!
+    const oct = p.evolucion.find((e) => e.mes === '2026-10')!
+    // La liquidación del 3 de octubre cubre septiembre: a 31 de octubre está pendiente todo octubre
+    const compras = db.movimientos.filter((m) => m.cuenta_id === tarjeta.id && m.fecha_operacion.startsWith('2026-10')).reduce((s, m) => s + m.importe, 0)
+    expect(oct.capital).toBeCloseTo(oct.saldo + compras, 2)
+    expect(p.evolucion[p.evolucion.length - 1].capital).toBe(p.capital)
+  })
 })

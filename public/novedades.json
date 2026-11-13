@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.21.0",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Extracto: el mes en una frase (lo gastado frente a tu media, lo que más sube y lo que ahorras) y «Hace un año» en cada indicador. En Informes, también el mismo mes del año anterior.",
+      "Informes: «Dónde más gastas» por importe o por veces, gastos hormiga con lo que suman al año y tu capital mes a mes con el ahorro real.",
+      "Cierre de mes guiado: los pasos para dar un mes por bueno, cada uno con su estado y acceso directo. Aparece en el Extracto los primeros días del mes y al ver un mes pasado.",
+      "Movimientos: filtra por cuenta con un toque y «Cancelar» en la búsqueda. Desde Informes, tocar un comercio abre sus movimientos."
+    ]
+  },
+  {
     "version": "0.20.0",
     "fecha": "2026-11-13",
     "cambios": [

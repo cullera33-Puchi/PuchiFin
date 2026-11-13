@@ -107,13 +107,13 @@ Ordenada por esfuerzo, de menos a más, con prioridad para la usabilidad y el re
 
 | Orden | Mejora | Tipo | Esfuerzo |
 | --- | --- | --- | --- |
-| 1 | Resumen del mes en una frase arriba del Extracto: lo gastado hasta hoy frente a la media y la categoría que más se desvía | Reporting | Bajo |
-| 2 | Comparativa con el mismo mes del año anterior en el Extracto y en Informes, además de la media | Reporting | Bajo |
-| 3 | Ranking de comercios en Informes: dónde más se gasta y con qué frecuencia, por mes y por año | Reporting | Bajo |
-| 4 | Gastos hormiga: compras pequeñas y frecuentes por comercio, total del mes y proyección anual | Reporting | Bajo |
-| 5 | Filtro rápido por cuenta en Movimientos (chips por cuenta) y búsqueda con «Cancelar» | Usabilidad | Bajo |
-| 6 | Cierre de mes guiado: importar las tres fuentes, cuadre en verde, sin categoría a cero y PayPal repartido | Usabilidad | Bajo |
-| 7 | Evolución del capital en Informes: posición a final de cada mes y ahorro real frente al del extracto | Reporting | Bajo |
+| 1 (hecha, v0.21.0) | Resumen del mes en una frase arriba del Extracto: lo gastado hasta hoy frente a la media y la categoría que más se desvía | Reporting | Bajo |
+| 2 (hecha, v0.21.0) | Comparativa con el mismo mes del año anterior en el Extracto y en Informes, además de la media | Reporting | Bajo |
+| 3 (hecha, v0.21.0) | Ranking de comercios en Informes: dónde más se gasta y con qué frecuencia, por mes y por año | Reporting | Bajo |
+| 4 (hecha, v0.21.0) | Gastos hormiga: compras pequeñas y frecuentes por comercio, total del mes y proyección anual | Reporting | Bajo |
+| 5 (hecha, v0.21.0) | Filtro rápido por cuenta en Movimientos (chips por cuenta) y búsqueda con «Cancelar» | Usabilidad | Bajo |
+| 6 (hecha, v0.21.0) | Cierre de mes guiado: importar las tres fuentes, cuadre en verde, sin categoría a cero y PayPal repartido | Usabilidad | Bajo |
+| 7 (hecha, v0.21.0) | Evolución del capital en Informes: posición a final de cada mes y ahorro real frente al del extracto | Reporting | Bajo |
 | 8 | Gastos fijos y recurrentes: detección por comercio, periodicidad e importe; próximos cargos y subidas de precio | Reporting | Medio |
 | 9 | Previsión de cierre de mes según el ritmo de gasto y los recurrentes que faltan | Reporting | Medio |
 | 10 | Presupuesto por categoría con barra de consumo en el Extracto (parte de la fase 4) | Reporting | Medio |
@@ -138,6 +138,7 @@ Ordenada por esfuerzo, de menos a más, con prioridad para la usabilidad y el re
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.21.0 (13/11/2026): las siete mejoras de esfuerzo bajo de la hoja de ruta: el mes en una frase, comparativa con el mismo mes del año anterior, ranking de comercios, gastos hormiga, chips por cuenta y «Cancelar» en Movimientos, cierre de mes guiado y capital mes a mes con el ahorro real.
 - v0.20.0 (13/11/2026): reclasificar en bloque revisando la lista: al cambiar la categoría, la hoja muestra cada movimiento parecido con su casilla (pendientes y PayPal marcados; lo elegido a mano, sin marcar) y, en PayPal, todos los demás cargos de PayPal. Hoja de ruta revisada, por esfuerzo.
 - v0.19.1 (13/11/2026): con una hoja abierta, la pantalla de detrás ya no se desplaza (bloqueo del gesto fuera de las zonas desplazables de la hoja y en sus extremos).
 - v0.19.0 (13/11/2026): «Tu posición» arriba del Extracto: capital (cuentas según el banco menos lo pendiente de la tarjeta), saldo por cuenta, variación del mes, evolución y ojo para ocultar las cifras (`calcularPosicion`, `pendienteTarjeta`).

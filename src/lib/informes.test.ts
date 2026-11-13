@@ -100,3 +100,13 @@ describe('porcionesGrafico', () => {
     expect(porcionesGrafico(Array.from({ length: 8 }, (_, i) => p(i)))).toHaveLength(8)
   })
 })
+
+describe('informe: el mismo mes del año anterior', () => {
+  it('solo en la vista mensual y con datos de hace un año', () => {
+    const conAnio = { ...db, movimientos: [...db.movimientos, mov('2025-11-05', -70, 'Alimentación > Supermercado')] }
+    const i = calcularInforme(conAnio, { escala: 'mes', clave: '2026-11' }, 'gasto')
+    expect(i.haceUnAno?.total).toBe(70)
+    expect(calcularInforme(db, { escala: 'mes', clave: '2026-11' }, 'gasto').haceUnAno).toBeNull()
+    expect(calcularInforme(conAnio, { escala: 'anio', clave: '2026' }, 'gasto').haceUnAno).toBeNull()
+  })
+})

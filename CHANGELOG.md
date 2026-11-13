@@ -2,6 +2,16 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.21.0. Mejoras de esfuerzo bajo de la hoja de ruta: reporting y usabilidad (13 de noviembre de 2026)
+
+- El mes en una frase (`fraseDelMes` en `src/lib/extracto.ts`, `formatearRedondo`): lo gastado (hasta hoy si está en curso) frente a la media, la categoría que más sube (al menos 30 € y un 15 %) y el ahorro.
+- Mismo mes del año anterior: `haceUnAno` en `calcularExtracto` (con los mismos días si el mes está en curso) y en `calcularInforme` (vista mensual). «Hace un año» en los indicadores del Extracto y en los totales de Informes.
+- Ranking de comercios y gastos hormiga (`src/lib/comercios.ts`): `rankingComercios` por importe o por veces (PayPal junto) en Informes y en la categoría de un informe; `gastosHormiga` (compras de hasta 10 € en comercios que se repiten al menos 3 veces al mes, con ritmo anual). Tocar un comercio abre Movimientos con la búsqueda y el mes (`q` y `mes` en la dirección).
+- Movimientos: chips por cuenta, «Cancelar» en la búsqueda (como en iOS) y búsqueda de tipo `search`.
+- Cierre de mes guiado (`src/lib/cierre.ts`, pantalla `/extracto/cierre`): importar cada cuenta y la tarjeta hasta final de mes, cuadre con el banco, liquidación de la tarjeta, todo categorizado, PayPal repartido, mejoras de categoría y copia exportada. Aviso en el Extracto para el mes que se ve si ya pasó, o para el anterior en los 10 primeros días.
+- Capital mes a mes en Informes: `calcularPosicion` añade el capital a final de cada mes (`pendienteTarjeta` con fecha y liquidaciones hasta entonces); gráfico de línea y tabla con el ahorro real (variación del capital) frente al ahorro del extracto.
+- Pruebas: 353 tests.
+
 ## v0.20.0. Reclasificar en bloque revisando la lista (13 de noviembre de 2026)
 
 - `HojaCorreccion` (`src/componentes/movimientos.tsx`): en lugar de interruptores con un recuento, `GrupoMarcable` lista cada movimiento (fecha, concepto, categoría actual, importe) con su casilla y «Todos» o «Ninguno» por grupo. Marcados de entrada: pendientes del mismo comercio y parecidos; en PayPal, también lo del mismo importe y el resto de cargos de PayPal que no eligió el usuario a mano. Lo ya categorizado de otros comercios, sin marcar. El botón dice a cuántos movimientos se aplica.

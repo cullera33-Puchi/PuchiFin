@@ -1,7 +1,7 @@
 import { ChartColumn, Check, ChevronRight, Sheet, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts'
+import { Bar, BarChart, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { BarraNavegacion, Encabezado } from '../componentes/Encabezado'
 import { FilaMovimientoDeslizable } from '../componentes/FilaMovimientoDeslizable'
 import { Deslizable } from '../componentes/gestos'
@@ -10,10 +10,13 @@ import { Segmentado, useInterfaz } from '../componentes/Interfaz'
 import { DetalleMovimiento } from '../componentes/movimientos'
 import { useDatos } from '../datos/ProveedorDatos'
 import { diaLargo, hoyIso, MESES, mesLargo } from '../lib/fechas'
-import { formatearImporte, plural } from '../lib/formato'
+import { formatearImporte, formatearRedondo, plural } from '../lib/formato'
 import { calcularInforme, moverPeriodo, periodoDeFecha, porcionesGrafico, type Escala, type Informe, type PeriodoInforme, type Vista } from '../lib/informes'
-import { porcentaje } from '../lib/resumen'
+import { calcularTotales, porcentaje } from '../lib/resumen'
+import { calcularPosicion } from '../lib/posicion'
+import { mesEfectivo } from '../lib/imputacion'
 import { porDia } from '../lib/vista'
+import { gastosHormiga, IMPORTE_HORMIGA, rankingComercios } from '../lib/comercios'
 
 /*
  * Informes: gastos o ingresos de un mes o un año en un gráfico de quesito por categoría, con el
@@ -95,7 +98,10 @@ export function Informes() {
         <div className="space-y-4">
           <Totales informe={informe} onVista={(v) => ir({ vista: v })} />
           <PanelQuesito informe={informe} onAbrir={(id) => navegar(`/informes/categoria/${id ?? 'sin'}?${consulta}`)} />
+          <SeccionComercios informe={informe} movimientos={informe.movimientos} />
+          {vista === 'gasto' && <SeccionHormiga informe={informe} hoy={hoy} />}
           <Evolucion db={db} informe={informe} onPeriodo={(p) => (p.length === 7 && escala === 'anio' ? irAlMes(ir, p) : ir({ p }))} />
+          <SeccionCapital db={db} />
         </div>
       </Deslizable>
     </>
@@ -106,9 +112,10 @@ export function Informes() {
 function Totales({ informe, onVista }: { informe: Informe; onVista: (v: Vista) => void }) {
   const t = informe.totales
   const a = informe.totalesAnteriores
-  const casillas: { clave: Vista; texto: string; valor: number; antes: number }[] = [
-    { clave: 'ingreso', texto: 'Ingresos', valor: t.ingresos, antes: a.ingresos },
-    { clave: 'gasto', texto: 'Gastos', valor: t.gastos, antes: a.gastos },
+  const h = informe.haceUnAno?.totales
+  const casillas: { clave: Vista; texto: string; valor: number; antes: number; anio: number | null }[] = [
+    { clave: 'ingreso', texto: 'Ingresos', valor: t.ingresos, antes: a.ingresos, anio: h ? h.ingresos : null },
+    { clave: 'gasto', texto: 'Gastos', valor: t.gastos, antes: a.gastos, anio: h ? h.gastos : null },
   ]
   const conAnterior = a.movimientos > 0
   const difAhorro = Math.round((t.ahorro - a.ahorro) * 100) / 100
@@ -126,6 +133,7 @@ function Totales({ informe, onVista }: { informe: Informe; onVista: (v: Vista) =
                 {formatearImporte(Math.round((c.valor - c.antes) * 100) / 100)}
               </span>
             )}
+            {c.anio !== null && <span className="block truncate text-[11px] text-zinc-500 tabular-nums">Hace un año: {formatearImporte(c.anio)}</span>}
           </>
         )
         return (
@@ -245,6 +253,153 @@ function PanelQuesito({
   )
 }
 
+/** Fecha de un periodo para buscarlo en Movimientos (solo el mes; el año, sin filtro de mes) */
+const buscarComercio = (navegar: ReturnType<typeof useNavigate>, clave: string, periodo: PeriodoInforme) =>
+  navegar(`/movimientos?q=${encodeURIComponent(clave)}${periodo.escala === 'mes' ? `&mes=${periodo.clave}` : ''}`)
+
+/** Dónde más se gasta (o de dónde vienen los ingresos) del periodo, por importe o por veces */
+function SeccionComercios({ informe, movimientos }: { informe: Informe; movimientos: Informe['movimientos'] }) {
+  const navegar = useNavigate()
+  const [orden, setOrden] = useState<'importe' | 'veces'>('importe')
+  const lista = useMemo(() => rankingComercios(movimientos, informe.vista === 'gasto' ? -1 : 1, orden), [movimientos, informe.vista, orden])
+  if (lista.length < 2) return null
+  return (
+    <section className="tarjeta">
+      <div className="mb-2 flex items-center gap-2">
+        <h3 className="flex-1 text-[13px] font-medium text-zinc-500 uppercase">{informe.vista === 'gasto' ? 'Dónde más gastas' : 'De dónde vienen'}</h3>
+        <div className="w-40">
+          <Segmentado etiqueta="Ordenar por" opciones={[['importe', 'Importe'], ['veces', 'Veces']]} valor={orden} onCambio={setOrden} />
+        </div>
+      </div>
+      <ol className="divide-y divide-zinc-200/70 dark:divide-zinc-800">
+        {lista.map((l, i) => (
+          <li key={l.clave}>
+            <button className="flex min-h-11 w-full items-center gap-3 py-1.5 text-left active:opacity-60" onClick={() => buscarComercio(navegar, l.clave, informe.periodo)}>
+              <span className="w-5 shrink-0 text-right text-[13px] text-zinc-500 tabular-nums">{i + 1}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[15px]">{l.nombre}</span>
+                <span className="block text-[11px] text-zinc-500">{l.veces === 1 ? '1 vez' : `${l.veces} veces`}</span>
+              </span>
+              <span className="text-[15px] tabular-nums">{formatearImporte(l.importe)}</span>
+              <ChevronRight className="size-4 shrink-0 text-zinc-400" strokeWidth={2} />
+            </button>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
+
+/** Meses que dura el periodo hasta hoy (fraccionario si está en curso), para el ritmo anual */
+function mesesDelPeriodo(p: PeriodoInforme, hoy: string): number {
+  if (!hoy.startsWith(p.clave)) return p.escala === 'mes' ? 1 : 12
+  const dia = Number(hoy.slice(8, 10))
+  if (p.escala === 'mes') return dia / new Date(Date.UTC(Number(p.clave.slice(0, 4)), Number(p.clave.slice(5, 7)), 0)).getUTCDate()
+  return Number(hoy.slice(5, 7)) - 1 + dia / 30.4
+}
+
+/** Gastos hormiga: compras pequeñas y frecuentes, su total y lo que suman en un año */
+function SeccionHormiga({ informe, hoy }: { informe: Informe; hoy: string }) {
+  const navegar = useNavigate()
+  const h = useMemo(() => gastosHormiga(informe.movimientos, mesesDelPeriodo(informe.periodo, hoy)), [informe, hoy])
+  if (!h) return null
+  return (
+    <section className="tarjeta">
+      <h3 className="text-[13px] font-medium text-zinc-500 uppercase">Gastos hormiga</h3>
+      <p className="mt-1 text-[22px] leading-tight font-bold tabular-nums">{formatearImporte(h.total)}</p>
+      <p className="text-[13px] text-zinc-500">
+        {h.compras} compras de hasta {IMPORTE_HORMIGA} € en sitios donde repites. A este ritmo, unos <span className="font-semibold text-zinc-900 dark:text-zinc-100">{formatearRedondo(h.alAno)}</span> al año.
+      </p>
+      <ul className="mt-2 divide-y divide-zinc-200/70 dark:divide-zinc-800">
+        {h.comercios.slice(0, 5).map((c) => (
+          <li key={c.clave}>
+            <button className="flex min-h-11 w-full items-center gap-3 py-1.5 text-left active:opacity-60" onClick={() => buscarComercio(navegar, c.clave, informe.periodo)}>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[15px]">{c.nombre}</span>
+                <span className="block text-[11px] text-zinc-500">{c.veces} veces</span>
+              </span>
+              <span className="text-[15px] tabular-nums">{formatearImporte(c.importe)}</span>
+              <ChevronRight className="size-4 shrink-0 text-zinc-400" strokeWidth={2} />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+/**
+ * Tu capital a final de cada mes (cuentas según el banco menos lo pendiente de la tarjeta), lo que ha
+ * variado cada mes (el ahorro real) y el ahorro que da el extracto con los movimientos de tipo Normal.
+ */
+function SeccionCapital({ db }: { db: ReturnType<typeof useDatos> }) {
+  const datos = useMemo(() => {
+    const p = calcularPosicion(db)
+    if (!p || p.evolucion.length < 2) return null
+    return p.evolucion.map((e, i) => {
+      const anterior = i ? p.evolucion[i - 1].capital : null
+      const delMes = db.movimientos.filter((m) => mesEfectivo(m) === e.mes)
+      return {
+        ...e,
+        nombre: MESES[Number(e.mes.slice(5, 7)) - 1].slice(0, 3),
+        variacion: anterior === null ? null : Math.round((e.capital - anterior) * 100) / 100,
+        extracto: calcularTotales(delMes, db.categorias).ahorro,
+      }
+    })
+  }, [db])
+  if (!datos) return null
+  const ultimo = datos[datos.length - 1]
+  return (
+    <section className="tarjeta">
+      <h3 className="text-[13px] font-medium text-zinc-500 uppercase">Tu capital, mes a mes</h3>
+      <p className="mt-1 text-[22px] leading-tight font-bold tabular-nums">{formatearImporte(ultimo.capital)}</p>
+      <p className="text-[12px] text-zinc-500">Hoy. Cuentas según el banco menos lo pendiente de la tarjeta, a final de cada mes.</p>
+      <div className="mt-2 h-32">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={datos} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
+            <XAxis dataKey="nombre" stroke="var(--graf-texto)" fontSize={11} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+            <YAxis hide domain={['dataMin', 'dataMax']} />
+            <Tooltip
+              formatter={(v) => [formatearImporte(Number(v)), 'Capital']}
+              contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.15)', fontSize: 13 }}
+            />
+            <Line type="monotone" dataKey="capital" stroke="var(--serie-1)" strokeWidth={2} dot={{ r: 3, strokeWidth: 0, fill: 'var(--serie-1)' }} activeDot={{ r: 5 }} isAnimationActive={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      <table className="mt-3 w-full text-[13px] whitespace-nowrap tabular-nums">
+        <thead>
+          <tr className="text-[11px] text-zinc-500">
+            <th className="py-1 text-left font-normal">Mes</th>
+            <th className="py-1 text-right font-normal">Capital</th>
+            <th className="py-1 text-right font-normal">Ahorro real</th>
+            <th className="py-1 text-right font-normal">Extracto</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-zinc-200/70 dark:divide-zinc-800">
+          {datos
+            .slice(-6)
+            .reverse()
+            .map((d) => (
+              <tr key={d.mes}>
+                <td className="py-1.5">{d.mes === ultimo.mes ? 'Hoy' : `${d.nombre.charAt(0).toUpperCase()}${d.nombre.slice(1)} ${d.mes.slice(2, 4)}`}</td>
+                <td className="py-1.5 pl-2 text-right">{formatearRedondo(d.capital)}</td>
+                <td className={`py-1.5 pl-2 text-right ${d.variacion === null ? '' : d.variacion >= 0 ? 'text-[#248A3D] dark:text-[#30D158]' : 'text-[#D70015] dark:text-[#FF6961]'}`}>
+                  {d.variacion === null ? '' : `${d.variacion >= 0 ? '+' : ''}${formatearRedondo(d.variacion)}`}
+                </td>
+                <td className="py-1.5 pl-2 text-right text-zinc-500">{formatearRedondo(d.extracto)}</td>
+              </tr>
+            ))}
+        </tbody>
+      </table>
+      <p className="mt-2 text-[11px] text-zinc-500">
+        El ahorro real es lo que ha cambiado tu capital. Puede no coincidir con el del extracto por los gastos de empleado y reembolsos, la nómina que cuenta en el mes
+        siguiente y los movimientos que no entran en el extracto.
+      </p>
+    </section>
+  )
+}
+
 /** Barras de los últimos 6 meses (vista mensual) o de los meses del año (vista anual) */
 function Evolucion({ db, informe, onPeriodo, categoria }: { db: ReturnType<typeof useDatos>; informe: Informe; onPeriodo: (clave: string) => void; categoria?: string | null }) {
   const { periodo, vista } = informe
@@ -344,6 +499,7 @@ export function InformeCategoria() {
       <div>
         <div className="space-y-4">
           {informe.porciones.length > 1 && <PanelQuesito informe={informe} elegida={sub} onElegir={(id) => elegirSub(id === sub || !id ? undefined : id)} />}
+          <SeccionComercios informe={informe} movimientos={movimientos} />
           <Evolucion db={db} informe={informe} categoria={categoriaId} onPeriodo={(p) => (p.length === 7 && periodo.escala === 'anio' ? irAlMes(ir, p) : ir({ p }))} />
           {informe.porciones.length > 1 && (
             <div className="flex items-center gap-2 px-1">

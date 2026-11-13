@@ -15,6 +15,14 @@ export function formatearImporte(importe: number): string {
   return euros.format(valor).replace(/ /g, ' ')
 }
 
+const eurosRedondos = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0, useGrouping: 'always' })
+
+/** Importe redondeado al euro, para frases: 1234.56 → "1.235 €" */
+export function formatearRedondo(importe: number): string {
+  const valor = Math.round(importe) === 0 ? 0 : Math.round(importe)
+  return eurosRedondos.format(valor).replace(/ /g, ' ')
+}
+
 const fechaCorta = new Intl.DateTimeFormat('es-ES', {
   day: '2-digit',
   month: '2-digit',
