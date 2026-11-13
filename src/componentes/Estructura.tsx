@@ -7,7 +7,7 @@ import { Hoja } from './Interfaz'
 
 /**
  * Estructura de la app del iPhone: contenido en una columna y barra de pestañas de iOS abajo,
- * translúcida, con cuatro secciones. Solo móvil: el diseño de escritorio queda para más adelante.
+ * flotante y de cristal, con cuatro secciones. Solo móvil: el diseño de escritorio queda para más adelante.
  */
 const SECCIONES = [
   { a: '/', texto: 'Extracto', icono: ReceiptText, fin: true },
@@ -25,6 +25,8 @@ export function Estructura() {
   const navegar = useNavigate()
   // Pantallas secundarias del Extracto: su pestaña sigue marcada
   const enExtracto = pathname === '/' || ['/extracto', '/analisis', '/resumenes'].some((p) => pathname.startsWith(p))
+  // Pestaña activa: la del Extracto incluye sus pantallas secundarias; las demás, todo lo que cuelga de ellas
+  const activa = enExtracto ? 0 : SECCIONES.findIndex((s, i) => i > 0 && pathname.startsWith(s.a))
 
   // Al volver tras más de dos horas fuera, la app vuelve a la pantalla principal (salvo con una hoja abierta)
   useEffect(() => {
@@ -47,7 +49,7 @@ export function Estructura() {
   return (
     <div className="min-h-dvh overflow-x-clip">
       <main
-        className="mx-auto max-w-lg px-4 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[calc(env(safe-area-inset-bottom)+5rem)]"
+        className="mx-auto max-w-lg px-4 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[calc(var(--alto-pestanas)+1.5rem)]"
         style={{
           transform: borde.dx ? `translateX(${borde.dx}px)` : undefined,
           transition: borde.animar ? 'transform 0.4s var(--curva)' : 'none',
@@ -59,22 +61,38 @@ export function Estructura() {
         </div>
       </main>
 
-      {/* Barra de pestañas de iOS: abajo, translúcida, icono relleno en la activa */}
-      <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-black/10 bg-[#F9F9F9]/80 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl backdrop-saturate-150 dark:border-white/10 dark:bg-[#161618]/80">
-        <div className="mx-auto grid h-12 max-w-lg grid-cols-4">
-          {SECCIONES.map(({ a, texto, icono: Icono, fin }) => (
-            <NavLink key={a} to={a} end={fin} className="flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium">
-              {({ isActive }) => {
-                const activa = a === '/' ? enExtracto : isActive
-                return (
-                  <span className={`flex flex-col items-center gap-0.5 ${activa ? 'text-marca-700 dark:text-marca-500' : 'text-zinc-500 dark:text-zinc-400'}`}>
-                    <Icono className="size-6" strokeWidth={activa ? 2 : 1.6} fill={activa ? 'currentColor' : 'none'} fillOpacity={activa ? 0.18 : 0} />
-                    {texto}
-                  </span>
-                )
-              }}
-            </NavLink>
-          ))}
+      {/* Barra de pestañas flotante, de cristal (iOS 26 y posteriores): cápsula con la pestaña activa resaltada */}
+      <nav data-pestanas="" aria-label="Pestañas" className="barra-pestanas pointer-events-none fixed inset-x-0 bottom-0 z-20 px-4">
+        <div className="cristal-pestanas pointer-events-auto relative mx-auto grid h-[62px] max-w-md grid-cols-4 rounded-full p-1">
+          {activa >= 0 && (
+            <span
+              aria-hidden
+              className="pestana-marca absolute inset-y-1 left-1 rounded-full"
+              style={{ width: 'calc((100% - 0.5rem) / 4)', transform: `translateX(${activa * 100}%)` }}
+            />
+          )}
+          {SECCIONES.map(({ a, texto, icono: Icono, fin }, i) => {
+            const esta = i === activa
+            return (
+              <NavLink
+                key={a}
+                to={a}
+                end={fin}
+                aria-current={esta ? 'page' : undefined}
+                onClick={(e) => {
+                  // Tocar la pestaña en la que ya estás sube al principio, como en iOS
+                  if (pathname === a) {
+                    e.preventDefault()
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }
+                }}
+                className={`pestana relative z-10 flex flex-col items-center justify-center gap-0.5 rounded-full text-[10px] font-semibold ${esta ? 'text-marca-700 dark:text-marca-500' : 'text-zinc-600 dark:text-zinc-300'}`}
+              >
+                <Icono className="size-6" strokeWidth={esta ? 2 : 1.7} />
+                {texto}
+              </NavLink>
+            )
+          })}
         </div>
       </nav>
       <Bienvenida />

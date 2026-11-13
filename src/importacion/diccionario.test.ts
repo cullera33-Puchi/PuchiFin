@@ -94,12 +94,15 @@ const CASOS: [string, string][] = [
   ['UNIVERSIDAD ZETA', 'Formación > Estudios'],
   ['DOMESTIKA INC.', 'Formación > Cursos y plataformas'],
   ['Adeudo de recaudacion municipal Ajuntament de Zeta', 'Impuestos > IBI y tasas'],
-  ['PayPal Europe S.a.r.l. et Cie S.c.a', 'Compras > Hogar'],
 ]
 
 describe('diccionario de comercios de la app', () => {
   it.each(CASOS)('%s → %s', (concepto, esperada) => {
     expect(categoria(concepto)).toBe(esperada)
+  })
+
+  it('PayPal queda sin categoría: se reparte por importe', () => {
+    expect(categoria('PayPal Europe S.a.r.l. et Cie S.c.a')).toBeNull()
   })
 
   it('las plataformas mandan sobre la regla general de Amazon', () => {

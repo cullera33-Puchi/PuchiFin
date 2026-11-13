@@ -8,7 +8,7 @@
  * Las reglas de sugerencia (hoy, el pago de la deuda familiar) nunca se aplican solas: aparecen en la
  * revisión para confirmarlas o descartarlas. Los gastos de empleado y reembolsos los marca el usuario.
  */
-import { claveComercio, normalizarConcepto, primeraPalabra } from '../lib/conceptos'
+import { claveComercio, claveConImporte, esPasarela, normalizarConcepto, primeraPalabra } from '../lib/conceptos'
 import type { BaseDatos, Categoria, Movimiento, Regla, TipoMovimiento } from '../lib/tipos'
 
 interface ReglaBase {
@@ -24,7 +24,7 @@ interface ReglaBase {
 }
 
 /** Reglas de la app de versiones anteriores que ya no existen: se quitan del dispositivo al actualizar */
-export const REGLAS_RETIRADAS = ['Reembolso de la empresa', 'Viajes de trabajo: alojamiento', 'Viajes de trabajo: transporte']
+export const REGLAS_RETIRADAS = ['Reembolso de la empresa', 'Viajes de trabajo: alojamiento', 'Viajes de trabajo: transporte', 'PayPal']
 
 const REGLAS_BASE: ReglaBase[] = [
   { nombre: 'Liquidación de tarjeta', patron: '\\b(liquidacion|liq)\\b.*\\btarj|\\bpago\\b.*\\btarjeta (de )?credito\\b|\\bcargo\\b.*\\btarjeta\\b|\\badeudo mensual de tarjeta\\b', tipo: 'traspaso_interno', signo: 'gasto', prioridad: 10 },
@@ -47,7 +47,6 @@ const REGLAS_BASE: ReglaBase[] = [
   { nombre: 'Tiendas de mascotas', patron: '\\b(kiwoko|tiendanimal|zooplus|miscota)\\b', ruta: 'Mascotas > Comida y accesorios', signo: 'gasto' },
   { nombre: 'Estudios', patron: '\\b(universitat|universidad|uoc|uned|gestio academica|gestion academica|matricula)\\b', ruta: 'Formación > Estudios', signo: 'gasto', prioridad: 80 },
   { nombre: 'Cursos', patron: '\\b(domestika|udemy|coursera|platzi|linkedin learning|masterclass|duolingo|babbel)\\b', ruta: 'Formación > Cursos y plataformas', signo: 'gasto', prioridad: 80 },
-  { nombre: 'PayPal', patron: '\\bpaypal\\b', ruta: 'Compras > Hogar', signo: 'gasto', prioridad: 120 },
   { nombre: 'Hipoteca', patron: '\\b(prestamo hipotecario|hipoteca|prestamo)\\b', ruta: 'Vivienda > Hipoteca', signo: 'gasto', mesSiguiente: true },
   { nombre: 'Comunidad', patron: '\\b(comunidad|comunidad de propietarios|cdad prop)\\b', ruta: 'Vivienda > Comunidad', signo: 'gasto' },
   { nombre: 'IBI', patron: '\\b(ibi|impuesto bienes inmuebles|tasa basura|tasa residuos|recaudacion municipal|adeudo de impuestos|basuras)\\b', ruta: 'Impuestos > IBI y tasas', signo: 'gasto', prioridad: 90 },
@@ -183,7 +182,7 @@ export function coincide(r: Regla, m: TextoRegla): boolean {
 }
 
 export interface Aprendidas {
-  /** Clave del comercio → categoría elegida a mano más recientemente */
+  /** Clave del comercio (en PayPal, con el importe) → categoría elegida a mano más recientemente */
   porClave: Map<string, string>
   /** Primera palabra del comercio → categoría, solo si todas sus claves coinciden */
   porPalabra: Map<string, string>
@@ -196,16 +195,19 @@ export function categoriasAprendidas(db: BaseDatos): Aprendidas {
   const m = new Map<string, { categoria: string; fecha: string }>()
   const mesSiguiente = new Set<string>()
   for (const mov of db.movimientos) {
-    const clave = claveComercio(mov.concepto_limpio)
-    if (!clave) continue
-    if (mov.mes_imputacion && mov.mes_imputacion > mov.fecha_operacion.slice(0, 7)) mesSiguiente.add(clave)
+    const base = claveComercio(mov.concepto_limpio)
+    if (!base) continue
+    if (mov.mes_imputacion && mov.mes_imputacion > mov.fecha_operacion.slice(0, 7)) mesSiguiente.add(base)
     if (!mov.categoria_id || (mov.origen_categoria !== 'manual' && mov.origen_categoria !== 'aprendida')) continue
+    // En PayPal se aprende por importe: cada cargo puede ser de una cosa distinta
+    const clave = claveConImporte(base, mov.importe)
     const prev = m.get(clave)
     if (!prev || mov.fecha_operacion >= prev.fecha) m.set(clave, { categoria: mov.categoria_id, fecha: mov.fecha_operacion })
   }
   const porClave = new Map([...m].map(([k, v]) => [k, v.categoria]))
   const palabras = new Map<string, Set<string>>()
   for (const [k, c] of porClave) {
+    if (esPasarela(k)) continue
     const p = primeraPalabra(k)
     if (p) palabras.set(p, (palabras.get(p) ?? new Set()).add(c))
   }
@@ -256,8 +258,8 @@ export function clasificar(m: TextoRegla, reglas: Regla[], aprendidas: Aprendida
   }
   // 3. Aprendidas: el mismo comercio o, si no, uno que empieza igual
   if (!res.categoria_id && res.tipo === 'normal') {
-    const p = primeraPalabra(m.clave)
-    const aprendida = aprendidas.porClave.get(m.clave) ?? (p ? aprendidas.porPalabra.get(p) : undefined)
+    const p = esPasarela(m.clave) ? null : primeraPalabra(m.clave)
+    const aprendida = aprendidas.porClave.get(claveConImporte(m.clave, m.importe)) ?? (p ? aprendidas.porPalabra.get(p) : undefined)
     if (aprendida) {
       res.categoria_id = aprendida
       res.origen_categoria = 'aprendida'

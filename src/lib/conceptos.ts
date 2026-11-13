@@ -35,3 +35,20 @@ export function primeraPalabra(clave: string): string | null {
   const p = clave.split(' ')[0]
   return p && p.length >= 4 ? p : null
 }
+
+/**
+ * Pasarelas de pago que no dicen el comercio (PayPal: «Adeudo a su cargo PayPal Europe»). Sus cargos
+ * son de cosas muy distintas, así que no se aprenden ni se agrupan por comercio sino por comercio e
+ * importe: un importe que se repite suele ser la misma suscripción.
+ */
+const PASARELAS = /^paypal\b/
+
+export const esPasarela = (clave: string) => PASARELAS.test(clave)
+
+/** Nombre corto de la pasarela para la pantalla */
+export const nombrePasarela = (clave: string) => (clave.startsWith('paypal') ? 'PayPal' : clave)
+
+/** Clave para aprender y agrupar: la del comercio o, en una pasarela, la del comercio con el importe */
+export function claveConImporte(clave: string, importe: number): string {
+  return esPasarela(clave) ? `${clave} ${Math.abs(importe).toFixed(2)}` : clave
+}

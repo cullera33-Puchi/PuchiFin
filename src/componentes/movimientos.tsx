@@ -5,7 +5,7 @@ import { similares } from '../datos/categorizar'
 import { cambiarCategoria, cambiarTipo, guardarNota, imputarMesSiguiente } from '../datos/movimientos'
 import { mesSiguiente } from '../lib/imputacion'
 import { intentar, useDatos } from '../datos/ProveedorDatos'
-import { normalizarConcepto } from '../lib/conceptos'
+import { claveComercio, esPasarela, normalizarConcepto } from '../lib/conceptos'
 import { formatearFecha, formatearImporte, plural } from '../lib/formato'
 import { nombreMes } from '../lib/fechas'
 import { NOMBRE_TIPO_MOVIMIENTO, type BaseDatos, type Categoria, type Movimiento, type TipoMovimiento } from '../lib/tipos'
@@ -147,6 +147,11 @@ export function HojaCorreccion({
   const [yaHechos, setYaHechos] = useState(false)
   const [regla, setRegla] = useState(true)
   const s = useMemo(() => (ids ? similares(db, ids, categoria) : null), [db, ids, categoria])
+  // En PayPal, «el mismo comercio» es el mismo importe
+  const pasarela = !!ids?.length && ids.every((id) => {
+    const m = db.movimientos.find((x) => x.id === id)
+    return !!m && esPasarela(claveComercio(m.concepto_limpio))
+  })
   const nombres = (movs: Movimiento[]) => {
     const unicos = [...new Set(movs.map((m) => m.concepto_limpio))]
     return unicos.slice(0, 4).join(', ') + (unicos.length > 4 ? ` y ${unicos.length - 4} más` : '')
@@ -179,7 +184,7 @@ export function HojaCorreccion({
       <div className="space-y-4">
         {s && s.mismoComercio.length > 0 && (
           <FilaInterruptor
-            texto={`También ${plural(s.mismoComercio.length, 'pendiente', 'pendientes')} del mismo comercio`}
+            texto={`También ${plural(s.mismoComercio.length, 'pendiente', 'pendientes')} ${pasarela ? 'de PayPal con el mismo importe' : 'del mismo comercio'}`}
             activo={mismo}
             onCambio={setMismo}
           />
@@ -195,12 +200,12 @@ export function HojaCorreccion({
         {s && s.yaCategorizados.length > 0 && (
           <FilaInterruptor
             texto={`Cambiar también ${plural(s.yaCategorizados.length, 'ya categorizado', 'ya categorizados')} de otra forma`}
-            nota="Del mismo comercio. Desactivado: lo que ya categorizaste no se toca"
+            nota={`${pasarela ? 'De PayPal con el mismo importe' : 'Del mismo comercio'}. Desactivado: lo que ya categorizaste no se toca`}
             activo={yaHechos}
             onCambio={setYaHechos}
           />
         )}
-        {categoria && <FilaInterruptor texto="Crear la regla para las próximas importaciones" nota="Los movimientos nuevos de estos comercios se categorizarán solos" activo={regla} onCambio={setRegla} />}
+        {categoria && <FilaInterruptor texto="Crear la regla para las próximas importaciones" nota={pasarela ? 'Los próximos cargos de PayPal con este mismo importe se categorizarán solos' : 'Los movimientos nuevos de estos comercios se categorizarán solos'} activo={regla} onCambio={setRegla} />}
       </div>
     </Hoja>
   )

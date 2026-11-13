@@ -1,4 +1,6 @@
-import { ArrowRight, Check, CircleCheck, Sparkles, Tag } from 'lucide-react'
+import { ArrowRight, Check, ChevronRight, CircleCheck, CreditCard, Sparkles, Tag } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { esPasarela } from '../lib/conceptos'
 import { useMemo, useState } from 'react'
 import { useAcciones } from './categorizarAcciones'
 import { BarraNavegacion } from '../componentes/Encabezado'
@@ -29,7 +31,10 @@ function categoriaDe(db: BaseDatos, id: string) {
 export function Categorizar() {
   const db = useDatos()
   const { confirmar } = useInterfaz()
-  const grupos = useMemo(() => gruposPendientes(db), [db])
+  // PayPal tiene su propia pantalla, por importe
+  const todos = useMemo(() => gruposPendientes(db), [db])
+  const grupos = useMemo(() => todos.filter((g) => !esPasarela(g.clave)), [todos])
+  const paypal = todos.length - grupos.length
   const [regla, setRegla] = useState(true)
   const [saltados, setSaltados] = useState<Set<string>>(new Set())
   const [excluidos, setExcluidos] = useState<Map<string, Set<string>>>(new Map())
@@ -74,6 +79,17 @@ export function Categorizar() {
       />
 
       <Mejoras />
+
+      {paypal > 0 && (
+        <Link to="/movimientos/paypal" className="lista fila mb-4">
+          <Baldosa glifo={CreditCard} color="#007AFF" tamano="sm" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px]">Cargos de PayPal</span>
+            <span className="block text-xs text-zinc-500">{plural(paypal, 'importe pendiente', 'importes pendientes')}. Se reparten aparte, por importe</span>
+          </span>
+          <ChevronRight className="size-4 text-zinc-400" />
+        </Link>
+      )}
 
       {!grupos.length ? (
         <div className="tarjeta space-y-2 py-8 text-center">

@@ -1,4 +1,4 @@
-import { ChevronRight, EyeOff, History, Search, SlidersHorizontal, Sparkles, Tag, Upload, X } from 'lucide-react'
+import { ChevronRight, CreditCard, EyeOff, History, Search, SlidersHorizontal, Sparkles, Tag, Upload, X } from 'lucide-react'
 import { Baldosa } from '../componentes/Icono'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -12,7 +12,7 @@ import { cambiarTipo, marcarFuera } from '../datos/movimientos'
 import { obtenerDatos } from '../datos/almacen'
 import { useDatos } from '../datos/ProveedorDatos'
 import { aplicarReglasAPendientes } from '../importacion/pendientes'
-import { propuestasRecategorizacion } from '../datos/categorizar'
+import { gruposPasarela, propuestasRecategorizacion } from '../datos/categorizar'
 import { normalizarConcepto } from '../lib/conceptos'
 import { diaLargo, mesLargo } from '../lib/fechas'
 import { formatearImporte, leerImporteUsuario, plural } from '../lib/formato'
@@ -64,6 +64,7 @@ export function Movimientos() {
 
   const mejoras = useMemo(() => propuestasRecategorizacion(db).reduce((s, p) => s + p.movimientos.length, 0), [db])
   const sinCategoria = db.movimientos.filter((m) => m.tipo === 'normal' && !m.categoria_id).length
+  const paypal = useMemo(() => gruposPasarela(db).reduce((s, g) => s + g.porRevisar.length, 0), [db])
   const hijas = useMemo(() => {
     const mapa = new Map<string, Set<string>>()
     for (const c of db.categorias) mapa.set(c.id, new Set([c.id, ...db.categorias.filter((h) => h.padre_id === c.id).map((h) => h.id)]))
@@ -185,6 +186,16 @@ export function Movimientos() {
               <span className="block text-xs text-zinc-500">
                 {[sinCategoria > 0 && `${plural(sinCategoria, 'pendiente', 'pendientes')}, agrupados y con sugerencias`, mejoras > 0 && plural(mejoras, 'mejora para revisar', 'mejoras para revisar')].filter(Boolean).join('. ')}
               </span>
+            </span>
+            <ChevronRight className="size-4 text-zinc-400" />
+          </Link>
+        )}
+        {paypal > 0 && (
+          <Link to="/movimientos/paypal" className="lista fila">
+            <Baldosa glifo={CreditCard} color="#007AFF" tamano="sm" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px]">Repartir PayPal</span>
+              <span className="block text-xs text-zinc-500">{plural(paypal, 'cargo por revisar', 'cargos por revisar')}, agrupados por importe</span>
             </span>
             <ChevronRight className="size-4 text-zinc-400" />
           </Link>

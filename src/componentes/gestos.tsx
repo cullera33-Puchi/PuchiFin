@@ -73,6 +73,13 @@ export function FilaDeslizable({
     if (!fija) return
     const fuera = (e: PointerEvent) => {
       if (caja.current?.contains(e.target as Node)) return
+      // La barra de pestañas responde siempre al primer toque (y cierra la fila)
+      if (e.target instanceof Element && e.target.closest('[data-pestanas]')) {
+        setAnimar(true)
+        setX(0)
+        setFija(false)
+        return
+      }
       e.stopPropagation()
       setAnimar(true)
       setX(0)

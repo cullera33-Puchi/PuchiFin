@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.16.0",
+    "fecha": "2026-11-13",
+    "cambios": [
+      "Nueva barra de pestañas flotante, de cristal, con la pestaña activa resaltada. Responde al primer toque en toda la pestaña, y tocar la pestaña en la que estás sube al principio.",
+      "Repartir PayPal (en Movimientos): los cargos de PayPal se agrupan por importe y se categorizan con un toque.",
+      "La app recuerda la categoría de cada importe de PayPal: la próxima suscripción del mismo importe se categoriza sola.",
+      "PayPal ya no va a Compras por defecto. Lo que puso la app antes queda «por revisar» en esa pantalla."
+    ]
+  },
+  {
     "version": "0.15.2",
     "fecha": "2026-11-13",
     "cambios": [

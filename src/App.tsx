@@ -14,6 +14,7 @@ import { CategoriaMes } from './paginas/CategoriaMes'
 import { Importaciones } from './paginas/Importaciones'
 import { Movimientos } from './paginas/Movimientos'
 import { Categorizar } from './paginas/Categorizar'
+import { PayPal } from './paginas/PayPal'
 import { Reglas } from './paginas/ajustes/Reglas'
 import { Resumenes } from './paginas/Resumenes'
 
@@ -41,6 +42,7 @@ export function App() {
                 <Route path="movimientos/importar" element={<Suspense fallback={cargando}><Importar /></Suspense>} />
                 <Route path="movimientos/importaciones" element={<Importaciones />} />
                 <Route path="movimientos/categorizar" element={<Categorizar />} />
+                <Route path="movimientos/paypal" element={<PayPal />} />
                 <Route path="ajustes/reglas" element={<Reglas />} />
                 <Route path="empleado/*" element={<Navigate to="/" replace />} />
                 <Route path="resumenes" element={<Resumenes />} />

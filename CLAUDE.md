@@ -73,7 +73,7 @@ Se mantienen en todas las fases. Están en Ajustes, Herramientas.
 - **Registro.** `registrar()` de `src/lib/registro.ts` anota errores y eventos en el dispositivo (400 entradas) para copiarlo al chat. Toda operación nueva relevante (importación, copia, restauración, exportación, PDF, errores al guardar) se registra. Nunca conceptos, importes ni nombres: solo recuentos e identificadores internos. Si se cuela un IBAN, tarjeta o DNI, se enmascara.
 - **Copias de seguridad y archivo.** Copia diaria en el dispositivo (IndexedDB, 7 últimas), copia manual, exportar a archivo JSON e importar o restaurar, que sustituye todo y antes guarda una copia del estado actual. Si cambia el modelo de datos, subir `VERSION_ESQUEMA` en `src/lib/tipos.ts` y añadir la adaptación en `migrar()` de `src/datos/archivo.ts`, para que los archivos antiguos se sigan importando.
 - **Datos de prueba.** Movimientos inventados del mes en curso y los dos anteriores, colgados de importaciones con origen `datos_prueba`: se eliminan de una vez sin tocar lo real. Viajan en el archivo exportado como el resto de datos. El extracto, los resúmenes y el PDF avisan cuando hay datos de prueba. Si se añaden reglas o tipos nuevos, el generador debe cubrirlos.
-- **Estilo iOS (v0.3.0).** Iconos de trazo fino; los de categorías y cuentas, en baldosas de color (`Baldosa`) con el catálogo de `src/componentes/iconos.ts`. Nada de emojis como iconos. Paleta del sistema de iOS, interruptores en lugar de casillas, controles segmentados, listas agrupadas con chevrón y botones de texto o de icono sin marco. Toda pantalla nueva sigue este estilo.
+- **Estilo iOS (v0.3.0).** Barra de pestañas flotante de cristal (v0.16.0). Iconos de trazo fino; los de categorías y cuentas, en baldosas de color (`Baldosa`) con el catálogo de `src/componentes/iconos.ts`. Nada de emojis como iconos. Paleta del sistema de iOS, interruptores en lugar de casillas, controles segmentados, listas agrupadas con chevrón y botones de texto o de icono sin marco. Toda pantalla nueva sigue este estilo.
 - **Pruebas en GitHub.** `.github/workflows/pruebas.yml` ejecuta los tests y el build en cada envío.
 
 ### Resúmenes en PDF (adelantado a petición del usuario, v0.2.0)
@@ -117,7 +117,7 @@ Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alt
 | v0.13 | Gastos fijos y recurrentes: detección por comercio, periodicidad e importe estable (suscripciones, recibos, seguros, hipoteca); fijo frente a variable, próximos cargos y subidas de precio | F | Alta | Media |
 | v0.14 | Optimizar con Claude: gastos fijos, recurrentes y hormiga con un prompt preparado (comparar tarifas de luz, fibra y seguros, suscripciones duplicadas o sin uso), por enlace a claude.ai o archivo con la hoja de compartir. Sin API ni coste | F | Alta | Media |
 | v0.14 | Avisos de recurrentes: cargo nuevo, subida de importe o cargo esperado que no llega | F | Media | Media |
-| v0.16 | Fase 4: presupuesto por categoría, plan de pagos de la deuda familiar con simulación y «Analizar con Claude» en el resto de vistas | F | Media | Alta |
+| v0.17 | Fase 4: presupuesto por categoría, plan de pagos de la deuda familiar con simulación y «Analizar con Claude» en el resto de vistas | F | Media | Alta |
 | Continua | Hojas con campos: la hoja sube con el teclado (guía 6.4); las acciones en la cabecera ya están (v0.11.0) | CV | Media | Media |
 | Continua | Menú de pulsación larga en las filas (guía 7) y búsqueda con «Cancelar» | CV | Media | Media |
 | Continua | Cambiar de pestaña deslizando y recolocación animada de las listas (guía 4.1 y 5) | CV | Baja | Media |
@@ -135,6 +135,7 @@ Ordenada por prioridad. Complejidad: baja (una sesión), media (dos o tres), alt
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.16.0 (13/11/2026): barra de pestañas flotante de cristal (toque en toda la pestaña, la activa resaltada, tocarla sube al principio). PayPal se reparte por importe: pantalla Repartir PayPal, aprendizaje y reglas por importe exacto (`esPasarela`, `claveConImporte`); la regla de la app «PayPal» se retira.
 - v0.15.2 (13/11/2026): barra de pestañas a cuatro columnas, sin hueco a la derecha.
 - v0.15.1 (13/11/2026): deslizar una fila ya no cambia de mes ni vuelve atrás (el gesto que empieza en una fila es solo de la fila; volver, desde el mismo borde). En Informes, dentro de una categoría, las subcategorías filtran los movimientos.
 - v0.15.0 (13/11/2026): fuera la gestión de gastos de empleado (decisión del usuario: no la usa). Sin pestaña Empleado, sin propuestas automáticas, sin conciliación ni pendiente de reembolso. Queda el marcado rápido: deslizar hacia la derecha, «No cuenta» (gasto a gasto de empleado, ingreso a reembolso) o «Cuenta»; la categoría pasa a deslizar hacia la izquierda. Reglas de la app retiradas con `REGLAS_RETIRADAS`. Sin cambio de esquema.
@@ -348,6 +349,7 @@ La app trae un catálogo predeterminado de categorías que se puede ampliar, y l
 - Desde el detalle de un movimiento o en bloque, seleccionando varios.
 - Al corregir, la app pregunta si aplicar el cambio a todos los movimientos con el mismo concepto y si crear la regla para los futuros.
 - Bandeja de movimientos sin categoría siempre visible con su contador.
+- PayPal no dice el comercio: sus cargos se reparten por importe en su propia pantalla (Repartir PayPal), y lo aprendido y las reglas van por importe exacto.
 
 **Más adelante:** sugerencia de categoría para conceptos nuevos por similitud con los ya categorizados, calculada en la propia app y sin coste.
 

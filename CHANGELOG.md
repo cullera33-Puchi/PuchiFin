@@ -2,6 +2,14 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.16.0. Barra de pestañas flotante y repartir PayPal por importe (13 de noviembre de 2026)
+
+- Barra de pestañas (`Estructura.tsx`, `index.css`): cápsula de cristal flotante de 62 px (`.cristal-pestanas`) con resalte deslizante de la pestaña activa, toque inmediato (`touch-action: manipulation`), respuesta al pulsar y pestañas a toda la altura de la cápsula. Antes, la franja del área segura bajo los iconos no respondía. Tocar la pestaña activa sube al principio. `--alto-pestanas` coloca avisos, barras flotantes y el final del contenido. Con una fila deslizada abierta, la barra responde al primer toque (`data-pestanas`).
+- PayPal (`esPasarela`, `claveConImporte` en `lib/conceptos.ts`): lo aprendido, los grupos de Categorizar, «mismo comercio» y las reglas que se crean van por comercio e importe exacto (regla manual con `importe_min` y `importe_max`, prioridad 45). Sin parecidos por primera palabra.
+- Pantalla Repartir PayPal (`/movimientos/paypal`, `gruposPasarela`, `categoriasPasarela`): cargos agrupados por importe, «Por revisar» (sin categoría o puesta por una regla) y «Todos», sugerencia del mismo importe, chips de un toque (lo ya usado en PayPal y las categorías típicas) y «Otra…». Acceso desde Movimientos y Categorizar, que ya no lista PayPal.
+- Regla de la app «PayPal» retirada (`REGLAS_RETIRADAS`). Datos de prueba con cargos de PayPal.
+- Pruebas: 327 tests.
+
 ## v0.15.2. Barra de pestañas a cuatro columnas (13 de noviembre de 2026)
 
 - `Estructura.tsx`: la barra de pestañas seguía con cinco columnas tras quitar Empleado y dejaba un hueco a la derecha. Ahora son cuatro.

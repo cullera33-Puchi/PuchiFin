@@ -2,7 +2,7 @@
  * Operaciones sobre movimientos: corrección de categoría (con regla para los futuros), tipo, notas y
  * marcado rápido de lo que no cuenta en el extracto (gastos de empleado y reembolsos).
  */
-import { claveComercio, normalizarConcepto } from '../lib/conceptos'
+import { claveComercio, claveConImporte, esPasarela, nombrePasarela, normalizarConcepto } from '../lib/conceptos'
 import { mesSiguiente } from '../lib/imputacion'
 import { NOMBRE_TIPO_MOVIMIENTO, type BaseDatos, type Movimiento, type Regla, type TipoMovimiento } from '../lib/tipos'
 import { ErrorDatos, exigirSinIdentificativos, nuevoId } from './operaciones'
@@ -16,11 +16,13 @@ function exigirMovimientos(db: BaseDatos, ids: string[]): Set<string> {
   return set
 }
 
-/** Movimientos del mismo comercio que los indicados (en cualquier cuenta), sin contar los indicados */
+const claveMov = (m: Movimiento) => claveConImporte(claveComercio(m.concepto_limpio), m.importe)
+
+/** Movimientos del mismo comercio que los indicados (en PayPal, del mismo importe), sin contar los indicados */
 export function mismoConcepto(db: BaseDatos, ids: string[]): Movimiento[] {
   const set = new Set(ids)
-  const claves = new Set(db.movimientos.filter((m) => set.has(m.id)).map((m) => claveComercio(m.concepto_limpio)).filter(Boolean))
-  return db.movimientos.filter((m) => !set.has(m.id) && claves.has(claveComercio(m.concepto_limpio)))
+  const claves = new Set(db.movimientos.filter((m) => set.has(m.id) && claveComercio(m.concepto_limpio)).map(claveMov))
+  return db.movimientos.filter((m) => !set.has(m.id) && claveComercio(m.concepto_limpio) && claves.has(claveMov(m)))
 }
 
 /**
@@ -41,25 +43,35 @@ export function cambiarCategoria(
   )
   let reglas = db.reglas
   if (opciones.crearRegla && categoria_id) {
-    const conceptos = [...new Set(db.movimientos.filter((m) => ids.includes(m.id)).map((m) => claveComercio(m.concepto_limpio) || m.concepto_normalizado))]
-    for (const c of conceptos) {
+    // Una regla por comercio; en PayPal, por comercio e importe exacto (la misma suscripción)
+    const elegidos = db.movimientos.filter((m) => ids.includes(m.id))
+    const conceptos = new Map<string, { patron: string; importe: number | null }>()
+    for (const m of elegidos) {
+      const patron = claveComercio(m.concepto_limpio) || m.concepto_normalizado
+      const importe = esPasarela(patron) ? m.importe : null
+      conceptos.set(`${patron}|${importe}`, { patron, importe })
+    }
+    for (const { patron: c, importe } of conceptos.values()) {
       exigirSinIdentificativos('Regla', c)
-      const existente = reglas.find((r) => r.origen === 'manual' && r.tipo_patron === 'exacto' && normalizarConcepto(r.patron) === c)
+      const existente = reglas.find(
+        (r) => r.origen === 'manual' && r.tipo_patron === 'exacto' && normalizarConcepto(r.patron) === c && r.importe_min === importe && r.importe_max === importe,
+      )
       if (existente) {
         reglas = reglas.map((r) => (r.id === existente.id ? { ...r, categoria_id, activa: true } : r))
       } else {
         const nueva: Regla = {
           id: nuevoId(),
-          nombre: null,
+          nombre: importe !== null ? `${nombrePasarela(c)} de ${Math.abs(importe).toFixed(2).replace('.', ',')} €` : null,
           patron: c,
           tipo_patron: 'exacto',
           cuenta_id: null,
-          importe_min: null,
-          importe_max: null,
+          importe_min: importe,
+          importe_max: importe,
           categoria_id,
           tipo_movimiento: null,
           es_sugerencia: false,
-          prioridad: 50,
+          // La de un importe concreto manda sobre una regla general del mismo comercio
+          prioridad: importe !== null ? 45 : 50,
           origen: 'manual',
           activa: true,
           confirmaciones: 0,

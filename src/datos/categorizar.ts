@@ -5,14 +5,17 @@
  */
 import { esPendiente } from '../importacion/pendientes'
 import { categoriasAprendidas, clasificar } from '../importacion/reglas'
-import { claveComercio, normalizarConcepto, primeraPalabra } from '../lib/conceptos'
+import { claveComercio, claveConImporte, esPasarela, nombrePasarela, normalizarConcepto, primeraPalabra } from '../lib/conceptos'
+import { formatearImporte } from '../lib/formato'
 import type { BaseDatos, Movimiento } from '../lib/tipos'
 
 /** Palabras que no distinguen un comercio de otro */
 const VACIAS = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'y', 'en', 'con', 'por', 'para', 'sl', 'sa', 'slu', 'cb', 'pago', 'compra', 'recibo', 'transferencia', 'bizum', 'enviado', 'recibido', 'adeudo', 'cargo', 'tarjeta', 'cuenta'])
 
 const palabras = (clave: string) => new Set(clave.split(' ').filter((p) => p.length >= 3 && !VACIAS.has(p)))
-const claveDe = (m: Movimiento) => claveComercio(m.concepto_limpio) || m.concepto_normalizado
+const claveBase = (m: Movimiento) => claveComercio(m.concepto_limpio) || m.concepto_normalizado
+/** Clave del comercio; en PayPal, con el importe (cada importe es un grupo) */
+const claveDe = (m: Movimiento) => claveConImporte(claveBase(m), m.importe)
 const signoDe = (m: Movimiento): 'gasto' | 'ingreso' => (m.importe < 0 ? 'gasto' : 'ingreso')
 
 export interface SugerenciaCategoria {
@@ -56,7 +59,10 @@ export function sugerirPorParecido(db: BaseDatos, clave: string, signo: 'gasto' 
   const propias = palabras(clave)
   const primera = primeraPalabra(clave)
   let mejor: SugerenciaCategoria | null = null
+  const pasarela = esPasarela(clave)
   for (const r of referencia) {
+    // En PayPal solo vale el mismo importe ya categorizado
+    if (pasarela && r.clave !== clave) continue
     if (r.signo !== signo && naturaleza.get(r.categoria_id) !== (signo === 'gasto' ? 'gasto' : 'ingreso')) continue
     let confianza = 0
     if (r.clave === clave) confianza = 1
@@ -92,10 +98,11 @@ export function gruposPendientes(db: BaseDatos): GrupoPendiente[] {
       const signo = k.startsWith('gasto') ? ('gasto' as const) : ('ingreso' as const)
       const clave = k.slice(k.indexOf('|') + 1)
       const ordenados = [...movs].sort((a, b) => b.fecha_operacion.localeCompare(a.fecha_operacion))
+      const base = claveBase(ordenados[0])
       return {
         clave,
         signo,
-        nombre: ordenados[0].concepto_limpio,
+        nombre: esPasarela(base) ? `${nombrePasarela(base)} de ${formatearImporte(Math.abs(ordenados[0].importe))}` : ordenados[0].concepto_limpio,
         movimientos: ordenados,
         total: Math.round(movs.reduce((s, m) => s + m.importe, 0) * 100) / 100,
         sugerencia: sugerirPorParecido(db, clave, signo, referencia) ?? porReglas(ordenados[0]),
@@ -131,7 +138,7 @@ export function similares(db: BaseDatos, ids: string[], categoria: string | null
   const set = new Set(ids)
   const elegidos = db.movimientos.filter((m) => set.has(m.id))
   const claves = new Set(elegidos.map(claveDe).filter(Boolean))
-  const primeras = new Set(elegidos.map((m) => primeraPalabra(claveDe(m))).filter((p): p is string => !!p))
+  const primeras = new Set(elegidos.filter((m) => !esPasarela(claveDe(m))).map((m) => primeraPalabra(claveDe(m))).filter((p): p is string => !!p))
   const signos = new Set(elegidos.map(signoDe))
   const res: Similares = { mismoComercio: [], parecidos: [], yaCategorizados: [] }
   for (const m of db.movimientos) {
@@ -140,7 +147,7 @@ export function similares(db: BaseDatos, ids: string[], categoria: string | null
     if (claves.has(k)) {
       if (esPendiente(m)) res.mismoComercio.push(m)
       else if (m.tipo === 'normal' && m.categoria_id !== categoria) res.yaCategorizados.push(m)
-    } else if (esPendiente(m)) {
+    } else if (esPendiente(m) && !esPasarela(k)) {
       const p = primeraPalabra(k)
       if (p && primeras.has(p)) res.parecidos.push(m)
     }
@@ -174,4 +181,71 @@ export function propuestasRecategorizacion(db: BaseDatos): PropuestaCambio[] {
     grupos.set(k, g)
   }
   return [...grupos.values()].sort((a, b) => b.movimientos.length - a.movimientos.length)
+}
+
+// ---------------------------------------------------------------------------
+// PayPal: cargos de cosas muy distintas, repartidos por importe
+// ---------------------------------------------------------------------------
+
+/** Cargo de PayPal por revisar: sin categoría o con la que puso una regla (no una decisión tuya) */
+export const pasarelaPorRevisar = (m: Movimiento) => m.tipo === 'normal' && (!m.categoria_id || m.origen_categoria === 'regla')
+
+export interface GrupoPasarela {
+  clave: string
+  nombre: string
+  signo: 'gasto' | 'ingreso'
+  /** Importe de cada cargo, en positivo */
+  importe: number
+  /** Del más reciente al más antiguo */
+  movimientos: Movimiento[]
+  porRevisar: Movimiento[]
+  /** Categoría que ya elegiste para este importe (la más reciente), para proponerla */
+  sugerencia: string | null
+}
+
+/** Cargos de PayPal (y otras pasarelas) agrupados por importe: primero lo que hay que revisar */
+export function gruposPasarela(db: BaseDatos): GrupoPasarela[] {
+  const grupos = new Map<string, Movimiento[]>()
+  for (const m of db.movimientos) {
+    if (m.tipo !== 'normal' || !esPasarela(claveBase(m))) continue
+    const k = `${signoDe(m)}|${claveDe(m)}`
+    grupos.set(k, [...(grupos.get(k) ?? []), m])
+  }
+  const aprendidas = categoriasAprendidas(db)
+  return [...grupos]
+    .map(([k, movs]) => {
+      const ordenados = [...movs].sort((a, b) => b.fecha_operacion.localeCompare(a.fecha_operacion))
+      const base = claveBase(ordenados[0])
+      const clave = k.slice(k.indexOf('|') + 1)
+      return {
+        clave,
+        nombre: nombrePasarela(base),
+        signo: signoDe(ordenados[0]),
+        importe: Math.abs(ordenados[0].importe),
+        movimientos: ordenados,
+        porRevisar: ordenados.filter(pasarelaPorRevisar),
+        sugerencia: aprendidas.porClave.get(clave) ?? null,
+      }
+    })
+    .sort((a, b) => Number(!b.porRevisar.length) - Number(!a.porRevisar.length) || b.movimientos.length - a.movimientos.length || b.importe - a.importe)
+}
+
+/** Categorías típicas de un pago con PayPal, para los chips cuando aún no hay historial */
+const TIPICAS_PASARELA = ['Ocio > Juegos', 'Suscripciones > Otras plataformas', 'Compras > Tecnología', 'Compras > Hogar', 'Compras > Ropa', 'Compras > Regalos']
+
+/** Chips de PayPal: las últimas elegidas, las que ya usaste en PayPal y las típicas */
+export function categoriasPasarela(db: BaseDatos, recientes: string[] = [], max = 6): string[] {
+  const usos = new Map<string, number>()
+  for (const m of db.movimientos) {
+    if (!m.categoria_id || m.origen_categoria === 'regla' || !esPasarela(claveBase(m))) continue
+    usos.set(m.categoria_id, (usos.get(m.categoria_id) ?? 0) + 1)
+  }
+  const ruta = (r: string) => {
+    const [p, h] = r.split(' > ')
+    const padre = db.categorias.find((c) => !c.padre_id && c.nombre === p)
+    return db.categorias.find((c) => c.padre_id === padre?.id && c.nombre === h)?.id
+  }
+  const tipicas = TIPICAS_PASARELA.map(ruta).filter((x): x is string => !!x)
+  const activa = (id: string) => db.categorias.some((c) => c.id === id && c.activa && c.naturaleza === 'gasto')
+  return [...new Set([...recientes, ...[...usos].sort((a, b) => b[1] - a[1]).map(([id]) => id), ...tipicas])].filter(activa).slice(0, max)
 }

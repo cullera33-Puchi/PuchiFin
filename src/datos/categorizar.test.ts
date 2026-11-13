@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { normalizarConcepto } from '../lib/conceptos'
+import { claveComercio, normalizarConcepto } from '../lib/conceptos'
+import { categoriasAprendidas, clasificar } from '../importacion/reglas'
 import type { BaseDatos, Movimiento } from '../lib/tipos'
-import { categoriasRapidas, gruposPendientes, propuestasRecategorizacion, similares, sugerirPorParecido } from './categorizar'
-import { fijarCategoria } from './movimientos'
+import { categoriasPasarela, categoriasRapidas, gruposPasarela, gruposPendientes, propuestasRecategorizacion, similares, sugerirPorParecido } from './categorizar'
+import { cambiarCategoria, fijarCategoria } from './movimientos'
 import { datosIniciales } from './operaciones'
 
 const db0 = datosIniciales()
@@ -111,5 +112,74 @@ describe('mejoras para lo ya categorizado', () => {
     const p = propuestasRecategorizacion(conManual)
     expect(p[0]).toMatchObject({ hacia: cat('Ocio > Cine y espectáculos') })
     expect(p[0].movimientos).toHaveLength(2)
+  })
+})
+
+describe('PayPal: cargos repartidos por importe', () => {
+  const PP = 'PayPal Europe S.a.r.l. et Cie S.c.a'
+  const NETFLIX = cat('Suscripciones > Netflix')
+  const JUEGOS = cat('Ocio > Juegos')
+  const base: BaseDatos = {
+    ...db0,
+    movimientos: [
+      mov(PP, -12.99, { categoria_id: NETFLIX, origen_categoria: 'manual' }),
+      mov(PP, -12.99),
+      mov(PP, -12.99),
+      mov(PP, -59.9),
+      mov(PP, -4.99, { categoria_id: cat('Compras > Hogar'), origen_categoria: 'regla' }),
+    ],
+  }
+
+  it('lo aprendido de un cargo vale solo para el mismo importe', () => {
+    const a = categoriasAprendidas(base)
+    const c = (importe: number) => clasificar({ texto: normalizarConcepto(PP), clave: claveComercio(PP), cuenta_id: '', importe }, base.reglas, a).categoria_id
+    expect(c(-12.99)).toBe(NETFLIX)
+    expect(c(-59.9)).toBeNull()
+  })
+
+  it('en Categorizar cada importe es un grupo y solo se sugiere lo del mismo importe', () => {
+    const g = gruposPendientes(base)
+    expect(g.map((x) => [x.nombre, x.movimientos.length])).toEqual([
+      ['PayPal de 12,99 €', 2],
+      ['PayPal de 59,90 €', 1],
+    ])
+    expect(g[0].sugerencia?.categoria_id).toBe(NETFLIX)
+    expect(g[1].sugerencia).toBeNull()
+  })
+
+  it('«del mismo comercio» es del mismo importe y no hay parecidos', () => {
+    const otro = base.movimientos[3]
+    const s = similares(base, [otro.id], JUEGOS)
+    expect(s.mismoComercio).toEqual([])
+    expect(s.parecidos).toEqual([])
+    expect(similares(base, [base.movimientos[1].id], JUEGOS).mismoComercio.map((m) => m.id)).toEqual([base.movimientos[2].id])
+  })
+
+  it('la regla que se crea es del importe exacto', () => {
+    const r = cambiarCategoria(base, [base.movimientos[3].id], JUEGOS, { crearRegla: true })
+    const regla = r.reglas.find((x) => x.origen === 'manual')!
+    expect(regla).toMatchObject({ patron: 'paypal europe', importe_min: -59.9, importe_max: -59.9, nombre: 'PayPal de 59,90 €' })
+    const c = (importe: number) => clasificar({ texto: normalizarConcepto(PP), clave: claveComercio(PP), cuenta_id: '', importe }, r.reglas, categoriasAprendidas(r)).categoria_id
+    expect(c(-59.9)).toBe(JUEGOS)
+    expect(c(-7.5)).toBeNull()
+  })
+
+  it('agrupa todos los cargos por importe y marca por revisar lo que no decidiste tú', () => {
+    const g = gruposPasarela(base)
+    expect(g.map((x) => [x.importe, x.movimientos.length, x.porRevisar.length])).toEqual([
+      [12.99, 3, 2],
+      [59.9, 1, 1],
+      [4.99, 1, 1],
+    ])
+    expect(g[0].sugerencia).toBe(NETFLIX)
+  })
+})
+
+describe('chips de PayPal', () => {
+  it('primero lo ya usado en PayPal y después las categorías típicas de un pago con PayPal', () => {
+    const NETFLIX = cat('Suscripciones > Netflix')
+    const d: BaseDatos = { ...db0, movimientos: [mov('PayPal Europe', -12.99, { categoria_id: NETFLIX, origen_categoria: 'manual' }), mov('Mercadona', -30, { categoria_id: cat('Alimentación > Supermercado'), origen_categoria: 'manual' })] }
+    const c = categoriasPasarela(d, [], 3)
+    expect(c).toEqual([NETFLIX, cat('Ocio > Juegos'), cat('Suscripciones > Otras plataformas')])
   })
 })

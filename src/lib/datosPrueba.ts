@@ -169,6 +169,9 @@ export function generarDatosPrueba(opciones: {
     if (d === 10) anadir(principal, dia, 'RECIBO ENERGIA ELECTRICA', -r.entre(58, 96), 'Suministros > Luz')
     if (d === 12 && Number(mes.slice(5)) % 2 === 0) anadir(principal, dia, 'RECIBO AGUAS MUNICIPALES', -r.entre(32, 48), 'Suministros > Agua')
     if (d === 15) anadir(principal, dia, 'RECIBO FIBRA Y MOVIL', -64.9, 'Suministros > Fibra y móvil')
+    // PayPal no dice el comercio: una suscripción de importe fijo y compras sueltas, sin categoría
+    if (d === 7) anadir(principal, dia, 'PAYPAL EUROPE S.A.R.L. ET CIE S.C.A', -7.99, null)
+    if ((d === 13 || d === 24) && r.probable(0.6)) anadir(principal, dia, 'PAYPAL EUROPE S.A.R.L. ET CIE S.C.A', -r.entre(4, 60), null)
     if (d === 16) {
       // Ahorro a la cuenta 2: traspaso interno en los dos lados
       anadir(principal, dia, 'TRASPASO A Cuenta 2', -500, null, 'traspaso_interno')

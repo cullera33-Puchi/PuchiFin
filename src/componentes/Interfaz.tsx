@@ -62,7 +62,7 @@ export function ProveedorInterfaz({ children }: { children: ReactNode }) {
     <Contexto.Provider value={{ avisar, confirmar }}>
       {children}
       {aviso && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+3.75rem)] z-50 flex justify-center px-3">
+        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--alto-pestanas)+0.5rem)] z-50 flex justify-center px-3">
           <div
             role="status"
             key={aviso.id}
@@ -359,7 +359,7 @@ function HojaAcciones({ c, onResultado }: { c: Confirmacion | null; onResultado:
 
 /** Barra o botón flotante encima de la barra de pestañas (fuera de la pantalla, para que no se encoja con las hojas) */
 export function Flotante({ children }: { children: ReactNode }) {
-  return createPortal(<div className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+3.75rem)] z-30 mx-auto max-w-md">{children}</div>, document.body)
+  return createPortal(<div className="fixed inset-x-3 bottom-[calc(var(--alto-pestanas)+0.5rem)] z-30 mx-auto max-w-md">{children}</div>, document.body)
 }
 
 /**
