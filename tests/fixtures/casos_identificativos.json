@@ -1,0 +1,36 @@
+{
+  "_nota": "Datos inventados o de ejemplo público. Los usan los tests del frontal y de la base de datos.",
+  "positivos": [
+    { "texto": "TRANSFERENCIA A ES91 2100 0418 4502 0005 1332", "tipo": "iban" },
+    { "texto": "TRANSF ES9121000418450200051332 ALQUILER", "tipo": "iban" },
+    { "texto": "iban es91 2100 0418 4502 0005 1332", "tipo": "iban" },
+    { "texto": "PAGO DE DE89370400440532013000", "tipo": "iban" },
+    { "texto": "REMESA GB29 NWBK 6016 1331 9268 19", "tipo": "iban" },
+    { "texto": "PAGO FR14 2004 1010 0505 0001 3M02 606 ALQUILER", "tipo": "iban" },
+    { "texto": "NL91 ABNA 0417 1643 00", "tipo": "iban" },
+    { "texto": "CUENTA 2100 0418 45 0200051332", "tipo": "cuenta" },
+    { "texto": "COMPRA TARJ 4111 1111 1111 1111 AMAZON", "tipo": "tarjeta" },
+    { "texto": "COMPRA TARJ 4111-1111-1111-1111", "tipo": "tarjeta" },
+    { "texto": "5500005555555559", "tipo": "tarjeta" },
+    { "texto": "TITULAR 12345678Z", "tipo": "dni" },
+    { "texto": "DNI 12345678-Z", "tipo": "dni" },
+    { "texto": "NIE X1234567L", "tipo": "nie" },
+    { "texto": "nie x-1234567-l", "tipo": "nie" }
+  ],
+  "negativos": [
+    "COMPRA MERCADONA VALENCIA 13/11/2026",
+    "TARJETA ************1234",
+    "TRANSFERENCIA A ES** **** **** **** **** 1332",
+    "IMPORTE 1.234,56 EUR",
+    "REF 123456789012",
+    "RECIBO 4111111111111112",
+    "TITULAR 12345678A",
+    "NIE X1234567A",
+    "BIZUM DE FAMILIA",
+    "ES12 NOMINA",
+    "LIQUIDACION TARJETA CREDITO",
+    "Cuenta principal",
+    "Cuenta 2",
+    ""
+  ]
+}

@@ -1,0 +1,71 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --color-marca-50: #f0fdfa;
+  --color-marca-100: #ccfbf1;
+  --color-marca-500: #14b8a6;
+  --color-marca-600: #0d9488;
+  --color-marca-700: #0f766e;
+  --color-marca-900: #134e4a;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    /* Fondo agrupado de iOS (systemGroupedBackground) */
+    @apply bg-[#F2F2F7] text-zinc-900 antialiased dark:bg-black dark:text-zinc-100;
+  }
+  input,
+  select,
+  textarea {
+    /* 16px evita el zoom automático de Safari al enfocar un campo */
+    font-size: 16px;
+  }
+}
+
+@utility tarjeta {
+  @apply rounded-xl bg-white p-4 dark:bg-zinc-900;
+}
+
+@utility campo {
+  @apply w-full rounded-[10px] border border-zinc-200 bg-white px-3 py-2 text-zinc-900 outline-none focus:border-marca-600 focus:ring-2 focus:ring-marca-600/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100;
+}
+
+@utility boton {
+  @apply inline-flex items-center justify-center gap-2 rounded-[10px] px-3.5 py-2 text-[15px] font-medium transition-colors active:opacity-70 disabled:cursor-not-allowed disabled:opacity-40;
+}
+
+@utility boton-primario {
+  @apply boton bg-marca-700 text-white hover:bg-marca-600;
+}
+
+@utility boton-secundario {
+  @apply boton bg-zinc-200/70 text-zinc-900 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700;
+}
+
+@utility etiqueta {
+  @apply mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400;
+}
+
+/* Estilo iOS: botón de icono sin marco, en el color de acento */
+@utility boton-icono {
+  @apply inline-grid size-9 place-items-center rounded-full text-marca-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 disabled:opacity-40 dark:text-marca-500 dark:hover:bg-zinc-800;
+}
+
+/* Botón de texto en el color de acento (Editar, Añadir…) */
+@utility boton-texto {
+  @apply text-sm font-medium text-marca-700 hover:opacity-70 disabled:opacity-40 dark:text-marca-500;
+}
+
+/* Lista agrupada (inset grouped) */
+@utility lista {
+  @apply overflow-hidden rounded-xl bg-white dark:bg-zinc-900;
+}
+
+@utility fila {
+  @apply flex min-h-12 w-full items-center gap-3 px-4 py-2 text-left;
+}
