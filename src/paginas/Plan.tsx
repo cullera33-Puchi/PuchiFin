@@ -4,19 +4,19 @@ import { Link } from 'react-router-dom'
 import { useHacer } from '../componentes/acciones'
 import { BarraNavegacion } from '../componentes/Encabezado'
 import { GraficoCapital } from '../componentes/GraficoCapital'
-import { SimularNominas } from './Ingresos'
+import { SimularCrecimiento, SimularNominas } from './Ingresos'
 import { BotonClaude, HojaClaude } from '../componentes/HojaClaude'
 import { Baldosa } from '../componentes/Icono'
 import { Hoja } from '../componentes/Interfaz'
 import { SelectorCategoria } from '../componentes/movimientos'
-import { guardarCompromiso } from '../datos/operaciones'
+import { guardarCompromiso, guardarPrevision } from '../datos/operaciones'
 import { useDatos } from '../datos/ProveedorDatos'
 import { textoPlan } from '../lib/analizar'
 import { movimientosUltimoAno } from '../lib/csvClaude'
 import { hoyIso, MESES } from '../lib/fechas'
 import { formatearFecha, formatearRedondo, leerImporteUsuario } from '../lib/formato'
 import { useSimulacion } from '../componentes/simulacion'
-import { calcularPlan, efectoMesCerrado, haySimulacion, SIN_SIMULACION, type Plan as DatosPlan, type ResultadoPlan, type Simulacion } from '../lib/plan'
+import { calcularPlan, efectoMesCerrado, hayCrecimiento, haySimulacion, SIN_SIMULACION, supuestosCrecimiento, type Plan as DatosPlan, type ResultadoPlan, type Simulacion } from '../lib/plan'
 import type { BaseDatos, Compromiso } from '../lib/tipos'
 import { nombreCategoria } from '../lib/vista'
 
@@ -50,6 +50,9 @@ export function Plan() {
   const simulando = haySimulacion(db, diferida)
   const simulado = useMemo(() => (simulando ? calcularPlan(db, hoy, diferida).plan : null), [db, hoy, diferida, simulando])
   const efecto = useMemo(() => efectoMesCerrado(db, hoy), [db, hoy])
+  // El mismo plan sin subidas de sueldo ni inflación, para comparar el año en que queda saldada
+  const crece = hayCrecimiento(db)
+  const plano = useMemo(() => (crece ? calcularPlan(db, hoy, { ...SIN_SIMULACION, sinCrecimiento: true }).plan : null), [db, hoy, crece])
   const [ajustes, setAjustes] = useState(false)
   const [claude, setClaude] = useState(false)
   const compromiso = db.compromisos.find((c) => c.activo)
@@ -79,7 +82,7 @@ export function Plan() {
           )}
         </div>
       ) : (
-        <ContenidoPlan db={db} plan={r.plan} sim={sim} setSim={setSim} simulado={simulado} efecto={efecto} onClaude={() => setClaude(true)} />
+        <ContenidoPlan db={db} plan={r.plan} sim={sim} setSim={setSim} simulado={simulado} plano={plano} efecto={efecto} onClaude={() => setClaude(true)} />
       )}
       {compromiso && <HojaAjustes compromiso={compromiso} abierta={ajustes} onCerrar={() => setAjustes(false)} />}
       {r.plan && (
@@ -104,6 +107,7 @@ function ContenidoPlan({
   sim,
   setSim,
   simulado,
+  plano,
   efecto,
   onClaude,
 }: {
@@ -112,6 +116,7 @@ function ContenidoPlan({
   sim: Simulacion
   setSim: (s: Simulacion) => void
   simulado: DatosPlan | null
+  plano: DatosPlan | null
   efecto: ReturnType<typeof efectoMesCerrado>
   onClaude: () => void
 }) {
@@ -139,6 +144,12 @@ function ContenidoPlan({
           </div>
         )}
         <p className="mt-2 text-[15px] font-medium">{textoSaldada(plan)}</p>
+        {plano && plan.deudaPendiente > 0 && (
+          <p className="text-[13px] text-zinc-500">
+            Sin subidas ni inflación: {plano.saldadaEn ? `saldada en ${plano.saldadaEn}` : 'no se salda en 30 años'}
+            {plano.pagos[0] && proximo ? `, con un primer pago de ${formatearRedondo(plano.pagos[0].pago)}` : ''}.
+          </p>
+        )}
         <p className="mt-1 text-[12px] text-zinc-500">
           {plan.cuenta.alias}: {formatearRedondo(plan.saldo)} al {formatearFecha(plan.fechaSaldo)}. Ahorro previsto: unos {formatearRedondo(plan.ahorroMensual)} al mes.
         </p>
@@ -211,6 +222,7 @@ function ContenidoPlan({
             <p className="mb-1 text-[13px] text-zinc-500">Nóminas</p>
             <SimularNominas db={db} sim={sim} setSim={setSim} />
           </div>
+          <SimularCrecimiento db={db} sim={sim} setSim={setSim} />
           <div>
             <p className="text-[13px] text-zinc-500">Ahorro de más cada mes</p>
             <div className="mt-1.5 flex gap-2 overflow-x-auto [scrollbar-width:none]">
@@ -283,7 +295,7 @@ function ContenidoPlan({
         <Link to="/extracto/previstos" className="text-marca-700 dark:text-marca-500">
           gastos previstos
         </Link>
-        .
+        . {supuestosCrecimiento(db)} El pago de {mesNombre(c.mes_referencia)} cuenta con lo que entra ese mes.
       </p>
       <BotonClaude onPulsar={onClaude} />
       <Link to="/resumenes" className="boton-secundario w-full">
@@ -382,6 +394,8 @@ function HojaAjustes({ compromiso, abierta, onCerrar }: { compromiso: Compromiso
     inicio: compromiso.ventana_mes_inicio,
     fin: compromiso.ventana_mes_fin,
     referencia: compromiso.mes_referencia,
+    inflacion: String(db.ajustes.prevision?.inflacion ?? 0).replace('.', ','),
+    fijas: db.ajustes.prevision?.sin_inflacion ?? [],
   })
   const [f, setF] = useState(inicial)
   const [abiertaAntes, setAbiertaAntes] = useState(false)
@@ -398,9 +412,12 @@ function HojaAjustes({ compromiso, abierta, onCerrar }: { compromiso: Compromiso
     const deuda = leerImporteUsuario(f.deuda || '0')
     const colchon = leerImporteUsuario(f.colchon || '0')
     if (deuda === null || colchon === null) return setError('Revisa los importes')
+    const inflacion = Number((f.inflacion.trim() || '0').replace('%', '').replace(',', '.'))
+    if (!Number.isFinite(inflacion)) return setError('Revisa la inflación')
+    setError(null)
     const ok = await hacer(
       (d) =>
-        guardarCompromiso(d, compromiso.id, {
+        guardarCompromiso(guardarPrevision(d, { inflacion, sin_inflacion: f.fijas }), compromiso.id, {
           deuda_inicial: deuda,
           colchon,
           fecha_referencia: f.fecha,
@@ -413,6 +430,10 @@ function HojaAjustes({ compromiso, abierta, onCerrar }: { compromiso: Compromiso
     )
     if (ok) onCerrar()
   }
+  const gasto = db.categorias
+    .filter((x) => !x.padre_id && x.activa && x.naturaleza === 'gasto')
+    .sort((a, b) => a.orden - b.orden)
+    .map((raiz) => ({ raiz, hijas: db.categorias.filter((x) => x.padre_id === raiz.id && x.activa).sort((a, b) => a.orden - b.orden) }))
   const selectorMes = (valor: number, cambiar: (n: number) => void, etiqueta: string) => (
     <select className="min-w-0 flex-1 bg-transparent text-right text-[15px] outline-none" value={valor} aria-label={etiqueta} onChange={(e) => cambiar(Number(e.target.value))}>
       {MESES.map((m, i) => (
@@ -467,6 +488,56 @@ function HojaAjustes({ compromiso, abierta, onCerrar }: { compromiso: Compromiso
           </label>
         </div>
         <p className="-mt-2 px-4 text-[12px] text-zinc-500">Sin intereses. El pago previsto es todo lo que supere el colchón en el mes de referencia.</p>
+        <section>
+          <h3 className="cabecera-grupo">Inflación del gasto</h3>
+          <div className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
+            <label className="fila min-h-12">
+              <span className="flex-1 text-[15px]">Subida al año (%)</span>
+              <input
+                className="w-24 bg-transparent text-right text-[15px] tabular-nums outline-none"
+                inputMode="decimal"
+                placeholder="0"
+                aria-label="Inflación del gasto al año"
+                value={f.inflacion}
+                onChange={(e) => setF({ ...f, inflacion: e.target.value })}
+              />
+            </label>
+            {f.fijas.map((id) => (
+              <div key={id} className="fila min-h-12">
+                <span className="min-w-0 flex-1 truncate text-[15px]">{nombreCategoria(db, id)}</span>
+                <span className="text-[13px] text-zinc-500">No sube</span>
+                <button type="button" className="boton-texto px-1 text-red-600 dark:text-red-500" aria-label={`Quitar ${nombreCategoria(db, id)}`} onClick={() => setF({ ...f, fijas: f.fijas.filter((x) => x !== id) })}>
+                  Quitar
+                </button>
+              </div>
+            ))}
+            <label className="fila min-h-12">
+              <span className="flex-1 text-[15px] text-marca-700 dark:text-marca-500">Añadir categoría</span>
+              <select
+                className="max-w-40 min-w-0 bg-transparent text-right text-[15px] text-zinc-500 outline-none"
+                aria-label="Categoría que no sube con la inflación"
+                value=""
+                onChange={(e) => e.target.value && setF({ ...f, fijas: [...f.fijas, e.target.value] })}
+              >
+                <option value="">Elegir</option>
+                {gasto.map((g) => (
+                  <optgroup key={g.raiz.id} label={g.raiz.nombre}>
+                    {[g.raiz, ...g.hijas]
+                      .filter((x) => !f.fijas.includes(x.id))
+                      .map((x) => (
+                        <option key={x.id} value={x.id}>
+                          {x.id === g.raiz.id ? `Todo ${x.nombre}` : x.nombre}
+                        </option>
+                      ))}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+          </div>
+          <p className="mt-1 px-4 text-[12px] text-zinc-500">
+            La previsión sube el gasto cada año con este porcentaje, también el presupuesto. Deja fuera lo que no cambia de precio, como una hipoteca a tipo fijo.
+          </p>
+        </section>
         {error && <p className="px-1 text-[13px] text-[#D70015] dark:text-[#FF6961]">{error}</p>}
         <button className="boton-primario w-full" onClick={guardar}>
           Guardar

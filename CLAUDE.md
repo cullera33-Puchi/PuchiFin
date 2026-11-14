@@ -137,6 +137,7 @@ Ordenada por esfuerzo, de menos a más, con prioridad para la usabilidad y el re
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.39.0 (14/11/2026): simulación realista del plan, pedida por el usuario. Nómina en bruto con el neto calculado (`src/lib/nomina.ts`: Seguridad Social y retención del IRPF con los parámetros de 2026, que hay que revisar cada año), subida anual del fijo y del bonus, porcentaje del bonus que se cobra, inflación del gasto con categorías que no suben (`ajustes.prevision`, por defecto 3 % y la hipoteca fuera) y pago de la deuda en agosto, después del bonus. Esquema 15 (`Nomina.bruto`, `ajustes.prevision`; el bonus y el mes de referencia de julio pasan a agosto). El plan cuenta con subidas e inflación y enseña debajo el año sin ellas; la simulación permite otra subida, otro porcentaje de bonus, otra inflación o todo plano. El gasto no crece con el sueldo (decisión del usuario). Pendiente de validar con la nómina real: si el neto calculado no coincide, se escribe la retención de la nómina. Posible segundo paso: estimar la declaración de la renta con la escala autonómica. Después, pausa de uso.
 - v0.38.0 (14/11/2026): tres mejoras rápidas aprobadas por el usuario: la tarjeta del mes compara todo el gasto con el presupuesto más lo habitual de las categorías sin presupuesto (`referenciaConPresupuesto`), la pantalla de Presupuesto permite ver meses anteriores (tira de meses) e Importar resume la tanda de varios ficheros al terminar. **Pausa de uso (decisión del usuario):** la app se deja así unas semanas para usarla con datos reales; lo siguiente saldrá de ese uso. Sigue pendiente lo anotado en la v0.35.0.
 - v0.37.0 (14/11/2026): los dos retoques pedidos por el usuario. Importar admite varios Excel a la vez y los revisa seguidos (`cola` en `Importar`: «Fichero 2 de 3», «Saltar» y «Seguir con el siguiente»). Los gastos fuera de lo normal son una fila más de «Cosas pendientes» del Extracto (`HojaAtipicos`).
 - v0.36.0 (14/11/2026): presupuesto rediseñado a propuesta aprobada por el usuario. En el Extracto, una sola lista: las categorías con presupuesto se miden contra él (`BarraPresupuesto`, `textoEstado`). Estado `dentro`, `riesgo` o `superado` según el cierre previsto de cada categoría (`consumoPresupuestos`: gastado, recibos que faltan y lo que se suele gastar en los días que quedan); el umbral del 80 % deja de usarse. Pantalla Presupuesto para ver (total, categorías, «Mes» y «Año») y hoja de edición por categoría. `preverCierre` estima el gasto variable con lo gastado esos mismos días en los meses anteriores. Sin cambio de esquema.
@@ -332,7 +333,7 @@ Nueve colecciones, más los ajustes, en el documento de datos del dispositivo (`
 | compromisos | Deuda pendiente, colchón, ventana de pago, mes de referencia, intereses |
 | eventos_previstos | Fecha, concepto, importe, categoría |
 
-Los ajustes generales (lista de alias de terceros, umbrales, días de fin de mes, zona de casa y nóminas previstas) van en `ajustes`, dentro del mismo documento.
+Los ajustes generales (lista de alias de terceros, umbrales, días de fin de mes, zona de casa, nóminas previstas, en neto o en bruto, e inflación del gasto) van en `ajustes`, dentro del mismo documento.
 
 Cuentas previstas: dos cuentas bancarias, una tarjeta de crédito y una hipoteca. La hipoteca no tiene movimientos propios: su cuota se carga en una de las cuentas y computa en Vivienda, subcategoría Hipoteca.
 
@@ -477,7 +478,8 @@ La app proyecta el ahorro mes a mes, calcula cuánto se podrá transferir cada v
 | Deuda pendiente | Importe a 1 de octubre de 2026, se introduce en la app (no va en el repositorio) |
 | Intereses | Sin intereses (confirmado por el usuario el 14/11/2026) |
 | Colchón de ahorro | Importe que se introduce en la app, sobre el saldo de la Cuenta 2, la de ahorro (decisión del usuario del 14/11/2026). La cuenta principal queda para el día a día |
-| Ventana de pago | Junio a agosto, con julio como mes de referencia para la proyección (confirmado el 14/11/2026) |
+| Ventana de pago | Junio a agosto, con agosto como mes de referencia para la proyección: el pago se hace la primera semana de agosto, después de cobrar el bonus (decisión del usuario, v0.39.0; antes, julio) |
+| Inflación del gasto | 3 % al año, salvo las categorías que no suben (por defecto, la hipoteca a tipo fijo). Se cambia en la hoja del plan (v0.39.0) |
 | Importe del pago | Todo el saldo de la Cuenta 2 que supere el colchón en la fecha de pago (confirmado el 14/11/2026) |
 
 **Registro de los pagos**
@@ -492,8 +494,8 @@ Supuesto (14/11/2026): el ahorro de cada mes acaba en la Cuenta 2 con los traspa
 
 1. Saldo de partida: saldo de la Cuenta 2 según el banco.
 2. Más los gastos de empleado pendientes de reembolso, si el usuario los indica (la app ya no los calcula).
-3. Más los ingresos previstos de cada mes: las nóminas netas que da de alta el usuario, con sus pagas extra y su bonus en su mes (v0.24.0 y v0.25.0), y el resto de ingresos según el historial. Sin nóminas dadas de alta, todo sale del historial (el mismo mes del año anterior o la media). Una nómina que no cuenta sirve para simular una segunda.
-4. Menos los gastos previstos: presupuesto por categoría o, si no lo hay, la media de la categoría.
+3. Más los ingresos previstos de cada mes: las nóminas que da de alta el usuario, con sus pagas extra y su bonus en su mes (v0.24.0 y v0.25.0), y el resto de ingresos según el historial. Una nómina se escribe en neto o en bruto (v0.39.0); en bruto, la app calcula el neto de cada mes con la Seguridad Social y la retención del IRPF, aplica la subida anual al fijo y al objetivo del bonus en su mes, y cuenta el bonus por el porcentaje que se espera cobrar. Sin nóminas dadas de alta, todo sale del historial (el mismo mes del año anterior o la media). Una nómina que no cuenta sirve para simular una segunda.
+4. Menos los gastos previstos: presupuesto por categoría o, si no lo hay, la media de la categoría. Suben cada año con la inflación configurada, salvo las categorías marcadas como que no suben (v0.39.0). El gasto no crece con el sueldo.
 5. Menos los gastos puntuales conocidos, registrados como eventos previstos (IBI, seguros anuales, vacaciones, colegio).
 6. Resultado en el mes de pago: saldo proyectado de la Cuenta 2 menos el colchón, igual al pago previsto (nunca negativo ni mayor que la deuda pendiente).
 
@@ -501,7 +503,8 @@ Supuesto (14/11/2026): el ahorro de cada mes acaba en la Cuenta 2 con los traspa
 
 - **Tarjeta en el extracto mensual:** deuda pendiente, pago previsto del próximo verano y cuánto ha sumado o restado el mes cerrado a ese pago, comparando el ahorro real con el previsto.
 - **Calendario de pagos:** un año por fila con el pago previsto, la deuda pendiente tras el pago y el año en que queda saldada.
-- **Simulación:** efecto en el pago, en el año de liquidación y en el capital previsto de otra deuda pendiente u otro colchón, ahorrar una cantidad distinta cada mes, recortar una categoría concreta o sumar o quitar una nómina o el bonus.
+- **Simulación:** efecto en el pago, en el año de liquidación y en el capital previsto de otra deuda pendiente u otro colchón, ahorrar una cantidad distinta cada mes, recortar una categoría concreta o sumar o quitar una nómina o el bonus. Desde la v0.39.0, también otra subida anual del sueldo, otro porcentaje de bonus cobrado, otra inflación o todo plano, sin subidas ni inflación.
+- **Con y sin crecimiento (v0.39.0):** el plan cuenta por defecto con las subidas de sueldo y la inflación, y debajo enseña el año en que quedaría saldada sin ellas.
 - **Seguimiento anual:** después de cada pago, la app compara lo previsto con lo transferido y recalcula el calendario.
 
 **Datos que necesita:** el saldo de las cuentas en cada importación (columna de saldo del Excel de BBVA, a confirmar) y los eventos previstos del año.
@@ -551,6 +554,6 @@ La v1 trabaja solo con BBVA desde octubre de 2026 y queda completa al cerrar la 
 - [x] Excel de cuenta de BBVA para fijar la plantilla (recibido el 13/11/2026).
 - [x] Excel de la tarjeta de crédito de BBVA para fijar su plantilla (recibido el 14/11/2026; falta ver el abono de la liquidación).
 - [x] Transferencia de reembolso: ya no hace falta, el usuario marca los reembolsos a mano (v0.15.0).
-- [x] Deuda familiar sin intereses; colchón sobre la Cuenta 2; pago de todo lo que lo supere, de junio a agosto con julio de referencia (14/11/2026).
+- [x] Deuda familiar sin intereses; colchón sobre la Cuenta 2; pago de todo lo que lo supere, de junio a agosto con julio de referencia (14/11/2026); agosto desde la v0.39.0, después de cobrar el bonus.
 - [ ] Confirmar la entidad de cada cuenta y de la hipoteca, y desde qué cuenta se paga la cuota.
 - [ ] Comprobar que claude.ai sigue admitiendo el prompt prellenado por enlace.

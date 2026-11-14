@@ -164,6 +164,8 @@ export interface Ajustes {
   nominas: Nomina[]
   /** Analizar con Claude (esquema 14): plantillas cambiadas por el usuario y envío sin conceptos */
   claude: AjustesClaude
+  /** Inflación del gasto para el plan de pagos y la previsión de capital (esquema 15) */
+  prevision: AjustesPrevision
 }
 
 /** Vistas con «Analizar con Claude» y su plantilla de instrucciones */
@@ -195,9 +197,46 @@ export interface Nomina {
   incluida: boolean
   /** Bonus anual neto, aparte de las pagas extra (esquema 12) */
   bonus: PagaExtra | null
+  /** En bruto (esquema 15): si existe, manda sobre el neto, que queda como referencia de un mes normal */
+  bruto?: NominaBruta | null
 }
 
-export const VERSION_ESQUEMA = 14
+/**
+ * Nómina en bruto (esquema 15): con ella, el neto de cada mes lo calcula la app (Seguridad Social y
+ * retención del IRPF) y una subida de sueldo se traduce en su neto real
+ */
+export interface NominaBruta {
+  /** Bruto fijo al año que rige desde «vigente_desde» */
+  fijo_anual: number
+  pagas: 12 | 14
+  /** Meses de las dos pagas extra, si son 14 */
+  meses_extra: number[]
+  /** Bonus bruto si se cobrara al 100 % (0: sin bonus) y porcentaje que se espera cobrar */
+  bonus_objetivo: number
+  bonus_consecucion: number
+  bonus_mes: number
+  /** Retribución flexible exenta que se descuenta del neto cada mes (seguro médico, guardería) */
+  flexible_mes: number
+  /** Retribución en especie sujeta: tributa pero no se cobra */
+  especie_mes: number
+  /** Subida anual, en porcentaje, del fijo y del objetivo del bonus, y mes de la nómina en que se aplica */
+  subida_anual: number
+  subida_mes: number
+  /** Mes (AAAA-MM) desde el que rige el fijo escrito: el último mes de subida ya pasado al guardar */
+  vigente_desde: string
+  /** Años de nacimiento de los hijos */
+  hijos: number[]
+  /** Tipo de retención de la nómina real y el año al que corresponde: manda en ese año */
+  tipo_actual: { porcentaje: number; anio: number } | null
+}
+
+/** Previsión a largo plazo (esquema 15): inflación del gasto y categorías que no suben (la hipoteca a tipo fijo) */
+export interface AjustesPrevision {
+  inflacion: number
+  sin_inflacion: string[]
+}
+
+export const VERSION_ESQUEMA = 15
 
 export interface BaseDatos {
   esquema: number

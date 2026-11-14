@@ -36,7 +36,9 @@ describe('datosIniciales', () => {
     expect(db.categorias.filter((c) => !c.padre_id)).toHaveLength(19)
     expect(db.categorias.filter((c) => c.padre_id)).toHaveLength(67)
     expect(db.categorias.filter((c) => c.naturaleza === 'ingreso')).toHaveLength(3)
-    expect(db.compromisos[0]).toMatchObject({ nombre: 'Deuda familiar', deuda_inicial: 0, colchon: 0, mes_referencia: 7 })
+    expect(db.compromisos[0]).toMatchObject({ nombre: 'Deuda familiar', deuda_inicial: 0, colchon: 0, mes_referencia: 8 })
+    // La hipoteca a tipo fijo no sube con la inflación
+    expect(db.ajustes.prevision).toEqual({ inflacion: 3, sin_inflacion: [cat(db, 'Hipoteca', 'Vivienda').id] })
   })
 
   it('es correcta según la comprobación completa', () => {

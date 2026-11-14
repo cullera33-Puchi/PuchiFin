@@ -58,7 +58,7 @@ export function General() {
     e.preventDefault()
     setError(null)
     // Lo que se guarda en otras pantallas (nóminas) o solo la app (versión de la lógica), tal como esté ahora
-    const err = await intentar((d) => guardarAjustes(d, { ...ajustes, nominas: d.ajustes.nominas, version_logica: d.ajustes.version_logica, claude: d.ajustes.claude }), 'Ajustes guardados')
+    const err = await intentar((d) => guardarAjustes(d, { ...ajustes, nominas: d.ajustes.nominas, version_logica: d.ajustes.version_logica, claude: d.ajustes.claude, prevision: d.ajustes.prevision }), 'Ajustes guardados')
     if (err) setError(err)
     else setGuardado(true)
   }

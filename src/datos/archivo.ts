@@ -6,7 +6,7 @@
 import { APP_VERSION } from '../lib/version'
 import { VERSION_ESQUEMA, type BaseDatos } from '../lib/tipos'
 import { reglasPredeterminadas } from '../importacion/reglas'
-import { AJUSTES_POR_DEFECTO, ErrorDatos, actualizarCatalogo, comprobarBaseDatos } from './operaciones'
+import { AJUSTES_POR_DEFECTO, ErrorDatos, actualizarCatalogo, categoriaHipoteca, comprobarBaseDatos } from './operaciones'
 
 export const FORMATO_ARCHIVO = 1
 
@@ -100,6 +100,17 @@ export function migrar(d: Partial<BaseDatos>): BaseDatos {
   if (desde < 7) datos.categorias = actualizarCatalogo(datos.categorias)
   // Esquema 5 (v0.8.0): versión de la lógica aplicada a lo pendiente (null: se aplica al arrancar)
   if (desde < 5) datos.ajustes = { ...datos.ajustes, version_logica: datos.ajustes.version_logica ?? null }
+  // Esquema 15 (v0.39.0): nómina en bruto (sin dato, sigue en neto) e inflación del gasto, con la hipoteca
+  // fuera. Decisión del usuario: el pago de la deuda pasa a agosto, ya cobrado el bonus, que también es de agosto
+  if (desde < 15) {
+    const hipoteca = categoriaHipoteca(datos.categorias)
+    datos.ajustes = {
+      ...datos.ajustes,
+      prevision: d.ajustes?.prevision ?? { inflacion: 3, sin_inflacion: hipoteca ? [hipoteca.id] : [] },
+      nominas: (datos.ajustes.nominas ?? []).map((n) => ({ ...n, bruto: n.bruto ?? null, bonus: n.bonus && n.bonus.mes === 7 ? { ...n.bonus, mes: 8 } : (n.bonus ?? null) })),
+    }
+    datos.compromisos = datos.compromisos.map((c) => (c.mes_referencia === 7 && c.ventana_mes_inicio <= 8 && c.ventana_mes_fin >= 8 ? { ...c, mes_referencia: 8 } : c))
+  }
   // Esquema 14 (v0.35.0): plantillas de Claude y envío sin conceptos (sin dato, las de la app y con conceptos)
   if (desde < 14) {
     const c = (datos.ajustes as Partial<typeof datos.ajustes>).claude

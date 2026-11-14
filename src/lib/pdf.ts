@@ -24,7 +24,7 @@ export interface OpcionesPdf {
   /** Fecha de generación (por defecto, hoy) */
   generado?: string
   /** Plan de pagos de la deuda: el actual y, si lo hay, el escenario con las nóminas que no cuentan */
-  plan?: { actual: Plan; conNominas: { nombres: string[]; plan: Plan } | null } | null
+  plan?: { actual: Plan; conNominas: { nombres: string[]; plan: Plan } | null; supuestos?: string } | null
 }
 
 const MARCA: [number, number, number] = [15, 118, 110]
@@ -335,6 +335,13 @@ function seccionPlan(
   const partes = doc.splitTextToSize(intro, ANCHO - 2 * MARGEN)
   doc.text(partes, MARGEN, y)
   y += partes.length * 4 + 1
+  if (datos.supuestos) {
+    const supuestos = doc.splitTextToSize(datos.supuestos, ANCHO - 2 * MARGEN)
+    doc.setTextColor(...GRIS)
+    doc.text(supuestos, MARGEN, y)
+    doc.setTextColor(...TINTA)
+    y += supuestos.length * 4 + 1
+  }
   if (otro && conNominas) {
     const texto = doc.splitTextToSize(`Con ${conNominas.nombres.join(' y ')}: ahorro previsto de ${eur(otro.ahorroMensual)} al mes.`, ANCHO - 2 * MARGEN)
     doc.setTextColor(...VERDE)

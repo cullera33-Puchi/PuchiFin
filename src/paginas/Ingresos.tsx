@@ -4,14 +4,15 @@ import { Link } from 'react-router-dom'
 import { useHacer } from '../componentes/acciones'
 import { BarraNavegacion } from '../componentes/Encabezado'
 import { Baldosa } from '../componentes/Icono'
-import { Hoja, Interruptor, useInterfaz } from '../componentes/Interfaz'
+import { Hoja, Interruptor, Segmentado, useInterfaz } from '../componentes/Interfaz'
 import { borrarNomina, guardarNomina } from '../datos/operaciones'
 import { useDatos } from '../datos/ProveedorDatos'
 import { hoyIso, MESES, mesLargo, sumarMeses } from '../lib/fechas'
-import { formatearRedondo, leerImporteUsuario, plural } from '../lib/formato'
+import { formatearImporte, formatearRedondo, leerImporteUsuario, plural } from '../lib/formato'
+import { fijoEn, objetivoEn, resumenBruta, vigenteDesde } from '../lib/nomina'
 import { useSimulacion } from '../componentes/simulacion'
-import { calcularPlan, haySimulacion, preverIngresos, SIN_SIMULACION, type Simulacion } from '../lib/plan'
-import type { BaseDatos, Nomina, PagaExtra } from '../lib/tipos'
+import { calcularPlan, hayCrecimiento, haySimulacion, inflacionDe, preverIngresos, SIN_SIMULACION, tieneBonus, type Simulacion } from '../lib/plan'
+import type { BaseDatos, Nomina, NominaBruta, PagaExtra } from '../lib/tipos'
 
 const conMayuscula = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
 const nombreMes = (mes: string) => conMayuscula(mesLargo(`${mes}-01`).toLowerCase())
@@ -20,6 +21,16 @@ const texto = (n: number) => String(n).replace('.', ',')
 /** «2.800 € al mes, pagas en junio y diciembre, desde marzo de 2027» */
 // oxlint-disable-next-line react/only-export-components
 export function resumenNomina(n: Nomina): string {
+  if (n.bruto) {
+    const b = n.bruto
+    const hoy = hoyIso().slice(0, 7)
+    const partes = [`${formatearRedondo(fijoEn(b, hoy))} brutos en ${b.pagas} pagas, unos ${formatearRedondo(n.neto_mensual)} netos al mes`]
+    if (b.bonus_objetivo > 0) partes.push(`bonus de ${formatearRedondo(objetivoEn(b, hoy))} al ${texto(b.bonus_consecucion)} % en ${MESES[b.bonus_mes - 1]}`)
+    if (b.subida_anual) partes.push(`subida del ${texto(b.subida_anual)} % cada ${MESES[b.subida_mes - 1]}`)
+    if (n.desde) partes.push(`desde ${mesLargo(`${n.desde}-01`).toLowerCase()}`)
+    if (n.hasta) partes.push(`hasta ${mesLargo(`${n.hasta}-01`).toLowerCase()}`)
+    return partes.join(', ')
+  }
   const partes = [`${formatearRedondo(n.neto_mensual)} al mes`]
   if (n.pagas.length) {
     const meses = n.pagas.map((p) => MESES[p.mes - 1])
@@ -53,12 +64,12 @@ export function SimularNominas({ db, sim, setSim }: { db: BaseDatos; sim: Simula
               </span>
               <Interruptor etiqueta={`Simular con ${n.nombre}`} activo={activa} onCambio={(v) => setSim({ ...sim, nominas: { ...sim.nominas, [n.id]: v } })} />
             </li>
-            {n.bonus && activa && (
+            {tieneBonus(n) && activa && (
               <li key={`${n.id}-bonus`} className="flex min-h-11 items-center gap-3 pl-4">
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[15px]">Bonus de {MESES[n.bonus.mes - 1]}</span>
+                  <span className="block truncate text-[15px]">Bonus de {MESES[(n.bruto ? n.bruto.bonus_mes : n.bonus!.mes) - 1]}</span>
                   <span className="block truncate text-[12px] text-zinc-500">
-                    {formatearRedondo(n.bonus.importe)} neto, de {n.nombre}
+                    {n.bruto ? `Objetivo de ${formatearRedondo(objetivoEn(n.bruto, hoyIso().slice(0, 7)))} brutos` : `${formatearRedondo(n.bonus!.importe)} neto`}, de {n.nombre}
                   </span>
                 </span>
                 <Interruptor
@@ -72,6 +83,92 @@ export function SimularNominas({ db, sim, setSim }: { db: BaseDatos; sim: Simula
         )
       })}
     </ul>
+  )
+}
+
+const SUBIDAS = [0, 3, 5, 8, 10, 12, 15]
+const CONSECUCIONES = [50, 75, 80, 85, 90, 95, 100, 110]
+const INFLACIONES = [0, 2, 3, 4, 5]
+
+/** Un porcentaje de la simulación: las opciones habituales más el valor guardado */
+function ElegirPorcentaje({ etiqueta, detalle, opciones, guardado, valor, onCambio }: { etiqueta: string; detalle: string; opciones: number[]; guardado: number; valor: number | undefined; onCambio: (v: number | undefined) => void }) {
+  const lista = [...new Set([...opciones, guardado])].sort((a, b) => a - b)
+  return (
+    <label className="flex min-h-11 items-center gap-3">
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px]">{etiqueta}</span>
+        <span className="block truncate text-[12px] text-zinc-500">{detalle}</span>
+      </span>
+      <select
+        className="rounded-lg bg-zinc-100 px-2 py-1.5 text-[15px] tabular-nums outline-none dark:bg-zinc-800"
+        aria-label={etiqueta}
+        value={valor ?? guardado}
+        onChange={(e) => onCambio(Number(e.target.value) === guardado ? undefined : Number(e.target.value))}
+      >
+        {lista.map((x) => (
+          <option key={x} value={x}>
+            {texto(x)} %
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+/**
+ * Simulación del crecimiento (v0.39.0): otra subida de sueldo, otro porcentaje de bonus cobrado u otra
+ * inflación, o todo plano. Solo aparece si hay algo que crezca: una nómina en bruto o inflación.
+ */
+export function SimularCrecimiento({ db, sim, setSim }: { db: BaseDatos; sim: Simulacion; setSim: (s: Simulacion) => void }) {
+  const brutas = (db.ajustes.nominas ?? []).filter((n) => n.bruto && (sim.nominas?.[n.id] ?? n.incluida))
+  const inflacion = db.ajustes.prevision?.inflacion ?? 0
+  if (!brutas.length && !inflacion) return null
+  const principal = brutas[0]?.bruto
+  const conBonus = brutas.find((n) => n.bruto!.bonus_objetivo > 0)?.bruto
+  const plano = !!sim.sinCrecimiento
+  return (
+    <div className="space-y-1">
+      {hayCrecimiento(db) && (
+        <div className="flex min-h-11 items-center gap-3">
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px]">Subidas e inflación</span>
+            <span className="block text-[12px] text-zinc-500">Apágalo para ver el plan con el sueldo y los precios de hoy</span>
+          </span>
+          <Interruptor etiqueta="Subidas e inflación" activo={!plano} onCambio={(v) => setSim({ ...sim, sinCrecimiento: v ? undefined : true })} />
+        </div>
+      )}
+      {!plano && principal && (
+        <ElegirPorcentaje
+          etiqueta="Subida anual del sueldo"
+          detalle={`Fijo y bonus, cada ${MESES[principal.subida_mes - 1]}`}
+          opciones={SUBIDAS}
+          guardado={principal.subida_anual}
+          valor={sim.subida}
+          onCambio={(v) => setSim({ ...sim, subida: v })}
+        />
+      )}
+      {conBonus && (
+        <ElegirPorcentaje
+          etiqueta="Bonus que cobras"
+          detalle="Porcentaje del objetivo"
+          opciones={CONSECUCIONES}
+          guardado={conBonus.bonus_consecucion}
+          valor={sim.consecucion}
+          onCambio={(v) => setSim({ ...sim, consecucion: v })}
+        />
+      )}
+      {!plano && (
+        <ElegirPorcentaje
+          etiqueta="Inflación del gasto"
+          detalle="Al año, salvo lo que no sube"
+          opciones={INFLACIONES}
+          guardado={inflacion}
+          valor={sim.inflacion}
+          onCambio={(v) => setSim({ ...sim, inflacion: v })}
+        />
+      )}
+      {!plano && inflacionDe(db, sim) > 0 && brutas.length === 0 && <p className="text-[12px] text-zinc-500">Con tu nómina en bruto, el sueldo también sube cada año.</p>}
+    </div>
   )
 }
 
@@ -101,6 +198,9 @@ export function Ingresos() {
   const diferida = useDeferredValue(sim)
   const simulando = haySimulacion(db, diferida)
   const otrosCambios = diferida.ahorroExtra !== 0 || diferida.recorte !== null || diferida.colchon !== undefined || diferida.deuda !== undefined
+  // Sin subidas ni inflación, para comparar con el plan que cuenta con ellas
+  const crece = hayCrecimiento(db)
+  const planPlano = useMemo(() => (crece ? calcularPlan(db, hoy, { ...SIN_SIMULACION, sinCrecimiento: true }).plan : null), [db, hoy, crece])
   const base = useMemo(() => preverIngresos(db, hoy), [db, hoy])
   const conSim = useMemo(() => (simulando ? preverIngresos(db, hoy, diferida) : null), [db, hoy, diferida, simulando])
   const plan = useMemo(() => calcularPlan(db, hoy).plan, [db, hoy])
@@ -123,8 +223,8 @@ export function Ingresos() {
         }
       />
       <p className="mb-3 px-1 text-[13px] text-zinc-500">
-        Tus nóminas netas, lo que llega al banco, con sus pagas extra. Si una cuenta en la previsión, sustituye a tu historial de nómina; el resto de ingresos sale del historial.
-        Una nómina que no cuenta sirve para simular, por ejemplo una segunda.
+        Tus nóminas. En bruto, la app calcula el neto de cada mes y aplica la subida anual; en neto, escribes lo que llega al banco. Si una cuenta en la previsión, sustituye a
+        tu historial de nómina; el resto de ingresos sale del historial. Una nómina que no cuenta sirve para simular, por ejemplo una segunda.
       </p>
 
       {!nominas.length ? (
@@ -174,6 +274,7 @@ export function Ingresos() {
           </div>
           <div className="lista space-y-3 px-4 py-3">
             <SimularNominas db={db} sim={sim} setSim={setSim} />
+            <SimularCrecimiento db={db} sim={sim} setSim={setSim} />
             {otrosCambios && <p className="text-[12px] text-zinc-500">También cuenta lo que has cambiado en la simulación del plan de pagos (deuda, colchón, ahorro o recorte).</p>}
             <div className="rounded-xl bg-zinc-100 px-3 py-2 text-[15px] tabular-nums dark:bg-zinc-800">
               <p>
@@ -188,7 +289,7 @@ export function Ingresos() {
               )}
               {plan && plan.pagos[0] && (
                 <p>
-                  Pago de julio de {plan.pagos[0].anio}: {formatearRedondo((planSim ?? plan).pagos[0]?.pago ?? 0)}
+                  Pago de {MESES[Number(plan.pagos[0].mes.slice(5, 7)) - 1]} de {plan.pagos[0].anio}: {formatearRedondo((planSim ?? plan).pagos[0]?.pago ?? 0)}
                   {planSim && <Dif n={(planSim.pagos[0]?.pago ?? 0) - plan.pagos[0].pago} />}
                 </p>
               )}
@@ -198,6 +299,11 @@ export function Ingresos() {
                   {planSim && plan.saldadaEn && planSim.saldadaEn && planSim.saldadaEn !== plan.saldadaEn
                     ? `, ${plural(Math.abs(plan.saldadaEn - planSim.saldadaEn), 'año', 'años')} ${planSim.saldadaEn < plan.saldadaEn ? 'antes' : 'después'}`
                     : ''}
+                </p>
+              )}
+              {plan && planPlano && !simulando && (
+                <p className="text-[13px] text-zinc-500">
+                  Sin subidas ni inflación: {planPlano.saldadaEn ? `saldada en ${planPlano.saldadaEn}` : 'no se salda en 30 años'}.
                 </p>
               )}
             </div>
@@ -250,6 +356,110 @@ export function Ingresos() {
 }
 
 /** Alta y edición de una nómina */
+/** Porcentaje escrito por el usuario («10», «82,5»); null si no es un número */
+function leerPorcentaje(t: string): number | null {
+  const limpio = t.trim().replace('%', '').replace(',', '.')
+  if (!limpio) return null
+  const n = Number(limpio)
+  return Number.isFinite(n) ? n : null
+}
+
+/** Años de nacimiento escritos seguidos («2020, 2024»); null si alguno no es un año */
+function leerHijos(t: string): number[] | null {
+  const partes = t.split(/[\s,;y]+/).filter(Boolean)
+  const lista = partes.map(Number)
+  return lista.every((n) => Number.isInteger(n) && n >= 1950 && n <= 2100) ? lista : null
+}
+
+interface CamposBruto {
+  fijo: string
+  pagas: '12' | '14'
+  extra1: number
+  extra2: number
+  objetivo: string
+  consecucion: string
+  bonusMes: number
+  subida: string
+  subidaMes: number
+  flexible: string
+  especie: string
+  hijos: string
+  tipo: string
+}
+
+const BRUTO_VACIO: CamposBruto = { fijo: '', pagas: '12', extra1: 6, extra2: 12, objetivo: '', consecucion: '85', bonusMes: 8, subida: '', subidaMes: 9, flexible: '', especie: '', hijos: '', tipo: '' }
+
+/** Lo escrito en el formulario, como nómina en bruto; un texto con lo que falta si no vale */
+function leerBruto(c: CamposBruto, hoy: string): NominaBruta | string {
+  const fijo = leerImporteUsuario(c.fijo)
+  if (fijo === null || fijo <= 0) return 'Escribe el bruto fijo al año'
+  if (c.pagas === '14' && c.extra1 === c.extra2) return 'Las dos pagas extra van en meses distintos'
+  const objetivo = c.objetivo.trim() ? leerImporteUsuario(c.objetivo) : 0
+  if (objetivo === null) return 'Revisa el objetivo del bonus'
+  const consecucion = leerPorcentaje(c.consecucion) ?? 100
+  if (consecucion < 0 || consecucion > 200) return 'El porcentaje del bonus va de 0 a 200'
+  const subida = c.subida.trim() ? leerPorcentaje(c.subida) : 0
+  if (subida === null || subida < -50 || subida > 100) return 'Revisa la subida anual'
+  const flexible = c.flexible.trim() ? leerImporteUsuario(c.flexible) : 0
+  const especie = c.especie.trim() ? leerImporteUsuario(c.especie) : 0
+  if (flexible === null || especie === null) return 'Revisa la retribución flexible y la especie'
+  const hijos = leerHijos(c.hijos)
+  if (!hijos) return 'Escribe el año de nacimiento de cada hijo, por ejemplo 2020'
+  const tipo = c.tipo.trim() ? leerPorcentaje(c.tipo) : null
+  if (c.tipo.trim() && (tipo === null || tipo < 0 || tipo > 60)) return 'La retención va de 0 a 60 %'
+  return {
+    fijo_anual: fijo,
+    pagas: c.pagas === '14' ? 14 : 12,
+    meses_extra: c.pagas === '14' ? [c.extra1, c.extra2] : [],
+    bonus_objetivo: objetivo,
+    bonus_consecucion: consecucion,
+    bonus_mes: c.bonusMes,
+    flexible_mes: flexible,
+    especie_mes: especie,
+    subida_anual: subida,
+    subida_mes: c.subidaMes,
+    vigente_desde: vigenteDesde(hoy, c.subidaMes),
+    hijos,
+    tipo_actual: tipo === null ? null : { porcentaje: tipo, anio: Number(hoy.slice(0, 4)) },
+  }
+}
+
+function ElegirMes({ etiqueta, valor, onCambio, clase = 'bg-transparent text-right text-[15px] outline-none' }: { etiqueta: string; valor: number; onCambio: (m: number) => void; clase?: string }) {
+  return (
+    <select className={clase} aria-label={etiqueta} value={valor} onChange={(e) => onCambio(Number(e.target.value))}>
+      {MESES.map((m, k) => (
+        <option key={m} value={k + 1}>
+          {conMayuscula(m)}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+/** Lo que sale de la nómina en bruto: neto de un mes, paga extra, bonus y retención calculada */
+function ResultadoBruto({ bruta, inflacion }: { bruta: NominaBruta | string; inflacion: number }) {
+  if (typeof bruta === 'string') return null
+  const hoy = hoyIso()
+  const r = resumenBruta(bruta, hoy, { inflacion })
+  const fila = (etiqueta: string, valor: string, detalle?: string) => (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="min-w-0 text-[13px] text-zinc-500">
+        {etiqueta}
+        {detalle && <span className="block text-[12px]">{detalle}</span>}
+      </span>
+      <span className="shrink-0 text-[15px] font-medium tabular-nums">{valor}</span>
+    </div>
+  )
+  return (
+    <div className="space-y-1.5 rounded-xl bg-zinc-100/70 px-4 py-3 dark:bg-zinc-800/50" aria-label="Neto calculado">
+      {fila('Neto de un mes normal', formatearImporte(r.netoMes), `Retención del ${texto(r.tipo)} %${bruta.tipo_actual ? ', la de tu nómina' : ', calculada'}`)}
+      {bruta.pagas === 14 && fila('Cada paga extra', formatearImporte(r.netoExtra))}
+      {r.bonusBruto > 0 && fila(`Bonus de ${MESES[bruta.bonus_mes - 1]}`, formatearImporte(r.bonusNeto), `${formatearRedondo(r.bonusBruto)} brutos`)}
+      {fila('Neto de los próximos 12 meses', formatearRedondo(r.netoAnual))}
+    </div>
+  )
+}
+
 function HojaNomina({ nomina, onCerrar, sugerido }: { nomina: Nomina | 'nueva' | null; onCerrar: () => void; sugerido: number | null }) {
   const db = useDatos()
   const hacer = useHacer()
@@ -259,6 +469,8 @@ function HojaNomina({ nomina, onCerrar, sugerido }: { nomina: Nomina | 'nueva' |
   const actual = hoyIso().slice(0, 7)
   const futuros = (n: number) => Array.from({ length: n }, (_, i) => sumarMeses(`${actual}-01`, i).slice(0, 7))
   const [abiertaCon, setAbiertaCon] = useState('')
+  const [modo, setModo] = useState<'bruto' | 'neto'>('bruto')
+  const [b, setB] = useState<CamposBruto>(BRUTO_VACIO)
   const [nombre, setNombre] = useState('')
   const [neto, setNeto] = useState('')
   const [pagas, setPagas] = useState<{ mes: number; importe: string }[]>([])
@@ -266,7 +478,7 @@ function HojaNomina({ nomina, onCerrar, sugerido }: { nomina: Nomina | 'nueva' |
   const [hasta, setHasta] = useState('')
   const [incluida, setIncluida] = useState(true)
   const [conBonus, setConBonus] = useState(false)
-  const [bonusMes, setBonusMes] = useState(7)
+  const [bonusMes, setBonusMes] = useState(8)
   const [bonusImporte, setBonusImporte] = useState('')
   const [error, setError] = useState<string | null>(null)
   // Al abrir otra nómina, sus valores (ajuste durante el render, sin efecto)
@@ -274,6 +486,29 @@ function HojaNomina({ nomina, onCerrar, sugerido }: { nomina: Nomina | 'nueva' |
     setAbiertaCon(clave)
     const primera = !(db.ajustes.nominas ?? []).length
     setNombre(existente?.nombre ?? (primera ? 'Mi nómina' : `Nómina ${(db.ajustes.nominas ?? []).length + 1}`))
+    // La propia, en bruto, que es lo que permite las subidas; las siguientes (para simular), en neto; una ya guardada, como se guardó
+    setModo(existente ? (existente.bruto ? 'bruto' : 'neto') : primera ? 'bruto' : 'neto')
+    const g = existente?.bruto
+    setB(
+      g
+        ? {
+            // El sueldo y el objetivo, al nivel de hoy: las subidas ya pasadas van incluidas
+            fijo: texto(Math.round(fijoEn(g, actual) * 100) / 100),
+            pagas: g.pagas === 14 ? '14' : '12',
+            extra1: g.meses_extra[0] ?? 6,
+            extra2: g.meses_extra[1] ?? 12,
+            objetivo: g.bonus_objetivo ? texto(Math.round(objetivoEn(g, actual) * 100) / 100) : '',
+            consecucion: texto(g.bonus_consecucion),
+            bonusMes: g.bonus_mes,
+            subida: g.subida_anual ? texto(g.subida_anual) : '',
+            subidaMes: g.subida_mes,
+            flexible: g.flexible_mes ? texto(g.flexible_mes) : '',
+            especie: g.especie_mes ? texto(g.especie_mes) : '',
+            hijos: g.hijos.join(', '),
+            tipo: g.tipo_actual && g.tipo_actual.anio === Number(actual.slice(0, 4)) ? texto(g.tipo_actual.porcentaje) : '',
+          }
+        : BRUTO_VACIO,
+    )
     setNeto(existente ? texto(existente.neto_mensual) : primera && sugerido ? texto(Math.round(sugerido)) : '')
     setPagas(
       existente
@@ -288,7 +523,7 @@ function HojaNomina({ nomina, onCerrar, sugerido }: { nomina: Nomina | 'nueva' |
     // La primera es la propia y cuenta; las siguientes, para simular
     setIncluida(existente ? existente.incluida : primera)
     setConBonus(!!existente?.bonus)
-    setBonusMes(existente?.bonus?.mes ?? 7)
+    setBonusMes(existente?.bonus?.mes ?? 8)
     setBonusImporte(existente?.bonus ? texto(existente.bonus.importe) : '')
     setError(null)
   }
@@ -296,31 +531,42 @@ function HojaNomina({ nomina, onCerrar, sugerido }: { nomina: Nomina | 'nueva' |
     setAbiertaCon('')
     onCerrar()
   }
+  const inflacion = db.ajustes.prevision?.inflacion ?? 0
+  const bruta = useMemo(() => leerBruto(b, hoyIso()), [b])
+  const cambiar = (c: Partial<CamposBruto>) => setB((x) => ({ ...x, ...c }))
   const guardar = async () => {
-    const valor = leerImporteUsuario(neto)
-    if (valor === null || valor <= 0) return setError('Escribe el neto mensual')
-    const lista: PagaExtra[] = []
-    for (const p of pagas) {
-      const v = leerImporteUsuario(p.importe)
-      if (v === null || v <= 0) return setError(`Escribe el importe de la paga de ${MESES[p.mes - 1]}`)
-      lista.push({ mes: p.mes, importe: v })
-    }
-    let bonus = null
-    if (conBonus) {
-      const v = leerImporteUsuario(bonusImporte)
-      if (v === null || v <= 0) return setError('Escribe el importe neto del bonus')
-      bonus = { mes: bonusMes, importe: v }
+    const comunes = { nombre, desde: desde || null, hasta: hasta || null, incluida }
+    let datos
+    if (modo === 'bruto') {
+      if (typeof bruta === 'string') return setError(bruta)
+      // El neto, las pagas y el bonus se guardan ya calculados, como referencia
+      const r = resumenBruta(bruta, hoyIso(), { inflacion })
+      if (!(r.netoMes > 0)) return setError('Con esos datos no sale un neto. Revisa el bruto')
+      datos = {
+        ...comunes,
+        neto_mensual: r.netoMes,
+        pagas: bruta.pagas === 14 && r.netoExtra > 0 ? bruta.meses_extra.map((mes) => ({ mes, importe: r.netoExtra })) : [],
+        bonus: r.bonusNeto > 0 ? { mes: bruta.bonus_mes, importe: r.bonusNeto } : null,
+        bruto: bruta,
+      }
+    } else {
+      const valor = leerImporteUsuario(neto)
+      if (valor === null || valor <= 0) return setError('Escribe el neto mensual')
+      const lista: PagaExtra[] = []
+      for (const p of pagas) {
+        const v = leerImporteUsuario(p.importe)
+        if (v === null || v <= 0) return setError(`Escribe el importe de la paga de ${MESES[p.mes - 1]}`)
+        lista.push({ mes: p.mes, importe: v })
+      }
+      let bonus = null
+      if (conBonus) {
+        const v = leerImporteUsuario(bonusImporte)
+        if (v === null || v <= 0) return setError('Escribe el importe neto del bonus')
+        bonus = { mes: bonusMes, importe: v }
+      }
+      datos = { ...comunes, neto_mensual: valor, pagas: lista, bonus, bruto: null }
     }
     setError(null)
-    const datos = {
-      nombre,
-      neto_mensual: valor,
-      pagas: lista,
-      desde: desde || null,
-      hasta: hasta || null,
-      incluida,
-      bonus,
-    }
     if (await hacer((d) => guardarNomina(d, datos, existente?.id), existente ? 'Nómina guardada' : `${nombre.trim()}: añadida`)) cerrar()
   }
   const borrar = async () => {
@@ -338,20 +584,111 @@ function HojaNomina({ nomina, onCerrar, sugerido }: { nomina: Nomina | 'nueva' |
   }
   const libre = [6, 12, 7, 3, 9, 1, 2, 4, 5, 8, 10, 11].find((m) => !pagas.some((p) => p.mes === m))
   const campo = 'min-w-0 flex-1 bg-transparent text-right text-[15px] outline-none'
+  const numero = (etiqueta: string, valor: string, onCambio: (v: string) => void, placeholder: string, ancho = 'w-40') => (
+    <label className="fila min-h-12">
+      <span className={`${ancho} shrink-0 text-[15px]`}>{etiqueta}</span>
+      <input className={`${campo} tabular-nums`} inputMode="decimal" placeholder={placeholder} aria-label={etiqueta} value={valor} onChange={(e) => onCambio(e.target.value)} />
+    </label>
+  )
 
   return (
     <Hoja abierta={!!nomina} titulo={existente ? existente.nombre : 'Nueva nómina'} onCerrar={cerrar}>
       <div className="space-y-4">
+        <Segmentado
+          etiqueta="Cómo la escribes"
+          opciones={[
+            ['bruto', 'En bruto'],
+            ['neto', 'En neto'],
+          ]}
+          valor={modo}
+          onCambio={(v) => {
+            setModo(v)
+            setError(null)
+          }}
+        />
         <div className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
           <label className="fila min-h-12">
             <span className="w-32 shrink-0 text-[15px]">Nombre</span>
             <input className={campo} maxLength={40} value={nombre} onChange={(e) => setNombre(e.target.value)} />
           </label>
-          <label className="fila min-h-12">
-            <span className="w-32 shrink-0 text-[15px]">Neto al mes</span>
-            <input className={`${campo} tabular-nums`} inputMode="decimal" placeholder="0,00 €" value={neto} onChange={(e) => setNeto(e.target.value)} />
-          </label>
+          {modo === 'neto' && (
+            <label className="fila min-h-12">
+              <span className="w-32 shrink-0 text-[15px]">Neto al mes</span>
+              <input className={`${campo} tabular-nums`} inputMode="decimal" placeholder="0,00 €" value={neto} onChange={(e) => setNeto(e.target.value)} />
+            </label>
+          )}
+          {modo === 'bruto' && numero('Bruto fijo al año', b.fijo, (v) => cambiar({ fijo: v }), '0 €')}
+          {modo === 'bruto' && (
+            <div className="fila min-h-12">
+              <span className="flex-1 text-[15px]">Pagas</span>
+              <div className="w-32">
+                <Segmentado
+                  etiqueta="Número de pagas"
+                  opciones={[
+                    ['12', '12'],
+                    ['14', '14'],
+                  ]}
+                  valor={b.pagas}
+                  onCambio={(v) => cambiar({ pagas: v })}
+                />
+              </div>
+            </div>
+          )}
+          {modo === 'bruto' && b.pagas === '14' && (
+            <div className="fila min-h-12">
+              <span className="flex-1 text-[15px]">Extras en</span>
+              <ElegirMes etiqueta="Mes de la primera paga extra" valor={b.extra1} onCambio={(m) => cambiar({ extra1: m })} />
+              <span className="text-[15px] text-zinc-500">y</span>
+              <ElegirMes etiqueta="Mes de la segunda paga extra" valor={b.extra2} onCambio={(m) => cambiar({ extra2: m })} />
+            </div>
+          )}
         </div>
+        {modo === 'bruto' && (
+          <>
+            <section>
+              <h3 className="cabecera-grupo">Bonus</h3>
+              <div className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
+                {numero('Objetivo bruto', b.objetivo, (v) => cambiar({ objetivo: v }), 'Sin bonus')}
+                {numero('Cobras (%)', b.consecucion, (v) => cambiar({ consecucion: v }), '100')}
+                <div className="fila min-h-12">
+                  <span className="flex-1 text-[15px]">Se cobra en</span>
+                  <ElegirMes etiqueta="Mes del bonus" valor={b.bonusMes} onCambio={(m) => cambiar({ bonusMes: m })} />
+                </div>
+              </div>
+              <p className="mt-1 px-4 text-[12px] text-zinc-500">
+                El objetivo es el bonus al 100 %. En «Cobras» va el porcentaje que esperas cobrar; en la simulación puedes probar otro. Si el del año pasado está en otra
+                categoría, pásalo a Ingresos, Nómina para no contarlo dos veces.
+              </p>
+            </section>
+            <section>
+              <h3 className="cabecera-grupo">Subida anual</h3>
+              <div className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
+                {numero('Subida (%)', b.subida, (v) => cambiar({ subida: v }), 'Sin subida')}
+                <div className="fila min-h-12">
+                  <span className="flex-1 text-[15px]">Se aplica en</span>
+                  <ElegirMes etiqueta="Mes de la subida" valor={b.subidaMes} onCambio={(m) => cambiar({ subidaMes: m })} />
+                </div>
+              </div>
+              <p className="mt-1 px-4 text-[12px] text-zinc-500">Sube el fijo y el objetivo del bonus cada año desde ese mes. Escribe el sueldo que tienes hoy.</p>
+            </section>
+            <section>
+              <h3 className="cabecera-grupo">Para calcular el neto</h3>
+              <div className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
+                {numero('Hijos, año de nacimiento', b.hijos, (v) => cambiar({ hijos: v }), '2020, 2024', 'w-48')}
+                {numero('Retribución flexible al mes', b.flexible, (v) => cambiar({ flexible: v }), '0 €', 'w-52')}
+                {numero('Especie que tributa al mes', b.especie, (v) => cambiar({ especie: v }), '0 €', 'w-52')}
+                {numero('Retención de tu nómina (%)', b.tipo, (v) => cambiar({ tipo: v }), 'Calculada', 'w-52')}
+              </div>
+              <p className="mt-1 px-4 text-[12px] text-zinc-500">
+                La retribución flexible es lo que se descuenta del bruto sin tributar (seguro médico, guardería, transporte). Si escribes la retención que pone tu nómina,
+                manda este año; los siguientes los calcula la app. Es una estimación para planificar, no un cálculo oficial.
+              </p>
+            </section>
+            <ResultadoBruto bruta={bruta} inflacion={inflacion} />
+          </>
+        )}
+        {modo === 'neto' && (
+          <>
         <section>
           <h3 className="cabecera-grupo">Pagas extra</h3>
           <div className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
@@ -426,6 +763,8 @@ function HojaNomina({ nomina, onCerrar, sugerido }: { nomina: Nomina | 'nueva' |
             contarlo dos veces.
           </p>
         </section>
+          </>
+        )}
         <div className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
           <label className="fila min-h-12">
             <span className="w-32 shrink-0 text-[15px]">Desde</span>

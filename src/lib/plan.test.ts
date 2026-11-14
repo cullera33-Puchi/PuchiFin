@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { datosIniciales, ErrorDatos, guardarCompromiso, guardarEvento, guardarNomina, guardarPresupuesto } from '../datos/operaciones'
-import { calcularPlan, efectoMesCerrado, importeNomina, preverIngresos } from './plan'
-import type { BaseDatos, Movimiento } from './tipos'
+import { datosIniciales, ErrorDatos, guardarCompromiso, guardarEvento, guardarNomina, guardarPresupuesto, guardarPrevision } from '../datos/operaciones'
+import { calcularPlan, efectoMesCerrado, hayCrecimiento, haySimulacion, importeNomina, preverIngresos, SIN_SIMULACION } from './plan'
+import type { BaseDatos, Movimiento, NominaBruta } from './tipos'
 
 const db0 = datosIniciales()
 const [principal, segunda] = db0.cuentas
@@ -28,7 +28,8 @@ function crear(deuda: number, octubreSuper = -1000): BaseDatos {
     movimientos.push(mov(`${mes}-06`, -1000, 'Vivienda > Hipoteca'))
   }
   movimientos.push(mov('2026-11-15', 500, null, { cuenta_id: segunda.id, tipo: 'traspaso_interno', saldo: 5000 }))
-  const db = { ...db0, movimientos }
+  // Sin inflación: estos tests comprueban la mecánica del plan; el crecimiento tiene los suyos al final
+  const db = { ...db0, ajustes: { ...db0.ajustes, prevision: { inflacion: 0, sin_inflacion: [] } }, movimientos }
   const c = db.compromisos[0]
   return guardarCompromiso(db, c.id, { deuda_inicial: deuda, fecha_referencia: '2026-10-01', colchon: 3000, cuenta_colchon_id: segunda.id, ventana_mes_inicio: 6, ventana_mes_fin: 8, mes_referencia: 7 })
 }
@@ -164,5 +165,80 @@ describe('pago ya hecho en la ventana', () => {
     const p = calcularPlan(db, '2027-06-15').plan!
     expect(p.pagos.some((x) => x.anio === 2027)).toBe(false)
     expect(p.pagos[0].anio).toBe(2028)
+  })
+})
+
+describe('crecimiento: inflación del gasto y subidas de sueldo (v0.39.0)', () => {
+  const hipoteca = cat('Vivienda > Hipoteca')
+  const bruta: NominaBruta = {
+    fijo_anual: 60000, pagas: 12, meses_extra: [], bonus_objetivo: 10000, bonus_consecucion: 80, bonus_mes: 8,
+    flexible_mes: 0, especie_mes: 0, subida_anual: 10, subida_mes: 9, vigente_desde: '2026-09', hijos: [], tipo_actual: null,
+  }
+  const conNomina = (db: BaseDatos, extra: Partial<NominaBruta> = {}) =>
+    guardarNomina(db, { nombre: 'Mi nómina', neto_mensual: 3000, pagas: [], desde: null, hasta: null, incluida: true, bonus: null, bruto: { ...bruta, ...extra } })
+
+  it('la inflación sube el gasto y baja el pago; la hipoteca a tipo fijo no sube', () => {
+    const plano = crear(20000)
+    const todo = guardarPrevision(plano, { inflacion: 3, sin_inflacion: [] })
+    const sinHipoteca = guardarPrevision(plano, { inflacion: 3, sin_inflacion: [hipoteca] })
+    const pago = (db: BaseDatos) => calcularPlan(db, HOY).plan!.pagos[0].pago
+    expect(pago(plano)).toBe(10500)
+    expect(pago(todo)).toBeLessThan(pago(sinHipoteca))
+    expect(pago(sinHipoteca)).toBeLessThan(10500)
+    // De noviembre a julio, el supermercado (1.000 al mes) sube poco más de 80 € en total; la hipoteca, nada
+    expect(10500 - pago(sinHipoteca)).toBeGreaterThan(60)
+    expect(10500 - pago(sinHipoteca)).toBeLessThan(110)
+    expect(10500 - pago(todo)).toBeCloseTo((10500 - pago(sinHipoteca)) * 2, 0)
+    // En la simulación se quita o se cambia
+    expect(calcularPlan(todo, HOY, { ...SIN_SIMULACION, sinCrecimiento: true }).plan!.pagos[0].pago).toBe(10500)
+    expect(calcularPlan(plano, HOY, { ...SIN_SIMULACION, inflacion: 3 }).plan!.pagos[0].pago).toBe(pago(todo))
+    expect(() => guardarPrevision(plano, { inflacion: 30, sin_inflacion: [] })).toThrow(ErrorDatos)
+    expect(() => guardarPrevision(plano, { inflacion: 3, sin_inflacion: [cat('Ingresos > Nómina')] })).toThrow(ErrorDatos)
+  })
+
+  it('la nómina en bruto entra con su neto calculado, el bonus de agosto y la subida de septiembre', () => {
+    const db = conNomina(crear(20000))
+    const ing = preverIngresos(db, HOY)!
+    const mes = (m: string) => ing.meses.find((x) => x.mes === m)!
+    // Un mes normal de 60.000 en 12 pagas ronda los 3.400 netos
+    expect(mes('2027-03').total).toBeGreaterThan(3300)
+    expect(mes('2027-03').total).toBeLessThan(3500)
+    // Agosto: el 80 % de 10.000 brutos, ya neto
+    expect(mes('2027-08').nominas[0].bonus).toBeGreaterThan(5000)
+    expect(mes('2027-08').nominas[0].bonus).toBeLessThan(6500)
+    // Desde septiembre, el 10 % más de bruto deja menos de un 10 % más de neto
+    const subida = mes('2027-10').total / mes('2027-07').total
+    expect(subida).toBeGreaterThan(1.03)
+    expect(subida).toBeLessThan(1.1)
+  })
+
+  it('la simulación cambia la subida y el porcentaje del bonus, o lo deja todo plano', () => {
+    const db = conNomina(crear(20000))
+    const total = (sim: Parameters<typeof preverIngresos>[2], m: string) => preverIngresos(db, HOY, sim)!.meses.find((x) => x.mes === m)!
+    expect(total({ ...SIN_SIMULACION, subida: 0 }, '2027-10').total).toBeLessThan(total(SIN_SIMULACION, '2027-10').total)
+    expect(total({ ...SIN_SIMULACION, sinCrecimiento: true }, '2027-10').total).toBe(total({ ...SIN_SIMULACION, subida: 0 }, '2027-10').total)
+    expect(total({ ...SIN_SIMULACION, consecucion: 100 }, '2027-08').nominas[0].bonus).toBeGreaterThan(total(SIN_SIMULACION, '2027-08').nominas[0].bonus)
+    expect(total({ ...SIN_SIMULACION, bonus: { [db.ajustes.nominas[0].id]: false } }, '2027-08').nominas[0].bonus).toBe(0)
+    expect(haySimulacion(db, SIN_SIMULACION)).toBe(false)
+    expect(haySimulacion(db, { ...SIN_SIMULACION, sinCrecimiento: true })).toBe(true)
+    expect(haySimulacion(db, { ...SIN_SIMULACION, consecucion: 90 })).toBe(true)
+  })
+
+  it('con subidas, la deuda se salda antes o igual que sin ellas', () => {
+    const db = conNomina(crear(60000))
+    const con = calcularPlan(db, HOY).plan!
+    const sin = calcularPlan(db, HOY, { ...SIN_SIMULACION, sinCrecimiento: true }).plan!
+    expect(hayCrecimiento(db)).toBe(true)
+    expect(hayCrecimiento(crear(20000))).toBe(false)
+    expect(con.saldadaEn!).toBeLessThanOrEqual(sin.saldadaEn!)
+    expect(con.pagos.reduce((s, p) => s + p.pago, 0)).toBe(60000)
+  })
+
+  it('comprobaciones de la nómina en bruto', () => {
+    expect(() => conNomina(db0, { fijo_anual: 0 })).toThrow(ErrorDatos)
+    expect(() => conNomina(db0, { pagas: 14 as never, meses_extra: [6] })).toThrow(/pagas extra/)
+    expect(() => conNomina(db0, { bonus_consecucion: 300 })).toThrow(ErrorDatos)
+    expect(() => conNomina(db0, { hijos: [20] })).toThrow(/nacimiento/)
+    expect(conNomina(db0, { hijos: [2024, 2020] }).ajustes.nominas[0].bruto!.hijos).toEqual([2020, 2024])
   })
 })

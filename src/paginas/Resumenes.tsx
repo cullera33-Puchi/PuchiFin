@@ -8,7 +8,7 @@ import { compartirArchivo, puedeCompartirArchivos } from '../lib/compartir'
 import { contarDatosPrueba } from '../datos/operaciones'
 import { useDatos } from '../datos/ProveedorDatos'
 import { diaSemana, hoyIso } from '../lib/fechas'
-import { calcularPlan, escenarioNominas } from '../lib/plan'
+import { calcularPlan, escenarioNominas, supuestosCrecimiento } from '../lib/plan'
 import { formatearImporte } from '../lib/formato'
 import { registrar } from '../lib/registro'
 import {
@@ -92,7 +92,7 @@ export function Resumenes() {
       // Plan de pagos: el actual y con las nóminas que no cuentan (la segunda), calculados al generar
       const actual = hayPlan && conPlan ? calcularPlan(db, hoyIso()).plan : null
       const otro = actual && escenario ? calcularPlan(db, hoyIso(), escenario.sim).plan : null
-      const plan = actual ? { actual, conNominas: otro && escenario ? { nombres: escenario.nombres, plan: otro } : null } : null
+      const plan = actual ? { actual, conNominas: otro && escenario ? { nombres: escenario.nombres, plan: otro } : null, supuestos: supuestosCrecimiento(db) } : null
       const doc = generarPdfResumen(resumen, { incluirConceptos: conceptos, hayDatosPrueba: hayPrueba, categorias, reducida, plan })
       const nombre = nombreArchivoResumen(resumen, reducida)
       registrar('info', `Resumen ${resumen.periodo.tipo === 'mes' ? 'mensual' : 'semanal'} en PDF`, { periodo: resumen.periodo.inicio, paginas: doc.getNumberOfPages(), conceptos, reducida, plan: !!plan })

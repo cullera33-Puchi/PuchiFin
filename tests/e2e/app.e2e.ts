@@ -263,7 +263,7 @@ test('gastos previstos, plan de pagos y Analizar con Claude', async ({ page }) =
   await importes.nth(1).fill('2000')
   await page.getByRole('button', { name: 'Guardar', exact: true }).tap()
   await expect(page.locator('#contenido').getByText('Deuda pendiente', { exact: true }).first()).toBeVisible()
-  await expect(page.getByText(/Pago previsto en julio/)).toBeVisible()
+  await expect(page.getByText(/Pago previsto en agosto/)).toBeVisible()
   await page.getByRole('radio', { name: '+200 €' }).tap()
   await expect(page.getByText(/Primer pago:/)).toBeVisible()
   // Otro colchón para simular y guardarlo en el plan
@@ -296,18 +296,19 @@ test('ingresos previstos: mi nómina con pagas extra y una segunda nómina simul
   // Mi nómina con dos pagas extra
   await page.goto('/extracto/ingresos')
   await page.getByRole('button', { name: 'Añadir mi nómina' }).tap()
+  await page.getByRole('radio', { name: 'En neto' }).tap()
   await page.getByPlaceholder('0,00 €').first().fill('2800')
   await page.getByRole('button', { name: 'Añadir paga extra' }).tap()
   await page.getByRole('button', { name: 'Añadir paga extra' }).tap()
-  // Bonus de julio, aparte
+  // Bonus de agosto, aparte
   await page.getByRole('switch', { name: 'Bonus anual' }).tap()
   await page.getByLabel('Importe neto del bonus').fill('9000')
   await page.getByRole('button', { name: 'Guardar', exact: true }).tap()
-  await expect(page.getByText(/2\.800\s€ al mes, pagas en junio y diciembre, bonus de 9\.000\s€ en julio/).first()).toBeVisible()
-  // Sin el bonus, el capital dentro de un año baja (el pago de julio puede ser 0 con los datos de prueba)
+  await expect(page.getByText(/2\.800\s€ al mes, pagas en junio y diciembre, bonus de 9\.000\s€ en agosto/).first()).toBeVisible()
+  // Sin el bonus, el capital dentro de un año baja (el pago de agosto puede ser 0 con los datos de prueba)
   await page.getByRole('switch', { name: 'Simular con el bonus de Mi nómina' }).tap()
   await expect(page.getByText(/Capital dentro de un año: .*\(-9\.000\s€\)/)).toBeVisible()
-  await expect(page.getByText(/Pago de julio de 2027:/)).toBeVisible()
+  await expect(page.getByText(/Pago de agosto de 2027:/)).toBeVisible()
   await page.getByRole('switch', { name: 'Simular con el bonus de Mi nómina' }).tap()
   // Segunda nómina, fuera de la previsión
   await page.getByRole('button', { name: 'Añadir una nómina' }).tap()
@@ -317,7 +318,7 @@ test('ingresos previstos: mi nómina con pagas extra y una segunda nómina simul
   // Simularla: cambian el capital y el pago
   await page.getByRole('switch', { name: 'Simular con Nómina 2' }).tap()
   await expect(page.getByText(/Capital dentro de un año: .*\(\+/)).toBeVisible()
-  await expect(page.getByText(/Pago de julio de 2027:/)).toBeVisible()
+  await expect(page.getByText(/Pago de agosto de 2027:/)).toBeVisible()
   // También en el plan de pagos
   // La simulación es la misma en el plan: la segunda nómina llega ya activada
   await page.getByText('Ver el plan de pagos').tap()
@@ -325,6 +326,51 @@ test('ingresos previstos: mi nómina con pagas extra y una segunda nómina simul
   await expect(page.getByText('Con la simulación')).toBeVisible()
   await page.getByRole('button', { name: 'Restablecer' }).tap()
   await expect(page.getByRole('switch', { name: 'Simular con Nómina 2' })).toHaveAttribute('aria-checked', 'false')
+  expect(e).toEqual([])
+})
+
+test('nómina en bruto: neto calculado, subidas, bonus cobrado e inflación del gasto', async ({ page }) => {
+  const e = errores(page)
+  await conDatosDePrueba(page)
+  await page.goto('/extracto/plan')
+  await page.getByRole('button', { name: 'Configurar' }).tap()
+  await page.getByPlaceholder('0,00 €').nth(0).fill('30000')
+  await page.getByPlaceholder('0,00 €').nth(1).fill('2000')
+  // La inflación viene al 3 % y la hipoteca, fuera
+  await expect(page.getByLabel('Inflación del gasto al año')).toHaveValue('3')
+  await expect(page.getByRole('button', { name: 'Quitar Vivienda, Hipoteca' })).toBeVisible()
+  await page.getByRole('button', { name: 'Guardar', exact: true }).tap()
+  await expect(page.locator('#contenido').getByText('Deuda pendiente', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText(/El gasto sube un 3 % al año, salvo Vivienda, Hipoteca/)).toBeVisible()
+  // La nómina, en bruto: el neto sale calculado
+  await page.goto('/extracto/ingresos')
+  await page.getByRole('button', { name: 'Añadir mi nómina' }).tap()
+  await expect(page.getByRole('radio', { name: 'En bruto' })).toHaveAttribute('aria-checked', 'true')
+  await page.getByLabel('Bruto fijo al año').fill('60000')
+  await page.getByLabel('Objetivo bruto').fill('10000')
+  await page.getByLabel('Cobras (%)').fill('80')
+  await page.getByLabel('Subida (%)').fill('10')
+  await page.getByLabel('Hijos, año de nacimiento').fill('2020, 2024')
+  const calculado = page.getByLabel('Neto calculado')
+  await expect(calculado.getByText('Neto de un mes normal')).toBeVisible()
+  await expect(calculado.getByText(/8\.000\s€ brutos/)).toBeVisible()
+  await page.getByRole('button', { name: 'Guardar', exact: true }).tap()
+  await expect(page.getByText(/60\.000\s€ brutos en 12 pagas, unos 3\.\d{3}\s€ netos al mes, bonus de 10\.000\s€ al 80 % en agosto, subida del 10 % cada septiembre/).first()).toBeVisible()
+  // Con subidas, y debajo, sin ellas
+  await expect(page.getByText(/Sin subidas ni inflación: /)).toBeVisible()
+  // Otro porcentaje de bonus cobrado sube el capital
+  await page.getByLabel('Bonus que cobras').selectOption('95')
+  await expect(page.getByText(/Capital dentro de un año: .*\(\+/)).toBeVisible()
+  // Todo plano: sin subidas ni inflación
+  await page.getByRole('switch', { name: 'Subidas e inflación' }).tap()
+  await expect(page.getByLabel('Subida anual del sueldo')).toBeHidden()
+  await page.getByRole('button', { name: 'Restablecer' }).tap()
+  // En el plan, lo mismo, y Claude recibe los supuestos
+  await page.getByText('Ver el plan de pagos').tap()
+  await expect(page.getByText(/Sin subidas ni inflación: /)).toBeVisible()
+  await expect(page.getByText(/El sueldo sube un 10 % cada septiembre/)).toBeVisible()
+  await page.getByRole('button', { name: 'Analizar con Claude' }).tap()
+  await expect(page.getByText(/60\.000,00 € brutos al año en 12 pagas/)).toBeVisible()
   expect(e).toEqual([])
 })
 
@@ -375,7 +421,7 @@ test('Analizar con Claude: plantilla propia, envío sin comercios y detalle en C
   expect(e).toEqual([])
 })
 
-for (const esquema of [3, 5, 7, 8, 9, 10, 11, 12, 13]) {
+for (const esquema of [3, 5, 7, 8, 9, 10, 11, 12, 13, 14]) {
   test(`importa un archivo del esquema ${esquema} y lo enseña igual`, async ({ page }) => {
     const e = errores(page)
     await page.goto('/ajustes/herramientas/archivo')

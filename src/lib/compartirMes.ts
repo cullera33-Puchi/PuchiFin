@@ -5,7 +5,7 @@
 import { contarDatosPrueba } from '../datos/operaciones'
 import { compartirArchivo, type ResultadoCompartir } from './compartir'
 import { hoyIso } from './fechas'
-import { calcularPlan, escenarioNominas } from './plan'
+import { calcularPlan, escenarioNominas, supuestosCrecimiento } from './plan'
 import { registrar } from './registro'
 import { calcularResumen, periodoMes } from './resumen'
 import type { BaseDatos } from './tipos'
@@ -17,7 +17,7 @@ export async function compartirResumenMes(db: BaseDatos, mes: string): Promise<R
   const actual = calcularPlan(db, hoy).plan
   const escenario = escenarioNominas(db)
   const otro = actual && escenario ? calcularPlan(db, hoy, escenario.sim).plan : null
-  const plan = actual ? { actual, conNominas: otro && escenario ? { nombres: escenario.nombres, plan: otro } : null } : null
+  const plan = actual ? { actual, conNominas: otro && escenario ? { nombres: escenario.nombres, plan: otro } : null, supuestos: supuestosCrecimiento(db) } : null
   const doc = generarPdfResumen(resumen, { incluirConceptos: false, hayDatosPrueba: contarDatosPrueba(db) > 0, categorias: db.categorias, reducida: true, plan })
   registrar('info', 'Cierre de mes: PDF para compartir', { periodo: mes, paginas: doc.getNumberOfPages(), plan: !!plan })
   return compartirArchivo(doc.output('blob'), nombreArchivoResumen(resumen, true), resumen.periodo.etiqueta)

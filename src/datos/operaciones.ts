@@ -10,11 +10,13 @@ import { MAX_PLANTILLA, PLANTILLAS } from '../lib/plantillas'
 import {
   VERSION_ESQUEMA,
   type Ajustes,
+  type AjustesPrevision,
   type BaseDatos,
   type Categoria,
   type ClavePlantilla,
   type Cuenta,
   type Naturaleza,
+  type NominaBruta,
   type PagaExtra,
   type TipoCuenta,
 } from '../lib/tipos'
@@ -86,7 +88,11 @@ export const AJUSTES_POR_DEFECTO: Ajustes = {
   version_logica: null,
   nominas: [],
   claude: { plantillas: {}, sin_conceptos: false },
+  prevision: { inflacion: 3, sin_inflacion: [] },
 }
+
+/** La hipoteca a tipo fijo no sube con la inflación: su subcategoría, si existe */
+export const categoriaHipoteca = (categorias: Categoria[]) => categorias.find((c) => c.padre_id && c.nombre.trim().toLowerCase() === 'hipoteca')
 
 /** Primer arranque: ajustes, las cuatro cuentas por alias, el catálogo y la deuda familiar */
 export function datosIniciales(): BaseDatos {
@@ -108,9 +114,10 @@ export function datosIniciales(): BaseDatos {
     cuenta('Tarjeta', 'BBVA', 'tarjeta_credito', 3),
     cuenta('Hipoteca', null, 'hipoteca', 4),
   ]
+  const hipoteca = categoriaHipoteca(categorias)
   return {
     esquema: VERSION_ESQUEMA,
-    ajustes: structuredClone(AJUSTES_POR_DEFECTO),
+    ajustes: { ...structuredClone(AJUSTES_POR_DEFECTO), prevision: { inflacion: 3, sin_inflacion: hipoteca ? [hipoteca.id] : [] } },
     cuentas,
     categorias,
     reglas: reglasPredeterminadas(categorias, creada),
@@ -131,7 +138,8 @@ export function datosIniciales(): BaseDatos {
         cuenta_colchon_id: cuentas[1].id,
         ventana_mes_inicio: 6,
         ventana_mes_fin: 8,
-        mes_referencia: 7,
+        // Agosto: el pago se hace la primera semana, ya cobrado el bonus (decisión del usuario, v0.39.0)
+        mes_referencia: 8,
         activo: true,
         created_at: creada,
       },
@@ -390,6 +398,42 @@ export interface DatosNomina {
   hasta: string | null
   incluida: boolean
   bonus: PagaExtra | null
+  /** En bruto: el neto, las pagas y el bonus de arriba llegan ya calculados como referencia */
+  bruto?: NominaBruta | null
+}
+
+/** Comprueba los datos de una nómina en bruto y los deja redondeados */
+function validarBruta(b: NominaBruta): NominaBruta {
+  const entre = (n: number, min: number, max: number) => Number.isFinite(n) && n >= min && n <= max
+  const mes = (n: number) => Number.isInteger(n) && n >= 1 && n <= 12
+  const r = (n: number) => Math.round(n * 100) / 100
+  if (!entre(b.fijo_anual, 1, 10_000_000)) throw new ErrorDatos('Escribe el bruto fijo anual')
+  if (b.pagas !== 12 && b.pagas !== 14) throw new ErrorDatos('Las pagas son 12 o 14')
+  const extra = [...new Set(b.meses_extra)]
+  if (b.pagas === 14 && (extra.length !== 2 || !extra.every(mes))) throw new ErrorDatos('Indica los dos meses de las pagas extra')
+  if (!entre(b.bonus_objetivo, 0, 10_000_000)) throw new ErrorDatos('El bonus debe ser un importe positivo')
+  if (!entre(b.bonus_consecucion, 0, 200)) throw new ErrorDatos('El porcentaje del bonus va de 0 a 200')
+  if (!mes(b.bonus_mes) || !mes(b.subida_mes)) throw new ErrorDatos('Mes no válido')
+  if (!entre(b.flexible_mes, 0, 100_000) || !entre(b.especie_mes, 0, 100_000)) throw new ErrorDatos('La retribución flexible y la especie deben ser importes positivos')
+  if (!entre(b.subida_anual, -50, 100)) throw new ErrorDatos('La subida anual va de -50 a 100 %')
+  if (!MES_ISO.test(b.vigente_desde)) throw new ErrorDatos('Mes no válido')
+  if (b.hijos.length > 12 || !b.hijos.every((a) => Number.isInteger(a) && a >= 1950 && a <= 2100)) throw new ErrorDatos('Escribe el año de nacimiento de cada hijo, por ejemplo 2020')
+  if (b.tipo_actual && (!entre(b.tipo_actual.porcentaje, 0, 60) || !Number.isInteger(b.tipo_actual.anio))) throw new ErrorDatos('El tipo de retención va de 0 a 60 %')
+  return {
+    fijo_anual: r(b.fijo_anual),
+    pagas: b.pagas,
+    meses_extra: b.pagas === 14 ? extra.sort((x, y) => x - y) : [],
+    bonus_objetivo: r(b.bonus_objetivo),
+    bonus_consecucion: r(b.bonus_consecucion),
+    bonus_mes: b.bonus_mes,
+    flexible_mes: r(b.flexible_mes),
+    especie_mes: r(b.especie_mes),
+    subida_anual: r(b.subida_anual),
+    subida_mes: b.subida_mes,
+    vigente_desde: b.vigente_desde,
+    hijos: [...b.hijos].sort((x, y) => x - y),
+    tipo_actual: b.tipo_actual ? { porcentaje: r(b.tipo_actual.porcentaje), anio: b.tipo_actual.anio } : null,
+  }
 }
 
 const MES_ISO = /^\d{4}-(0[1-9]|1[0-2])$/
@@ -424,12 +468,25 @@ export function guardarNomina(db: BaseDatos, datos: DatosNomina, id?: string): B
     hasta: datos.hasta,
     incluida: datos.incluida,
     bonus: datos.bonus ? { mes: datos.bonus.mes, importe: r(datos.bonus.importe) } : null,
+    bruto: datos.bruto ? validarBruta(datos.bruto) : null,
   }
   if (id) {
     if (!lista.some((n) => n.id === id)) throw new ErrorDatos('Nómina no encontrada')
     return { ...db, ajustes: { ...db.ajustes, nominas: lista.map((n) => (n.id === id ? { ...n, ...valores } : n)) } }
   }
   return { ...db, ajustes: { ...db.ajustes, nominas: [...lista, { id: nuevoId(), ...valores }] } }
+}
+
+/** Inflación anual del gasto para el plan de pagos y categorías que no suben (la hipoteca a tipo fijo) */
+export function guardarPrevision(db: BaseDatos, datos: AjustesPrevision): BaseDatos {
+  if (!Number.isFinite(datos.inflacion) || datos.inflacion < 0 || datos.inflacion > 20) throw new ErrorDatos('La inflación va de 0 a 20 %')
+  const ids = [...new Set(datos.sin_inflacion)]
+  for (const id of ids) {
+    const c = db.categorias.find((x) => x.id === id)
+    if (!c) throw new ErrorDatos('Categoría no encontrada')
+    if (c.naturaleza !== 'gasto') throw new ErrorDatos('Solo las categorías de gasto suben con la inflación')
+  }
+  return { ...db, ajustes: { ...db.ajustes, prevision: { inflacion: Math.round(datos.inflacion * 100) / 100, sin_inflacion: ids } } }
 }
 
 export function borrarNomina(db: BaseDatos, id: string): BaseDatos {

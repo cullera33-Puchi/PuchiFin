@@ -2,17 +2,22 @@
  * Plan de pagos de la deuda familiar (apartado 10). Supuesto: el ahorro de cada mes acaba en la cuenta
  * de ahorro (Cuenta 2) con los traspasos habituales, y la principal mantiene su nivel. Por eso se
  * proyecta el ahorro total, se suma al saldo de la cuenta de ahorro y, en el mes de referencia de cada
- * año (julio), se paga todo lo que supere el colchón, sin pasar de la deuda pendiente.
+ * año (agosto), se paga todo lo que supere el colchón, sin pasar de la deuda pendiente.
  *
  * Ingresos previstos de cada mes: los del mismo mes del año anterior (nóminas y pagas extra en su mes)
  * o, sin un año de datos, la media de los meses cerrados. Gastos previstos: el presupuesto de cada
  * categoría o, si no lo tiene, su media. Más los gastos e ingresos previstos dados de alta.
+ *
+ * Crecimiento (v0.39.0): las nóminas en bruto suben cada año lo configurado, con su neto calculado
+ * (`nomina.ts`), y el gasto sube con la inflación, salvo las categorías que no suben (la hipoteca a tipo
+ * fijo). La simulación puede cambiar los porcentajes o quitar todo el crecimiento.
  */
 import { porVersionYClave } from './cache'
 import { anadirA } from './agrupar'
 import { fechaDeLosDatos, gastoPorCategoria } from './extracto'
-import { sumarDias, sumarMeses } from './fechas'
+import { MESES, sumarDias, sumarMeses } from './fechas'
 import { mesEfectivo } from './imputacion'
+import { mesDeNomina, type AjusteNomina } from './nomina'
 import { estadoEventos } from './previstos'
 import { primerMes } from './prevision'
 import { calcularTotales } from './resumen'
@@ -37,28 +42,75 @@ export interface Simulacion {
   /** Otro colchón o otra deuda pendiente, solo en la simulación */
   colchon?: number
   deuda?: number
+  /** Otra subida anual de sueldo, otro porcentaje de bonus cobrado u otra inflación, en porcentaje */
+  subida?: number
+  consecucion?: number
+  inflacion?: number
+  /** Sin subidas de sueldo ni inflación: todo plano, como antes de la v0.39.0 */
+  sinCrecimiento?: boolean
 }
+
+/** Inflación anual del gasto que aplica: la guardada, la de la simulación o ninguna */
+export const inflacionDe = (db: BaseDatos, sim: Simulacion) => (sim.sinCrecimiento ? 0 : (sim.inflacion ?? db.ajustes.prevision?.inflacion ?? 0))
+
+/** Lo que la simulación cambia en el cálculo de las nóminas en bruto */
+export const ajusteNominas = (db: BaseDatos, sim: Simulacion): AjusteNomina => ({
+  subida: sim.sinCrecimiento ? 0 : sim.subida,
+  consecucion: sim.consecucion,
+  inflacion: inflacionDe(db, sim),
+})
+
+/** Hay crecimiento configurado: alguna nómina en bruto con subida o inflación del gasto */
+export const hayCrecimiento = (db: BaseDatos) =>
+  (db.ajustes.prevision?.inflacion ?? 0) > 0 || (db.ajustes.nominas ?? []).some((n) => n.bruto && n.bruto.subida_anual !== 0)
 
 export const SIN_SIMULACION: Simulacion = { ahorroExtra: 0, recorte: null }
 
-/** Bonus de una nómina en un mes, dentro de sus fechas */
-export function bonusNomina(n: Nomina, mes: string): number {
-  if (!n.bonus || n.bonus.mes !== numMes(mes) || (n.desde && mes < n.desde) || (n.hasta && mes > n.hasta)) return 0
+/** Bonus neto de una nómina en un mes, dentro de sus fechas. En bruto, lo calcula la app */
+export function bonusNomina(n: Nomina, mes: string, ajuste: AjusteNomina = {}): number {
+  if ((n.desde && mes < n.desde) || (n.hasta && mes > n.hasta)) return 0
+  if (n.bruto) return mesDeNomina(n.bruto, mes, ajuste, n.desde, n.hasta).bonusNeto
+  if (!n.bonus || n.bonus.mes !== numMes(mes)) return 0
   return n.bonus.importe
 }
 
 /** Neto de una nómina en un mes (AAAA-MM): el mensual más la paga extra de ese mes (y el bonus, si se pide), dentro de sus fechas */
-export function importeNomina(n: Nomina, mes: string, conBonus = false): number {
+export function importeNomina(n: Nomina, mes: string, conBonus = false, ajuste: AjusteNomina = {}): number {
   if ((n.desde && mes < n.desde) || (n.hasta && mes > n.hasta)) return 0
-  return n.neto_mensual + n.pagas.filter((p) => p.mes === numMes(mes)).reduce((s, p) => s + p.importe, 0) + (conBonus ? bonusNomina(n, mes) : 0)
+  const bonus = conBonus ? bonusNomina(n, mes, ajuste) : 0
+  if (n.bruto) return mesDeNomina(n.bruto, mes, ajuste, n.desde, n.hasta).neto + bonus
+  return n.neto_mensual + n.pagas.filter((p) => p.mes === numMes(mes)).reduce((s, p) => s + p.importe, 0) + bonus
 }
+
+/**
+ * Cómo crecen los ingresos y los gastos en la previsión, en una o dos frases (para la pantalla del plan,
+ * el PDF y el texto para Claude).
+ */
+export function supuestosCrecimiento(db: BaseDatos): string {
+  const num = (n: number) => String(n).replace('.', ',')
+  const inflacion = db.ajustes.prevision?.inflacion ?? 0
+  const bruta = (db.ajustes.nominas ?? []).find((n) => n.incluida && n.bruto)?.bruto
+  const nombre = (id: string) => {
+    const c = db.categorias.find((x) => x.id === id)
+    const p = c?.padre_id ? db.categorias.find((x) => x.id === c.padre_id) : undefined
+    return c ? (p ? `${p.nombre}, ${c.nombre}` : c.nombre) : ''
+  }
+  const fijas = (db.ajustes.prevision?.sin_inflacion ?? []).map(nombre).filter(Boolean)
+  const partes: string[] = []
+  if (bruta?.subida_anual) partes.push(`El sueldo sube un ${num(bruta.subida_anual)} % cada ${MESES[bruta.subida_mes - 1]}, en el fijo y en el bonus, y el neto se calcula con su retención.`)
+  partes.push(inflacion ? `El gasto sube un ${num(inflacion)} % al año${fijas.length ? `, salvo ${fijas.join(' y ')}` : ''}.` : 'El gasto no sube con la inflación.')
+  return partes.join(' ')
+}
+
+/** La nómina cobra bonus: en bruto, con un objetivo; en neto, con su importe */
+export const tieneBonus = (n: Nomina | undefined) => !!n && (n.bruto ? n.bruto.bonus_objetivo > 0 : !!n.bonus)
 
 /** La simulación cambia alguna nómina o quita algún bonus respecto a lo guardado */
 export function simulaNominas(db: BaseDatos, sim: Simulacion): boolean {
   const lista = db.ajustes.nominas ?? []
   return (
     Object.entries(sim.nominas ?? {}).some(([id, v]) => lista.find((n) => n.id === id)?.incluida !== v) ||
-    Object.entries(sim.bonus ?? {}).some(([id, v]) => v === false && !!lista.find((n) => n.id === id)?.bonus)
+    Object.entries(sim.bonus ?? {}).some(([id, v]) => v === false && tieneBonus(lista.find((n) => n.id === id)))
   )
 }
 
@@ -74,7 +126,15 @@ export function escenarioNominas(db: BaseDatos): { sim: Simulacion; nombres: str
 
 /** La simulación cambia algo respecto a lo guardado */
 export const haySimulacion = (db: BaseDatos, sim: Simulacion) =>
-  sim.ahorroExtra !== 0 || sim.recorte !== null || sim.colchon !== undefined || sim.deuda !== undefined || simulaNominas(db, sim)
+  sim.ahorroExtra !== 0 ||
+  sim.recorte !== null ||
+  sim.colchon !== undefined ||
+  sim.deuda !== undefined ||
+  sim.subida !== undefined ||
+  sim.consecucion !== undefined ||
+  sim.inflacion !== undefined ||
+  !!sim.sinCrecimiento ||
+  simulaNominas(db, sim)
 
 /** Nóminas que cuentan: las incluidas, con lo que cambie la simulación */
 export const nominasActivas = (db: BaseDatos, sim: Simulacion) => (db.ajustes.nominas ?? []).filter((n) => sim.nominas?.[n.id] ?? n.incluida)
@@ -130,6 +190,8 @@ interface Estadistica {
   /** De esos ingresos, los de nómina */
   nomina: number
   gastos: Map<string | null, number>
+  /** De ese gasto, por categoría raíz, lo que no sube con la inflación */
+  sinInflacion: Map<string | null, number>
 }
 
 // Una vez por cada versión de los datos: la simulación recalcula solo la proyección
@@ -158,11 +220,19 @@ function calcularEstadisticas(db: BaseDatos): Map<string, Estadistica> {
   const porMes = new Map<string, Movimiento[]>()
   for (const m of db.movimientos) anadirA(porMes, mesEfectivo(m), m)
   const nomina = idsNomina(db)
+  // Categorías que no suben con la inflación: las marcadas y sus subcategorías
+  const marcadas = new Set(db.ajustes.prevision?.sin_inflacion ?? [])
+  const fijas = new Set(db.categorias.filter((c) => marcadas.has(c.id) || (c.padre_id && marcadas.has(c.padre_id))).map((c) => c.id))
   const res = new Map<string, Estadistica>()
   for (const [mes, movs] of porMes) {
     let n = 0
     for (const m of movs) if (m.tipo === 'normal' && m.categoria_id && nomina.has(m.categoria_id)) n += m.importe
-    res.set(mes, { ingresos: calcularTotales(movs, db.categorias).ingresos, nomina: redondear(n), gastos: gastoPorCategoria(movs, db.categorias) })
+    res.set(mes, {
+      ingresos: calcularTotales(movs, db.categorias).ingresos,
+      nomina: redondear(n),
+      gastos: gastoPorCategoria(movs, db.categorias),
+      sinInflacion: fijas.size ? gastoPorCategoria(movs.filter((m) => m.categoria_id && fijas.has(m.categoria_id)), db.categorias) : new Map(),
+    })
   }
   return res
 }
@@ -187,6 +257,17 @@ function modelo(db: BaseDatos, stats: Map<string, Estadistica>, base: string, si
   const mediaIngresos = n ? cerrados.reduce((s, m) => s + stats.get(m)!.ingresos, 0) / n : 0
   const mediaGasto = new Map<string | null, number>()
   for (const m of cerrados) for (const [k, v] of stats.get(m)!.gastos) mediaGasto.set(k, (mediaGasto.get(k) ?? 0) + v / n)
+  // De cada categoría, la parte que no sube con la inflación (la hipoteca a tipo fijo dentro de Vivienda)
+  const mediaFija = new Map<string | null, number>()
+  for (const m of cerrados) for (const [k, v] of stats.get(m)!.sinInflacion) mediaFija.set(k, (mediaFija.get(k) ?? 0) + v / n)
+  const inflacion = inflacionDe(db, sim)
+  const ajuste = ajusteNominas(db, sim)
+  const [anioBase, mesBase] = base.split('-').map(Number)
+  /** Cuánto ha subido el gasto en un mes futuro: la inflación anual, mes a mes desde el de los datos */
+  const subidaGasto = (mes: string) => {
+    const pasados = (Number(mes.slice(0, 4)) - anioBase) * 12 + Number(mes.slice(5, 7)) - mesBase
+    return inflacion && pasados > 0 ? (1 + inflacion / 100) ** (pasados / 12) : 1
+  }
   const presupuestos = new Map(db.presupuestos.map((p) => [p.categoria_id, p]))
   for (const p of db.presupuestos) if (!mediaGasto.has(p.categoria_id)) mediaGasto.set(p.categoria_id, 0)
 
@@ -205,8 +286,8 @@ function modelo(db: BaseDatos, stats: Map<string, Estadistica>, base: string, si
   const desglose = (mes: string) => {
     const nominas: IngresoNomina[] = activas
       .map((x) => {
-        const bonus = sim.bonus?.[x.id] === false ? 0 : bonusNomina(x, mes)
-        return { id: x.id, nombre: x.nombre, importe: importeNomina(x, mes) + bonus, bonus }
+        const bonus = sim.bonus?.[x.id] === false ? 0 : bonusNomina(x, mes, ajuste)
+        return { id: x.id, nombre: x.nombre, importe: importeNomina(x, mes, false, ajuste) + bonus, bonus }
       })
       .filter((x) => x.importe > 0)
     return { nominas, otros: historico(mes) }
@@ -217,12 +298,15 @@ function modelo(db: BaseDatos, stats: Map<string, Estadistica>, base: string, si
   }
   const gastos = (mes: string) => {
     let total = 0
+    const sube = subidaGasto(mes)
     for (const [k, media] of mediaGasto) {
       const p = k ? presupuestos.get(k) : undefined
       const presupuesto = p ? (p.excepciones[mes] ?? p.importe_mensual) : 0
       let g = presupuesto > 0 ? presupuesto : media
       if (sim.recorte && k === sim.recorte.categoria_id) g *= 1 - sim.recorte.porcentaje / 100
-      total += g
+      // Sube con la inflación todo menos la parte que no sube (como mucho, el gasto de la categoría)
+      const fijo = Math.min(g, Math.max(0, mediaFija.get(k) ?? 0))
+      total += fijo + (g - fijo) * sube
     }
     return total
   }

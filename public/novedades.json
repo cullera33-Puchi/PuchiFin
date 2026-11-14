@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.39.0",
+    "fecha": "2026-11-14",
+    "cambios": [
+      "Nómina en bruto: escribe tu bruto anual, el bonus y tus hijos, y la app calcula el neto de cada mes con la Seguridad Social y el IRPF.",
+      "Subida anual del sueldo y porcentaje del bonus que cobras, que puedes cambiar en la simulación.",
+      "El gasto previsto sube con la inflación (3 % por defecto), salvo la hipoteca a tipo fijo. Se ajusta en el plan de pagos.",
+      "El pago de la deuda pasa a agosto, después del bonus. Revisa tu nómina en Ingresos previstos y pásala a «En bruto».",
+      "El plan cuenta con subidas e inflación y enseña debajo cuándo quedaría saldada sin ellas."
+    ]
+  },
+  {
     "version": "0.38.0",
     "fecha": "2026-11-14",
     "cambios": [
