@@ -1,5 +1,5 @@
 import { ArrowLeft, ChartPie, ChevronsLeftRight, EyeOff, List, ReceiptText, Settings, Tag } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { registrar } from '../lib/registro'
 import { useDiscreto } from './discreto'
@@ -26,6 +26,21 @@ export function Estructura() {
   const sombra = useRef<HTMLDivElement>(null)
   useVolverDesdeBorde(pantalla, sombra)
   const { pathname } = useLocation()
+  // Red de seguridad (v0.35.1): cada pantalla nueva empieza en su sitio, aunque un gesto la dejara movida
+  useLayoutEffect(() => {
+    const p = pantalla.current
+    if (p && (p.style.transform || p.style.pointerEvents)) {
+      registrar('aviso', 'Pantalla recolocada tras un gesto interrumpido')
+      p.style.transform = ''
+      p.style.transition = ''
+      p.style.willChange = ''
+      p.style.pointerEvents = ''
+    }
+    if (sombra.current) {
+      sombra.current.style.transform = ''
+      sombra.current.style.opacity = '0'
+    }
+  }, [pathname])
   const navegar = useNavigate()
   // Pantallas secundarias del Extracto: su pestaña sigue marcada
   const enExtracto = pathname === '/' || ['/extracto', '/analisis', '/resumenes'].some((p) => pathname.startsWith(p))

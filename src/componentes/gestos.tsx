@@ -370,6 +370,8 @@ export function useVolverDesdeBorde(pantalla: RefObject<HTMLElement | null>, som
     let temporizador = 0
     const CURVA = 'transform 0.3s var(--curva)'
 
+    // Saliendo: la pantalla se va hacia la derecha y aún no se ha vuelto atrás (0,3 s)
+    let saliendo = false
     const pintar = (dx: number, transicion: string) => {
       for (const el of [pantalla.current, sombra.current]) {
         if (!el) continue
@@ -382,8 +384,22 @@ export function useVolverDesdeBorde(pantalla: RefObject<HTMLElement | null>, som
       // Capa propia solo mientras dura el gesto: el navegador mueve la pantalla sin volver a pintarla
       if (pantalla.current) pantalla.current.style.willChange = si ? 'transform' : ''
     }
+    /** Todo a su sitio: la pantalla en 0, sin capa propia y otra vez tocable */
+    const recolocar = () => {
+      cancelAnimationFrame(fotograma)
+      fotograma = 0
+      window.clearTimeout(temporizador)
+      inicio = null
+      actual = 0
+      saliendo = false
+      pintar(0, 'none')
+      preparar(false)
+      if (pantalla.current) pantalla.current.style.pointerEvents = ''
+    }
 
     const alEmpezar = (e: TouchEvent) => {
+      // Mientras la pantalla sale no empieza otro gesto (y la pantalla que se va no recibe toques)
+      if (saliendo) return
       // Un segundo dedo a mitad del gesto lo anula: la pantalla vuelve a su sitio y no se queda a medias
       if (inicio?.horizontal) {
         cancelAnimationFrame(fotograma)
@@ -442,13 +458,16 @@ export function useVolverDesdeBorde(pantalla: RefObject<HTMLElement | null>, som
       fotograma = 0
       if (e.type !== 'touchcancel' && (actual > window.innerWidth / 3 || esLanzamiento(v, actual, 1))) {
         vibrar()
+        saliendo = true
+        // Un toque durante la salida abría otra pantalla, que cancelaba la vuelta y dejaba esta fuera, a la
+        // derecha: la pantalla en negro (v0.35.1). Mientras sale, no se puede tocar
+        if (pantalla.current) pantalla.current.style.pointerEvents = 'none'
         pintar(window.innerWidth, CURVA)
         temporizador = window.setTimeout(() => {
           if (window.history.state?.idx > 0) navegar(-1)
           else navegar('/')
           // La pantalla nueva aparece en su sitio, sin animar la vuelta
-          pintar(0, 'none')
-          preparar(false)
+          recolocar()
         }, 300)
       } else {
         pintar(0, CURVA)
@@ -461,13 +480,17 @@ export function useVolverDesdeBorde(pantalla: RefObject<HTMLElement | null>, som
     window.addEventListener('touchmove', alMover, { passive: false })
     window.addEventListener('touchend', alTerminar)
     window.addEventListener('touchcancel', alTerminar)
+    // La app pasa a segundo plano a mitad del gesto: al volver, la pantalla está en su sitio
+    const alOcultar = () => document.visibilityState === 'hidden' && (inicio || saliendo) && recolocar()
+    document.addEventListener('visibilitychange', alOcultar)
     return () => {
       window.removeEventListener('touchstart', alEmpezar)
       window.removeEventListener('touchmove', alMover)
       window.removeEventListener('touchend', alTerminar)
       window.removeEventListener('touchcancel', alTerminar)
-      cancelAnimationFrame(fotograma)
-      window.clearTimeout(temporizador)
+      document.removeEventListener('visibilitychange', alOcultar)
+      // Si se va de la pantalla por otro camino a mitad del gesto o de la salida, no se queda descolocada
+      recolocar()
     }
   }, [raiz, navegar, pantalla, sombra])
 }

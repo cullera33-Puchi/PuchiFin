@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.35.1",
+    "fecha": "2026-11-14",
+    "cambios": [
+      "Corregida la pantalla en negro que a veces aparecía al volver atrás deslizando y tocar enseguida otra pantalla."
+    ]
+  },
+  {
     "version": "0.35.0",
     "fecha": "2026-11-14",
     "cambios": [

@@ -23,7 +23,7 @@ async function conDatosDePrueba(p: Page) {
 }
 
 /** Deslizamiento con el dedo (eventos táctiles reales) */
-async function deslizar(p: Page, x0: number, y0: number, x1: number, y1 = y0) {
+async function deslizar(p: Page, x0: number, y0: number, x1: number, y1 = y0, espera = 600) {
   const cdp = await p.context().newCDPSession(p)
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x0, y: y0 }] })
   for (let i = 1; i <= 12; i++) {
@@ -31,7 +31,7 @@ async function deslizar(p: Page, x0: number, y0: number, x1: number, y1 = y0) {
     await p.waitForTimeout(16)
   }
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
-  await p.waitForTimeout(600)
+  if (espera) await p.waitForTimeout(espera)
 }
 
 test('arranca, genera datos de prueba y muestra el Extracto', async ({ page }) => {
@@ -94,6 +94,17 @@ test('las cuatro pestañas responden; deslizar no cambia de pestaña y en Ajuste
   await expect(page.getByText(/Cuenta principal/).first()).toBeVisible()
   await deslizar(page, 80, 420, 340)
   await expect(page).toHaveURL(/\/ajustes$/)
+  // Volver deslizando y tocar otra pestaña mientras la pantalla sale: la nueva se ve en su sitio (v0.35.1,
+  // antes se quedaba en negro, con la pantalla fuera, a la derecha)
+  await page.getByRole('link', { name: /Cuentas/ }).tap()
+  await expect(page).toHaveURL(/\/ajustes\/cuentas$/)
+  await deslizar(page, 80, 420, 340, 420, 0)
+  await page.locator('nav[data-pestanas] a', { hasText: 'Movimientos' }).tap()
+  await expect(page).toHaveURL(/\/movimientos$/)
+  await page.waitForTimeout(500)
+  expect(await page.locator('main').evaluate((el) => getComputedStyle(el).transform)).toBe('none')
+  await expect(page.getByPlaceholder(/Buscar/).first()).toBeInViewport()
+  await page.locator('nav[data-pestanas] a', { hasText: 'Ajustes' }).tap()
   // Una pantalla del Extracto abierta desde Ajustes vuelve a Ajustes
   await page.getByRole('link', { name: /Nóminas e ingresos/ }).tap()
   await page.getByRole('button', { name: 'Ajustes' }).tap()

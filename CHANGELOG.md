@@ -2,6 +2,15 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.35.1. Pantalla en negro al volver atrás (14 de noviembre de 2026)
+
+Fallo informado por el usuario: a veces, al volver atrás, la pantalla se quedaba en negro y había que cerrar la app. Sin errores en el registro.
+
+- Causa: al volver deslizando, la pantalla sale hacia la derecha y la vuelta se hace a los 0,3 s. Un toque en ese tiempo (por ejemplo, en la barra de pestañas) cambiaba de pantalla, la limpieza del gesto cancelaba la espera y la capa de la pantalla se quedaba desplazada todo el ancho (`translate3d(390px)`): se veía el fondo.
+- `useVolverDesdeBorde`: `recolocar()` deja la pantalla en su sitio al limpiar el gesto, al volver y si la app pasa a segundo plano a mitad del gesto; mientras la pantalla sale no empieza otro gesto ni la pantalla que se va recibe toques.
+- `Estructura`: red de seguridad en cada cambio de pantalla, que quita cualquier desplazamiento que quede y lo anota en el registro.
+- Prueba de navegador que vuelve deslizando y toca otra pestaña durante la salida; con el código anterior falla (la pantalla queda a 390 píxeles).
+
 ## v0.35.0. Exportación a Claude completa (14 de noviembre de 2026)
 
 Lo que faltaba del apartado 11, pedido por el usuario.
