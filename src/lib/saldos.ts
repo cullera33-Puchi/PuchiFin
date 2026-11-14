@@ -9,6 +9,7 @@
  * La tarjeta no trae saldo: se comprueba con su liquidación en la cuenta.
  */
 import type { Movimiento } from './tipos'
+import { anadirA } from './agrupar'
 
 const cent = (n: number) => Math.round(n * 100)
 
@@ -44,14 +45,14 @@ export function cuadrarCuenta(movimientos: Movimiento[]): CuadreCuenta {
 
   // Repetidos: el mismo movimiento guardado dos veces (las repeticiones legítimas tienen saldos distintos)
   const grupos = new Map<string, Movimiento[]>()
-  for (const m of conSaldo) grupos.set(claveRepetido(m), [...(grupos.get(claveRepetido(m)) ?? []), m])
+  for (const m of conSaldo) anadirA(grupos, claveRepetido(m), m)
   const duplicados = [...grupos.values()].filter((g) => g.length > 1)
   const unicos = [...grupos.values()].map((g) => g[0])
 
   // Cadena: de cada eslabón al que empieza donde acaba él, el de fecha más cercana
   const eslabones = unicos.map((m) => ({ m, antes: cent(m.saldo!) - cent(m.importe), despues: cent(m.saldo!) }))
   const porAntes = new Map<number, typeof eslabones>()
-  for (const e of eslabones) porAntes.set(e.antes, [...(porAntes.get(e.antes) ?? []), e])
+  for (const e of eslabones) anadirA(porAntes, e.antes, e)
   const finales = new Set(eslabones.map((e) => e.despues))
   const orden = (a: (typeof eslabones)[number], b: (typeof eslabones)[number]) => a.m.fecha_operacion.localeCompare(b.m.fecha_operacion)
   const visitados = new Set<(typeof eslabones)[number]>()

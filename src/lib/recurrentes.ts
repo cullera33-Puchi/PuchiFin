@@ -9,6 +9,7 @@ import { claveComercio, claveConImporte, esPasarela, nombrePasarela } from './co
 import { sumarDias } from './fechas'
 import { formatearImporte } from './formato'
 import type { BaseDatos, Movimiento } from './tipos'
+import { anadirA } from './agrupar'
 
 export type Periodicidad = 'mensual' | 'bimestral' | 'trimestral' | 'semestral' | 'anual'
 
@@ -91,7 +92,7 @@ function gruposCargos(db: BaseDatos): Map<string, Movimiento[]> {
     if (!esCargo(m)) continue
     const k = claveDe(m)
     if (!k) continue
-    grupos.set(k, [...(grupos.get(k) ?? []), m])
+    anadirA(grupos, k, m)
   }
   return grupos
 }
@@ -105,7 +106,7 @@ export function detectarRecurrentes(db: BaseDatos): Recurrente[] {
     const orden = [...movs].sort((a, b) => a.fecha_operacion.localeCompare(b.fecha_operacion))
     // Varios cargos el mismo día o muy seguidos (compras) no son un recibo: se agrupan por día
     const porDia = new Map<string, Movimiento[]>()
-    for (const m of orden) porDia.set(m.fecha_operacion, [...(porDia.get(m.fecha_operacion) ?? []), m])
+    for (const m of orden) anadirA(porDia, m.fecha_operacion, m)
     const fechas = [...porDia.keys()]
     const intervalos = fechas.slice(1).map((f, i) => dias(fechas[i], f))
     const periodicidad = clasificar(intervalos)

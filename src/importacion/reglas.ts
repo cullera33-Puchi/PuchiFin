@@ -160,6 +160,17 @@ function expresion(patron: string): RegExp | null {
   return EXPRESIONES.get(patron)!
 }
 
+/** Patrones normalizados, una vez por patrón */
+const NORMALIZADOS = new Map<string, string>()
+function normal(patron: string): string {
+  let n = NORMALIZADOS.get(patron)
+  if (n === undefined) {
+    n = normalizarConcepto(patron)
+    NORMALIZADOS.set(patron, n)
+  }
+  return n
+}
+
 export function coincide(r: Regla, m: TextoRegla): boolean {
   if (!r.activa) return false
   if (r.cuenta_id && r.cuenta_id !== m.cuenta_id) return false
@@ -171,13 +182,13 @@ export function coincide(r: Regla, m: TextoRegla): boolean {
       return !!re && re.test(m.texto)
     }
     case 'exacto': {
-      const p = normalizarConcepto(r.patron)
+      const p = normal(r.patron)
       return m.clave === p || m.texto === p
     }
     case 'empieza':
-      return m.clave.startsWith(normalizarConcepto(r.patron)) || m.texto.startsWith(normalizarConcepto(r.patron))
+      return m.clave.startsWith(normal(r.patron)) || m.texto.startsWith(normal(r.patron))
     default:
-      return m.texto.includes(normalizarConcepto(r.patron))
+      return m.texto.includes(normal(r.patron))
   }
 }
 
@@ -236,8 +247,19 @@ export interface Clasificacion {
 const VACIAS: Aprendidas = { porClave: new Map(), porPalabra: new Map(), mesSiguiente: new Set() }
 
 /** Clasifica un movimiento nuevo con las reglas y lo aprendido */
+/** Reglas activas ordenadas por prioridad, una vez por lista (se clasifican cientos de movimientos con la misma) */
+const ORDENADAS = new WeakMap<Regla[], Regla[]>()
+function ordenadasDe(reglas: Regla[]): Regla[] {
+  let o = ORDENADAS.get(reglas)
+  if (!o) {
+    o = reglas.filter((r) => r.activa).sort((a, b) => a.prioridad - b.prioridad)
+    ORDENADAS.set(reglas, o)
+  }
+  return o
+}
+
 export function clasificar(m: TextoRegla, reglas: Regla[], aprendidas: Aprendidas = VACIAS): Clasificacion {
-  const ordenadas = [...reglas].filter((r) => r.activa).sort((a, b) => a.prioridad - b.prioridad)
+  const ordenadas = ordenadasDe(reglas)
   const res: Clasificacion = { categoria_id: null, tipo: 'normal', regla_id: null, origen_categoria: null, sugerencia: null, mes_siguiente: aprendidas.mesSiguiente.has(m.clave) }
 
   const aplicar = (r: Regla) => {

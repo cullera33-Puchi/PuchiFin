@@ -2,6 +2,18 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.22.0. Mejoras 8 a 16 de la hoja de ruta, revisión y optimización (14 de noviembre de 2026)
+
+- Gastos fijos y recurrentes (`src/lib/recurrentes.ts`): `detectarRecurrentes` agrupa los gastos de tipo Normal por comercio (PayPal, por importe), clasifica la periodicidad por la mediana de los intervalos (mensual, bimestral, trimestral, semestral, anual) y descarta importes muy dispares; importe, coste al mes y al año, próximo cargo, activo o de baja y subida. `resumenFijos`, `fijoYVariable` y `avisosRecurrentes` (subida reciente, cargo que no llega con la fecha de los datos de cada cuenta, cargo nuevo que se repite si la cuenta ya tenía datos antes). Pantalla `/informes/fijos`, tarjeta en Informes y aviso en el Extracto.
+- Previsión de cierre (`src/lib/prevision.ts`): gastado, recibos pendientes del mes (sin los que se imputan al mes siguiente) y gasto variable al ritmo diario de hasta 3 meses anteriores.
+- Presupuesto (`guardarPresupuesto` en `operaciones.ts`, `src/lib/presupuesto.ts`): consumo por categoría con estado según `umbral_aviso_presupuesto` y proyección desde el día 5; `sugerirPresupuestos` con la media de 3 meses redondeada a 10 €. Pantalla `/extracto/presupuesto` y barras en el Extracto.
+- Optimizar con Claude (`src/lib/optimizar.ts`): texto con fijos, subidas y gastos hormiga, enmascarado; copiar, compartir o abrir `claude.ai/new?q=` (si el enlace es largo, solo abre el chat y el texto queda copiado).
+- Gestos: pulsación larga de 500 ms en `FilaDeslizable` con menú (categoría, que no cuente, nota, mismo comercio); `useCambioDePestana` en las pantallas principales, fuera de filas, cambio de mes, tiras, campos y hojas.
+- Teclado (guía 6.4): `--kb` con `visualViewport`, la hoja sube y se limita en altura; si no se detecta el teclado en 1,2 s, la hoja pasa arriba. El campo enfocado queda a la vista.
+- Pruebas de navegador: `@playwright/test` 1.63.0, `playwright.config.ts` (iPhone 13 con Chromium), `tests/e2e/app.e2e.ts` (arranque, pestañas, gestos, pantallas nuevas y archivos de los esquemas 3, 5, 7 y 8 de `tests/fixtures/archivos`). En `pruebas.yml` y en `publicar.yml` antes de publicar.
+- Optimización: `clasificar` con reglas ordenadas en caché por lista y patrones normalizados en caché; `anadirA` para agrupar sin copiar listas (cuadre con el banco, categorizar, recurrentes, posición, importación); `ConClaude` se carga al abrir Herramientas, con lo que SheetJS sale del arranque (paquete principal de 928 a 423 KB). Cierre de mes de 35 a 11 ms y posición de 14 a 7 ms con 1.000 movimientos.
+- Pruebas: 370 tests unitarios y 8 recorridos de navegador.
+
 ## v0.21.0. Mejoras de esfuerzo bajo de la hoja de ruta: reporting y usabilidad (13 de noviembre de 2026)
 
 - El mes en una frase (`fraseDelMes` en `src/lib/extracto.ts`, `formatearRedondo`): lo gastado (hasta hoy si está en curso) frente a la media, la categoría que más sube (al menos 30 € y un 15 %) y el ahorro.

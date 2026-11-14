@@ -10,6 +10,7 @@ import { normalizarConcepto } from './conceptos'
 import { sumarDias, ultimoDeMes } from './fechas'
 import { mesSiguiente } from './imputacion'
 import type { Categoria, Cuenta, Importacion, Movimiento, TipoMovimiento } from './tipos'
+import { anadirA } from './agrupar'
 
 export interface DatosPrueba {
   importaciones: Importacion[]
@@ -147,7 +148,7 @@ export function generarDatosPrueba(opciones: {
     const tarj = (concepto: string, importe: number, ruta: string | null, tipo: TipoMovimiento = 'normal') => {
       const m = anadir(tarjeta, dia, concepto, importe, ruta, tipo)
       if (m) cargoTarjetaPorMes.set(mes, (cargoTarjetaPorMes.get(mes) ?? 0) + m.importe)
-      if (m && tipo === 'gasto_empleado') empleadoPorMes.set(mes, [...(empleadoPorMes.get(mes) ?? []), m])
+      if (m && tipo === 'gasto_empleado') anadirA(empleadoPorMes, mes, m)
       return m
     }
 

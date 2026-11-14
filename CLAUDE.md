@@ -85,7 +85,7 @@ Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (po
 - Todo cambio de datos pasa por una función pura de `src/datos/operaciones.ts`, aplicada con `cambiar()` o `intentar()`. Ahí van las comprobaciones (datos identificativos, unicidad, integridad), con sus tests.
 
 - Una fase cada vez. Al terminar cada fase, resume qué se ha hecho, qué queda pendiente y cómo probarlo.
-- Tests unitarios para el lector de Excel, la anonimización, la deduplicación y las reglas de categorización. Es donde un error no se ve en pantalla. `src/importacion/importar.test.ts` importa los Excel de prueba de punta a punta: cualquier cambio del importador debe mantenerlo en verde.
+- Tests unitarios para el lector de Excel, la anonimización, la deduplicación y las reglas de categorización. Es donde un error no se ve en pantalla. Las pruebas de navegador (`npm run build` y después `npm run e2e`) recorren la app en un iPhone simulado; toda pantalla o gesto nuevo importante se añade a `tests/e2e/app.e2e.ts`. `src/importacion/importar.test.ts` importa los Excel de prueba de punta a punta: cualquier cambio del importador debe mantenerlo en verde.
 - Gestos: toda lista de movimientos usa `FilaMovimientoDeslizable` (el gesto sobre una fila no lo toman `Deslizable` ni la vuelta desde el borde); toda pantalla secundaria, `BarraNavegacion` (vuelve también deslizando a la derecha, desde el borde o desde cualquier punto sin gesto propio); las hojas se cierran arrastrando.
 - Usabilidad: `docs/guia-usabilidad-iphone.md` es la guía de comportamiento y aspecto (aportada por el usuario, v0.7.0). Se aplica salvo donde choca con esta especificación: el stack sigue siendo React con Vite, los nombres del código siguen en español y los menús de pulsación larga quedan pendientes. En la práctica: hojas con `Hoja` (portal, guardia de 450 ms) y confirmaciones con `confirmar()`; cambios de datos que el usuario hace a mano con `useHacer()` (aviso con «Deshacer»); barras flotantes con `Flotante`; cabeceras de grupo con la clase `cabecera-grupo`; recuentos con `plural()`; gestos con `crearVelocidad` y `esLanzamiento`.
 - Datos del usuario entre versiones: nada de lo categorizado, tipificado o conciliado cambia al publicar una versión. Las mejoras de categorización llegan solo a lo pendiente (`esPendiente`) mediante `actualizarLogica`. Si cambia el modelo, subir `VERSION_ESQUEMA`, añadir el paso en `migrar()` y mantener en verde `src/datos/versiones.test.ts`.
@@ -114,15 +114,15 @@ Ordenada por esfuerzo, de menos a más, con prioridad para la usabilidad y el re
 | 5 (hecha, v0.21.0) | Filtro rápido por cuenta en Movimientos (chips por cuenta) y búsqueda con «Cancelar» | Usabilidad | Bajo |
 | 6 (hecha, v0.21.0) | Cierre de mes guiado: importar las tres fuentes, cuadre en verde, sin categoría a cero y PayPal repartido | Usabilidad | Bajo |
 | 7 (hecha, v0.21.0) | Evolución del capital en Informes: posición a final de cada mes y ahorro real frente al del extracto | Reporting | Bajo |
-| 8 | Gastos fijos y recurrentes: detección por comercio, periodicidad e importe; próximos cargos y subidas de precio | Reporting | Medio |
-| 9 | Previsión de cierre de mes según el ritmo de gasto y los recurrentes que faltan | Reporting | Medio |
-| 10 | Presupuesto por categoría con barra de consumo en el Extracto (parte de la fase 4) | Reporting | Medio |
-| 11 | Menú de pulsación larga en las filas: categoría, no cuenta, nota y ver parecidos (guía 7) | Usabilidad | Medio |
-| 12 | La hoja sube con el teclado al escribir (guía 6.4) | Usabilidad | Medio |
-| 13 | Avisos de recurrentes: cargo nuevo, subida de importe o cargo esperado que no llega | Reporting | Medio |
-| 14 | Optimizar con Claude: prompt preparado con fijos, recurrentes y hormiga, por enlace o archivo. Sin API ni coste | Reporting | Medio |
-| 15 | Pruebas de navegador (Playwright) en GitHub antes de publicar, con archivos de cada esquema anterior | Técnica | Medio |
-| 16 | Cambiar de pestaña deslizando y recolocación animada de las listas (guía 4.1 y 5) | Usabilidad | Medio |
+| 8 (hecha, v0.22.0) | Gastos fijos y recurrentes: detección por comercio, periodicidad e importe; próximos cargos y subidas de precio | Reporting | Medio |
+| 9 (hecha, v0.22.0) | Previsión de cierre de mes según el ritmo de gasto y los recurrentes que faltan | Reporting | Medio |
+| 10 (hecha, v0.22.0) | Presupuesto por categoría con barra de consumo en el Extracto (parte de la fase 4) | Reporting | Medio |
+| 11 (hecha, v0.22.0) | Menú de pulsación larga en las filas: categoría, no cuenta, nota y ver parecidos (guía 7) | Usabilidad | Medio |
+| 12 (hecha, v0.22.0) | La hoja sube con el teclado al escribir (guía 6.4) | Usabilidad | Medio |
+| 13 (hecha, v0.22.0) | Avisos de recurrentes: cargo nuevo, subida de importe o cargo esperado que no llega | Reporting | Medio |
+| 14 (hecha, v0.22.0) | Optimizar con Claude: prompt preparado con fijos, recurrentes y hormiga, por enlace o archivo. Sin API ni coste | Reporting | Medio |
+| 15 (hecha, v0.22.0) | Pruebas de navegador (Playwright) en GitHub antes de publicar, con archivos de cada esquema anterior | Técnica | Medio |
+| 16 (hecha, v0.22.0) | Cambiar de pestaña deslizando y recolocación animada de las listas (guía 4.1 y 5) | Usabilidad | Medio |
 | 17 | Fase 4: plan de pagos de la deuda familiar con simulación y «Analizar con Claude» en el resto de vistas | Reporting | Alto |
 | 18 | Fase 5: estacionalidad y gastos atípicos | Reporting | Alto |
 | 19 | Fase 6: Face ID e importación de PDF. Las notificaciones exigen un servidor de envío, fuera del alcance sin coste | Usabilidad | Alto |
@@ -138,6 +138,14 @@ Ordenada por esfuerzo, de menos a más, con prioridad para la usabilidad y el re
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.22.0 (14/11/2026): las mejoras 8 a 16 de la hoja de ruta, revisión de código y optimización.
+  - Gastos fijos y recurrentes (`src/lib/recurrentes.ts`, pantalla `/informes/fijos`): detección por comercio (PayPal, por importe), periodicidad e importe; fijo frente a variable, próximos cargos, subidas y bajas. Avisos: subida de precio, cargo que no llega (con la fecha de los datos de cada cuenta, no la de hoy) y cargo nuevo que se repite.
+  - Previsión de cierre del mes en curso (`src/lib/prevision.ts`): gastado, recibos que faltan y variable al ritmo de los meses anteriores.
+  - Presupuesto por categoría (`guardarPresupuesto`, `src/lib/presupuesto.ts`, pantalla `/extracto/presupuesto`): medias de 3 meses como propuesta, barras en el Extracto con estado y proyección. Sin cambio de esquema (la colección `presupuestos` ya existía).
+  - Optimizar con Claude (`src/lib/optimizar.ts`): texto con fijos y gastos hormiga, que se ve antes de enviarlo; copiar, compartir o abrir claude.ai.
+  - Menú al mantener pulsada una fila (`onPulsacionLarga` en `FilaDeslizable`), la hoja sube con el teclado (`--kb`, respaldo arriba) y cambiar de pestaña deslizando en las pantallas principales (`useCambioDePestana`).
+  - Pruebas de navegador (`playwright.config.ts`, `tests/e2e`, `npm run e2e`) en los dos flujos de GitHub antes de publicar, con archivos de los esquemas 3, 5, 7 y 8 (`tests/fixtures/archivos`, `npm run archivos:prueba`).
+  - Optimización: reglas ordenadas y patrones normalizados en caché (`clasificar`), agrupaciones sin copiar listas (`anadirA`), y el lector de Excel fuera del arranque (paquete principal de 928 a 423 KB).
 - v0.21.0 (13/11/2026): las siete mejoras de esfuerzo bajo de la hoja de ruta: el mes en una frase, comparativa con el mismo mes del año anterior, ranking de comercios, gastos hormiga, chips por cuenta y «Cancelar» en Movimientos, cierre de mes guiado y capital mes a mes con el ahorro real.
 - v0.20.0 (13/11/2026): reclasificar en bloque revisando la lista: al cambiar la categoría, la hoja muestra cada movimiento parecido con su casilla (pendientes y PayPal marcados; lo elegido a mano, sin marcar) y, en PayPal, todos los demás cargos de PayPal. Hoja de ruta revisada, por esfuerzo.
 - v0.19.1 (13/11/2026): con una hoja abierta, la pantalla de detrás ya no se desplaza (bloqueo del gesto fuera de las zonas desplazables de la hoja y en sus extremos).

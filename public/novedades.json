@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.22.0",
+    "fecha": "2026-11-14",
+    "cambios": [
+      "Gastos fijos (en Informes): recibos y suscripciones detectados solos, lo que cuestan al mes y al año, próximos cargos y avisos de subidas, cargos que no llegan y cargos nuevos. Con «Optimizar con Claude».",
+      "Extracto: previsión de cómo cerrará el mes y presupuesto por categoría con barras (puedes empezar con tus medias).",
+      "Mantén pulsado un movimiento para ver sus opciones. Desliza a los lados fuera de las listas para cambiar de pestaña.",
+      "Al escribir en una hoja, sube con el teclado. La app arranca más rápido."
+    ]
+  },
+  {
     "version": "0.21.0",
     "fecha": "2026-11-13",
     "cambios": [

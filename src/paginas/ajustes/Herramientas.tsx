@@ -1,5 +1,5 @@
 import { Copy, Download, FileSpreadsheet, FlaskConical, HardDriveDownload, HardDriveUpload, RotateCcw, Share2, Trash2 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { useActualizacion } from '../../componentes/Actualizacion'
 import { Aviso } from '../../componentes/Encabezado'
 import { Baldosa } from '../../componentes/Icono'
@@ -28,8 +28,10 @@ import { hoyIso, primeroDeMes, sumarMeses } from '../../lib/fechas'
 import { formatearFecha, plural } from '../../lib/formato'
 import { borrarRegistro, entradasRegistro, recuperarRegistro, registrar, suscribirRegistro, textoRegistro } from '../../lib/registro'
 import { APP_VERSION } from '../../lib/version'
-import { SeccionClaude } from './ConClaude'
 import { SeccionEmpezarDeCero } from './EmpezarDeCero'
+
+// Lee Excel (SheetJS, pesado): se carga al abrir Herramientas, no al arrancar la app
+const SeccionClaude = lazy(() => import('./ConClaude').then((m) => ({ default: m.SeccionClaude })))
 
 function Seccion({ titulo, nota, children }: { titulo: string; nota?: ReactNode; children: ReactNode }) {
   return (
@@ -335,7 +337,9 @@ export function Herramientas() {
         </div>
       </Seccion>
 
-      <SeccionClaude />
+      <Suspense fallback={null}>
+        <SeccionClaude />
+      </Suspense>
 
       <Seccion titulo="Datos de prueba" nota="Movimientos inventados para probar el extracto y los resúmenes sin datos reales. Se eliminan de una vez sin tocar lo real.">
         {prueba ? (

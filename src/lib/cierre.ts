@@ -81,9 +81,10 @@ export function pasosCierre(db: BaseDatos, mes: string, ultimaExportacion: strin
   })
 
   // 5. PayPal repartido (si hubo cargos de PayPal)
-  const paypal = gruposPasarela(db).flatMap((g) => g.movimientos).filter((m) => mesEfectivo(m) === mes)
+  const pasarela = gruposPasarela(db)
+  const paypal = pasarela.flatMap((g) => g.movimientos).filter((m) => mesEfectivo(m) === mes)
   if (paypal.length) {
-    const porRevisar = gruposPasarela(db).flatMap((g) => g.porRevisar).filter((m) => mesEfectivo(m) === mes).length
+    const porRevisar = pasarela.flatMap((g) => g.porRevisar).filter((m) => mesEfectivo(m) === mes).length
     pasos.push({
       clave: 'paypal',
       titulo: 'PayPal repartido',

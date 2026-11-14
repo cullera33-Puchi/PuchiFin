@@ -8,6 +8,7 @@ import { categoriasAprendidas, clasificar } from '../importacion/reglas'
 import { claveComercio, claveConImporte, esPasarela, nombrePasarela, normalizarConcepto, primeraPalabra } from '../lib/conceptos'
 import { formatearImporte } from '../lib/formato'
 import type { BaseDatos, Movimiento } from '../lib/tipos'
+import { anadirA } from '../lib/agrupar'
 
 /** Palabras que no distinguen un comercio de otro */
 const VACIAS = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'y', 'en', 'con', 'por', 'para', 'sl', 'sa', 'slu', 'cb', 'pago', 'compra', 'recibo', 'transferencia', 'bizum', 'enviado', 'recibido', 'adeudo', 'cargo', 'tarjeta', 'cuenta'])
@@ -84,7 +85,7 @@ export function gruposPendientes(db: BaseDatos): GrupoPendiente[] {
   for (const m of db.movimientos) {
     if (!esPendiente(m)) continue
     const k = `${signoDe(m)}|${claveDe(m)}`
-    grupos.set(k, [...(grupos.get(k) ?? []), m])
+    anadirA(grupos, k, m)
   }
   const referencia = categorizados(db)
   const aprendidas = categoriasAprendidas(db)
@@ -219,7 +220,7 @@ export function gruposPasarela(db: BaseDatos): GrupoPasarela[] {
   for (const m of db.movimientos) {
     if (m.tipo !== 'normal' || !esPasarela(claveBase(m))) continue
     const k = `${signoDe(m)}|${claveDe(m)}`
-    grupos.set(k, [...(grupos.get(k) ?? []), m])
+    anadirA(grupos, k, m)
   }
   const aprendidas = categoriasAprendidas(db)
   return [...grupos]

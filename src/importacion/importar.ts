@@ -14,6 +14,7 @@ import { anonimizarConcepto, aplicarAlias, conservarDesde } from './anonimizar'
 import { cuadrarLiquidaciones } from '../lib/tarjeta'
 import type { FilaBruta, Lectura } from './lector'
 import { categoriasAprendidas, clasificar, type Sugerencia } from './reglas'
+import { anadirA } from '../lib/agrupar'
 
 export interface MovimientoPropuesto extends Movimiento {
   fila: number
@@ -159,7 +160,7 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
   for (const m of db.movimientos) {
     if (m.cuenta_id !== cuenta_id) continue
     const k = `${m.fecha_operacion}|${m.importe}`
-    guardados.set(k, [...(guardados.get(k) ?? []), m])
+    anadirA(guardados, k, m)
     const kc = `${k}|${m.concepto_normalizado}`
     ocurrencias.set(kc, Math.max(ocurrencias.get(kc) ?? 0, m.ocurrencia))
   }

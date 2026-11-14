@@ -6,7 +6,8 @@
 import { sumarDias, sumarMeses } from './fechas'
 import { cuadrarCuenta } from './saldos'
 import { cuadrarLiquidaciones, pendienteTarjeta, type PendienteTarjeta } from './tarjeta'
-import type { BaseDatos, Cuenta } from './tipos'
+import type { BaseDatos, Cuenta, Movimiento } from './tipos'
+import { anadirA } from './agrupar'
 
 const redondear = (n: number) => Math.round(n * 100) / 100
 
@@ -32,9 +33,9 @@ export interface Posicion {
   variacionMes: number | null
 }
 
-/** Saldo de una cuenta al final de un día (null si aún no hay datos) */
-function saldoA(db: BaseDatos, cuentaId: string, dia: string): number | null {
-  return cuadrarCuenta(db.movimientos.filter((m) => m.cuenta_id === cuentaId && m.fecha_operacion <= dia)).saldoBanco
+/** Saldo de una cuenta al final de un día (null si aún no hay datos), con sus movimientos ya separados */
+function saldoA(movs: Movimiento[], dia: string): number | null {
+  return cuadrarCuenta(movs.filter((m) => m.fecha_operacion <= dia)).saldoBanco
 }
 
 const finDeMes = (mes: string) => sumarDias(sumarMeses(`${mes}-01`, 1), -1)
@@ -42,9 +43,12 @@ const mesAnterior = (mes: string) => sumarMeses(`${mes}-01`, -1).slice(0, 7)
 
 export function calcularPosicion(db: BaseDatos, meses = 12): Posicion | null {
   const bancarias = db.cuentas.filter((c) => c.activa && c.tipo === 'cuenta')
+  // Los movimientos de cada cuenta, separados una sola vez
+  const porCuenta = new Map<string, Movimiento[]>()
+  for (const m of db.movimientos) anadirA(porCuenta, m.cuenta_id, m)
   const cuentas: SaldoCuenta[] = []
   for (const c of bancarias) {
-    const r = cuadrarCuenta(db.movimientos.filter((m) => m.cuenta_id === c.id))
+    const r = cuadrarCuenta(porCuenta.get(c.id) ?? [])
     if (r.saldoBanco !== null && r.fecha) cuentas.push({ cuenta: c, saldo: r.saldoBanco, fecha: r.fecha })
   }
   if (!cuentas.length) return null
@@ -64,7 +68,7 @@ export function calcularPosicion(db: BaseDatos, meses = 12): Posicion | null {
   const cierres = lista
     .map((mes) => {
       const dia = finDeMes(mes)
-      const saldos = cuentas.map((c) => saldoA(db, c.cuenta.id, dia)).filter((x): x is number => x !== null)
+      const saldos = cuentas.map((c) => saldoA(porCuenta.get(c.cuenta.id) ?? [], dia)).filter((x): x is number => x !== null)
       if (!saldos.length) return null
       const saldo = redondear(saldos.reduce((s, x) => s + x, 0))
       const pendiente = tarjetas.reduce((s, t) => s + pendienteTarjeta(db, t.cuenta.id, dia, liquidaciones).importe, 0)
