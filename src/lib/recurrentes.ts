@@ -7,6 +7,7 @@
  */
 import { claveComercio, claveConImporte, esPasarela, nombrePasarela } from './conceptos'
 import { sumarDias } from './fechas'
+import { formatearImporte } from './formato'
 import type { BaseDatos, Movimiento } from './tipos'
 
 export type Periodicidad = 'mensual' | 'bimestral' | 'trimestral' | 'semestral' | 'anual'
@@ -198,14 +199,15 @@ export interface AvisoRecurrente {
 }
 
 const fechaCorta = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
-const eur = (n: number) => `${n.toFixed(2).replace('.', ',')} €`
+const eur = formatearImporte
 
 /**
  * Avisos sobre los recurrentes, con los datos importados de cada cuenta (no con la fecha de hoy: si
  * aún no se ha subido el Excel, un cargo no «falta»):
  *   - subida: el último cargo es más caro que el anterior (en los últimos 45 días);
  *   - no_llega: los datos ya pasan de la fecha prevista y el cargo no está;
- *   - nuevo: dos cargos iguales con un mes de diferencia en un comercio que no era recurrente.
+ *   - nuevo: dos cargos iguales con un mes de diferencia en un comercio que no aparecía antes, aunque
+ *     la cuenta ya tenía datos (con pocos meses importados, todo parecería nuevo).
  */
 export function avisosRecurrentes(db: BaseDatos, recurrentes = detectarRecurrentes(db)): AvisoRecurrente[] {
   const referencia = ultimasFechas(db)
@@ -221,18 +223,22 @@ export function avisosRecurrentes(db: BaseDatos, recurrentes = detectarRecurrent
       avisos.push({ tipo: 'no_llega', clave: r.clave, nombre: r.nombre, texto: `Se esperaba hacia el ${fechaCorta(r.proxima)} y no ha llegado`, fecha: r.proxima })
   }
   const ya = new Set(recurrentes.map((r) => r.clave))
+  const primeras = new Map<string, string>()
+  for (const m of db.movimientos) if (!primeras.has(m.cuenta_id) || m.fecha_operacion < primeras.get(m.cuenta_id)!) primeras.set(m.cuenta_id, m.fecha_operacion)
   for (const [clave, movs] of gruposCargos(db)) {
     if (ya.has(clave) || movs.length !== 2) continue
     const [a, b] = [...movs].sort((x, y) => x.fecha_operacion.localeCompare(y.fecha_operacion))
     const d = dias(a.fecha_operacion, b.fecha_operacion)
     const ref = referencia.get(b.cuenta_id) ?? b.fecha_operacion
     if (d < 25 || d > 37 || Math.abs(a.importe - b.importe) > Math.abs(b.importe) * 0.01 || dias(b.fecha_operacion, ref) > 40) continue
+    // Con menos de dos meses de datos antes del primer cargo, no se sabe si es nuevo
+    if (dias(primeras.get(a.cuenta_id) ?? a.fecha_operacion, a.fecha_operacion) < 60) continue
     const base = claveComercio(b.concepto_limpio)
     avisos.push({
       tipo: 'nuevo',
       clave,
       nombre: esPasarela(base) ? `${nombrePasarela(base)} de ${eur(-b.importe)}` : b.concepto_limpio,
-      texto: `Posible suscripción nueva: ${eur(-b.importe)} el ${fechaCorta(a.fecha_operacion)} y el ${fechaCorta(b.fecha_operacion)}`,
+      texto: `Cargo nuevo que se repite: ${eur(-b.importe)} el ${fechaCorta(a.fecha_operacion)} y el ${fechaCorta(b.fecha_operacion)}`,
       fecha: b.fecha_operacion,
     })
   }

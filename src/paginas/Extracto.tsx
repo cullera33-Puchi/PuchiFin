@@ -359,7 +359,7 @@ function SeccionPresupuesto({ lineas }: { lineas: LineaPresupuesto[] }) {
                 <div className="h-full rounded-full" style={{ width: `${Math.min(100, pct * 100)}%`, background: COLOR_ESTADO[l.estado] }} />
               </div>
               <p className={`mt-1 text-[12px] ${l.estado === 'superado' ? 'text-[#D70015] dark:text-[#FF6961]' : 'text-zinc-500'}`}>
-                {l.estado === 'superado' ? `Superado en ${formatearRedondo(-queda)}` : `Quedan ${formatearRedondo(queda)} (${Math.round(pct * 100)} % usado)`}
+                {Math.abs(queda) < 0.5 ? 'Presupuesto agotado' : l.estado === 'superado' ? `Superado en ${formatearRedondo(-queda)}` : `Quedan ${formatearRedondo(queda)} (${Math.round(pct * 100)} % usado)`}
                 {l.proyeccion !== null && l.estado !== 'superado' && l.proyeccion > l.presupuesto ? `. A este ritmo, ${formatearRedondo(l.proyeccion)} a final de mes` : ''}
               </p>
             </li>

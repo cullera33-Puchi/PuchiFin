@@ -1,0 +1,108 @@
+/**
+ * Recorridos principales en un iPhone simulado: arranque, datos de prueba, Extracto, Informes,
+ * gestos, PayPal, presupuesto y gastos fijos, sin errores de JavaScript.
+ */
+import { expect, test, type Page } from '@playwright/test'
+
+// Sin la hoja de bienvenida de la primera vez
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('puchifin-bienvenida', 'visto'))
+})
+
+const errores = (p: Page) => {
+  const lista: string[] = []
+  p.on('pageerror', (e) => lista.push(e.message))
+  return lista
+}
+
+async function conDatosDePrueba(p: Page) {
+  await p.goto('/ajustes/herramientas')
+  await p.getByText('Generar datos de prueba').first().click()
+  await p.getByRole('button', { name: 'Generar', exact: true }).last().click()
+  await expect(p.getByText(/movimientos de prueba creados/)).toBeVisible()
+}
+
+/** Deslizamiento con el dedo (eventos táctiles reales) */
+async function deslizar(p: Page, x0: number, y0: number, x1: number, y1 = y0) {
+  const cdp = await p.context().newCDPSession(p)
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x0, y: y0 }] })
+  for (let i = 1; i <= 12; i++) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x0 + ((x1 - x0) * i) / 12, y: y0 + ((y1 - y0) * i) / 12 }] })
+    await p.waitForTimeout(16)
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  await p.waitForTimeout(600)
+}
+
+test('arranca, genera datos de prueba y muestra el Extracto', async ({ page }) => {
+  const e = errores(page)
+  await conDatosDePrueba(page)
+  await page.goto('/')
+  await expect(page.getByRole('region', { name: 'Tu posición' })).toBeVisible()
+  await expect(page.getByText(/gastados en|gastaste/).first()).toBeVisible()
+  await expect(page.getByRole('radiogroup', { name: 'Mes del extracto' })).toBeVisible()
+  expect(e).toEqual([])
+})
+
+test('las cuatro pestañas responden y deslizar fuera de las listas cambia de pestaña', async ({ page }) => {
+  const e = errores(page)
+  await conDatosDePrueba(page)
+  for (const [t, ruta] of [['Movimientos', '/movimientos'], ['Informes', '/informes'], ['Ajustes', '/ajustes/cuentas'], ['Extracto', '/']] as const) {
+    await page.locator('nav[data-pestanas] a', { hasText: t }).tap()
+    await expect(page).toHaveURL(new RegExp(`${ruta}$`))
+  }
+  await page.goto('/ajustes/general')
+  await deslizar(page, 80, 420, 340)
+  await expect(page).toHaveURL(/\/informes$/)
+  expect(e).toEqual([])
+})
+
+test('deslizar una fila muestra sus acciones y mantenerla pulsada abre el menú', async ({ page }) => {
+  const e = errores(page)
+  await conDatosDePrueba(page)
+  await page.goto('/movimientos')
+  const fila = (await page.locator('[data-fila-deslizable]').first().boundingBox())!
+  await deslizar(page, fila.x + 20, fila.y + fila.height / 2, fila.x + 170)
+  await expect(page.getByText('No cuenta').first()).toBeVisible()
+  await expect(page).toHaveURL(/\/movimientos$/)
+  await page.reload()
+  await expect(page.locator('[data-fila-deslizable]').first()).toBeVisible()
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: fila.x + 120, y: fila.y + fila.height / 2 }] })
+  await page.waitForTimeout(700)
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  await expect(page.getByRole('button', { name: 'Ver los del mismo comercio' })).toBeVisible()
+  expect(e).toEqual([])
+})
+
+test('Informes, gastos fijos, PayPal y presupuesto se abren sin errores', async ({ page }) => {
+  const e = errores(page)
+  await conDatosDePrueba(page)
+  await page.goto('/informes')
+  await expect(page.getByText('Dónde más gastas')).toBeVisible()
+  await page.goto('/informes/fijos')
+  await expect(page.getByText(/al mes/).first()).toBeVisible()
+  await page.goto('/movimientos/paypal')
+  await expect(page.getByText(/agrupados por importe/)).toBeVisible()
+  await page.goto('/extracto/presupuesto')
+  await page.getByRole('button', { name: /Usar las medias/ }).tap()
+  await expect(page.getByText(/con la media/)).toBeVisible()
+  await page.locator('nav[data-pestanas] a', { hasText: 'Extracto' }).tap()
+  await expect(page.getByText('Presupuesto', { exact: true })).toBeVisible()
+  expect(e).toEqual([])
+})
+
+for (const esquema of [3, 5, 7, 8]) {
+  test(`importa un archivo del esquema ${esquema} y lo enseña igual`, async ({ page }) => {
+    const e = errores(page)
+    await page.goto('/ajustes/herramientas')
+    await page.locator('input[type="file"][accept*="json"]').setInputFiles(`tests/fixtures/archivos/esquema-${esquema}.json`)
+    await page.getByRole('button', { name: 'Importar', exact: true }).last().click()
+    await expect(page.getByText('Datos importados')).toBeVisible()
+    await page.goto('/movimientos')
+    await expect(page.getByText(/^\d{3} movimientos\./)).toBeVisible()
+    await page.goto('/')
+    await expect(page.getByRole('region', { name: 'Tu posición' })).toBeVisible()
+    expect(e).toEqual([])
+  })
+}

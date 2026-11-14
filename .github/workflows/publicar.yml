@@ -20,7 +20,7 @@ concurrency:
 jobs:
   construir:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -30,6 +30,13 @@ jobs:
       - run: npm ci
       - name: Tests
         run: npm test
+      # Antes de publicar, la app compilada en un iPhone simulado: arranque, pestañas, gestos y archivos de esquemas anteriores
+      - name: Build para las pruebas de navegador
+        run: npm run build
+      - name: Navegador para las pruebas
+        run: npx playwright install --with-deps chromium
+      - name: Pruebas de navegador
+        run: npm run e2e
       - name: Build para la ruta del repositorio
         run: npm run build
         env:

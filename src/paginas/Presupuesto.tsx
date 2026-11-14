@@ -28,16 +28,24 @@ export function Presupuesto() {
   const total = [...actual.values()].reduce((s, x) => s + x, 0)
   const faltan = [...sugeridos.keys()].filter((id) => !actual.has(id))
 
+  // Quita el borrador de un campo una vez guardado
+  const limpiar = (id: string) =>
+    setBorrador((b) => {
+      const n = { ...b }
+      delete n[id]
+      return n
+    })
+
   const guardar = async (id: string) => {
     const t = borrador[id]
     if (t === undefined) return
     const valor = leerImporteUsuario(t)
     if (t.trim() && valor === null) return setError('Escribe un importe, por ejemplo 250 o 250,50')
     setError(null)
-    if ((valor ?? 0) === (actual.get(id) ?? 0)) return setBorrador(({ [id]: _, ...resto }) => resto)
+    if ((valor ?? 0) === (actual.get(id) ?? 0)) return limpiar(id)
     const e = await intentar((d) => guardarPresupuesto(d, id, valor), valor ? 'Presupuesto guardado' : 'Presupuesto quitado')
     if (e) setError(e)
-    else setBorrador(({ [id]: _, ...resto }) => resto)
+    else limpiar(id)
   }
 
   const usarMedias = () =>

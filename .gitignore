@@ -37,3 +37,7 @@ datos_locales/
 # Supabase local
 supabase/.temp/
 supabase/.branches/
+
+# Pruebas de navegador
+test-results/
+playwright-report/

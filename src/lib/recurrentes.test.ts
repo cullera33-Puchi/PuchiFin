@@ -90,7 +90,7 @@ describe('avisos de recurrentes', () => {
     }
     const a = avisosRecurrentes(d)
     const de = (tipo: string, nombre: string) => a.find((x) => x.tipo === tipo && x.nombre.toUpperCase().startsWith(nombre))
-    expect(de('subida', 'NETFLIX')?.texto).toBe('Sube de 13,99 € a 15,99 € el 05/10')
+    expect(de('subida', 'NETFLIX')?.texto.replace(/\s/g, ' ')).toBe('Sube de 13,99 € a 15,99 € el 05/10')
     expect(de('no_llega', 'SPOTIFY')?.texto).toBe('Se esperaba hacia el 12/10 y no ha llegado')
     expect(de('nuevo', 'APP NUEVA')).toBeDefined()
     expect(de('no_llega', 'NETFLIX')).toBeUndefined()

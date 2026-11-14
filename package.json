@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:db": "bash scripts/probar-migraciones.sh",
-    "excel:prueba": "GENERAR_EXCEL=1 vitest run tests/excel-prueba.test.ts"
+    "excel:prueba": "GENERAR_EXCEL=1 vitest run tests/excel-prueba.test.ts",
+    "archivos:prueba": "GENERAR_ARCHIVOS=1 vitest run tests/archivos-esquema.test.ts",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "jspdf": "^4.2.1",
@@ -23,6 +25,7 @@
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@tailwindcss/vite": "^4.3.5",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",

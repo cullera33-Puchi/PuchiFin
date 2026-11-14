@@ -123,12 +123,33 @@ function bloquearFondo(e: TouchEvent) {
   if ((dy > 0 && arriba) || (dy < 0 && abajo)) e.preventDefault()
 }
 
+/**
+ * Teclado (guía 6.4): --kb es la parte de la pantalla que tapa el teclado, para subir la hoja. Si iOS
+ * encoge la ventana entera (iOS 26), la página ya cabe encima y no hay que subir nada.
+ */
+let tecladoInstalado = false
+function vigilarTeclado() {
+  const vv = window.visualViewport
+  if (tecladoInstalado || !vv) return
+  tecladoInstalado = true
+  const medir = () => {
+    const encogida = window.innerHeight < window.screen.height * 0.75
+    const kb = encogida ? 0 : Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
+    document.documentElement.style.setProperty('--kb', `${Math.round(kb)}px`)
+    document.documentElement.classList.toggle('con-teclado', kb >= 60 || encogida)
+  }
+  vv.addEventListener('resize', medir)
+  vv.addEventListener('scroll', medir)
+  medir()
+}
+
 /** Hojas abiertas a la vez: mientras haya alguna, la pantalla de detrás se encoge y no se desplaza */
 let hojasAbiertas = 0
 function marcarHoja(abre: boolean) {
   const antes = hojasAbiertas
   hojasAbiertas = Math.max(0, hojasAbiertas + (abre ? 1 : -1))
   if (!antes && hojasAbiertas) {
+    vigilarTeclado()
     document.addEventListener('touchstart', alEmpezarToque, { passive: true, capture: true })
     document.addEventListener('touchmove', bloquearFondo, { passive: false, capture: true })
   } else if (antes && !hojasAbiertas) {
@@ -200,6 +221,41 @@ export function Hoja({
   const inicio = useRef<{ y: number; id: number; vel: Velocidad } | null>(null)
   const cuerpo = useRef<HTMLDivElement>(null)
   const cerrarRef = useRef(onCerrar)
+  // Respaldo: si un campo tiene el foco y no se detecta el teclado, la hoja pasa arriba (guía 6.4)
+  const [arriba, setArriba] = useState(false)
+  useEffect(() => {
+    const el = cuerpo.current
+    if (!el || !abierta) return
+    let espera: number | null = null
+    const enfocar = (e: FocusEvent) => {
+      const t = e.target as HTMLElement
+      if (!t.matches('input, textarea, [contenteditable]')) return
+      // Que el campo quede a la vista cuando el teclado termina de subir
+      window.setTimeout(() => t.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 350)
+      if (espera !== null) window.clearTimeout(espera)
+      espera = window.setTimeout(() => {
+        const teclado = document.documentElement.classList.contains('con-teclado')
+        const tactil = matchMedia('(pointer: coarse)').matches
+        if (!teclado && tactil && document.activeElement === t) {
+          setArriba(true)
+          registrar('info', 'Teclado no detectado: hoja arriba', { pantalla: window.screen.height, ventana: window.innerHeight, visible: Math.round(window.visualViewport?.height ?? 0) })
+        }
+      }, 1200)
+    }
+    const salir = () => {
+      if (espera !== null) window.clearTimeout(espera)
+      window.setTimeout(() => {
+        if (!el.contains(document.activeElement)) setArriba(false)
+      }, 100)
+    }
+    el.addEventListener('focusin', enfocar)
+    el.addEventListener('focusout', salir)
+    return () => {
+      if (espera !== null) window.clearTimeout(espera)
+      el.removeEventListener('focusin', enfocar)
+      el.removeEventListener('focusout', salir)
+    }
+  }, [abierta])
   useEffect(() => {
     cerrarRef.current = onCerrar
   })
@@ -271,7 +327,7 @@ export function Hoja({
   }
   return createPortal(
     <div
-      className={`hoja-velo fixed inset-0 z-40 flex items-end justify-center bg-black/40 ${saliendo ? 'saliendo pointer-events-none' : ''}`}
+      className={`hoja-velo fixed inset-0 z-40 flex justify-center bg-black/40 ${arriba ? 'items-start px-2 pt-[calc(env(safe-area-inset-top)+8px)]' : 'items-end'} ${saliendo ? 'saliendo pointer-events-none' : ''}`}
       style={{ opacity: 1 - Math.min(dy / 500, 0.5) }}
       onClick={cerrarSiProcede}
     >
@@ -279,8 +335,14 @@ export function Hoja({
         role="dialog"
         aria-modal="true"
         aria-label={v.titulo}
-        className={`hoja-panel flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom)] shadow-xl dark:bg-zinc-900 ${saliendo ? 'saliendo' : ''}`}
-        style={{ transform: `translate3d(0, ${dy}px, 0)`, transition: arrastrando ? 'none' : 'transform 0.5s var(--curva)' }}
+        className={`hoja-panel flex w-full max-w-lg flex-col bg-white shadow-xl dark:bg-zinc-900 ${
+          arriba ? 'max-h-[46dvh] rounded-2xl' : 'max-h-[min(85dvh,calc(100dvh-var(--kb,0px)-3rem))] rounded-t-2xl pb-[env(safe-area-inset-bottom)]'
+        } ${saliendo ? 'saliendo' : ''}`}
+        style={{
+          // Con el teclado abierto, la hoja sube lo que tapa el teclado
+          transform: arriba ? undefined : `translate3d(0, calc(${dy}px - var(--kb, 0px)), 0)`,
+          transition: arrastrando ? 'none' : 'transform 0.5s var(--curva)',
+        }}
         onClick={(e) => e.stopPropagation()}
         onClickCapture={(e) => {
           if (!recien()) return
