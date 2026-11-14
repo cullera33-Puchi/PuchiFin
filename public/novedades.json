@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.33.0",
+    "fecha": "2026-11-14",
+    "cambios": [
+      "Modo discreto: el ojo de arriba del Extracto oculta los importes en toda la app. Los PDF y los Excel salen con las cifras reales.",
+      "Informes en tres vistas: Categorías, Comercios y Evolución. Más corto y más rápido.",
+      "Al cerrar el mes, un botón comparte el resumen en PDF con el plan de pagos.",
+      "Herramientas, por apartados: copias y archivo, Claude, datos de prueba, registro y versión."
+    ]
+  },
+  {
     "version": "0.32.0",
     "fecha": "2026-11-14",
     "cambios": [

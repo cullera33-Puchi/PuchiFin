@@ -16,6 +16,7 @@ import { calcularPosicion } from '../lib/posicion'
 import { mesEfectivo } from '../lib/imputacion'
 import { porDia } from '../lib/vista'
 import { gastosHormiga, IMPORTE_HORMIGA, movimientosDeComercio, rankingComercios, type LineaComercio } from '../lib/comercios'
+import { esDiscreto } from '../lib/discreto'
 import { registrar } from '../lib/registro'
 import type { Movimiento } from '../lib/tipos'
 import { textoInforme } from '../lib/analizar'
@@ -34,7 +35,9 @@ const VERDE = 'text-[#248A3D] dark:text-[#30D158]'
 const ROJO = 'text-[#D70015] dark:text-[#FF6961]'
 const SERIES = Array.from({ length: 8 }, (_, i) => `var(--serie-${i + 1})`)
 const color = (i: number, otras?: boolean) => (otras ? 'var(--serie-otras)' : SERIES[i % SERIES.length])
-const euroCorto = (v: number) => (Math.abs(v) >= 1000 ? `${(v / 1000).toLocaleString('es-ES', { maximumFractionDigits: 1 })} k€` : `${Math.round(v)} €`)
+const euroCorto = (v: number) => (esDiscreto() ? '••' : Math.abs(v) >= 1000 ? `${(v / 1000).toLocaleString('es-ES', { maximumFractionDigits: 1 })} k€` : `${Math.round(v)} €`)
+
+type VerInforme = 'categorias' | 'comercios' | 'evolucion'
 
 /** Estado del informe en la dirección (se conserva al volver de una categoría) */
 function useEstadoInforme() {
@@ -45,12 +48,15 @@ function useEstadoInforme() {
   const periodo: PeriodoInforme = { escala, clave: params.get('p') ?? periodoDeFecha(escala, hoy).clave }
   // Subcategoría elegida dentro de una categoría: es un paso más, «atrás» vuelve a la categoría entera
   const sub = params.get('sub') ?? undefined
-  const ir = (cambios: { vista?: Vista; escala?: Escala; p?: string }) => {
+  // Vista interna de Informes (v0.33.0): categorías, comercios o evolución
+  const ver: VerInforme = params.get('ver') === 'comercios' ? 'comercios' : params.get('ver') === 'evolucion' ? 'evolucion' : 'categorias'
+  const conVer = (v: VerInforme): Record<string, string> => (v === 'categorias' ? {} : { ver: v })
+  const ir = (cambios: { vista?: Vista; escala?: Escala; p?: string; ver?: VerInforme }) => {
     const e = cambios.escala ?? escala
     // Al pasar de mes a año se queda el año del mes; de año a mes, el mes en curso o diciembre
     const deEscala = e === escala ? periodo.clave : e === 'anio' ? periodo.clave.slice(0, 4) : hoy.startsWith(periodo.clave) ? hoy.slice(0, 7) : `${periodo.clave}-12`
     const p = cambios.p ?? deEscala
-    setParams({ vista: cambios.vista ?? vista, escala: e, p, ...(sub ? { sub } : {}) }, { replace: true })
+    setParams({ vista: cambios.vista ?? vista, escala: e, p, ...conVer(cambios.ver ?? ver), ...(sub ? { sub } : {}) }, { replace: true })
   }
   const elegirSub = (id: string | undefined) => {
     const base = { vista, escala, p: periodo.clave }
@@ -59,7 +65,7 @@ function useEstadoInforme() {
     else setParams(base, { replace: true })
   }
   const consulta = `vista=${vista}&escala=${escala}&p=${periodo.clave}`
-  return { hoy, vista, escala, periodo, ir, consulta, sub, elegirSub }
+  return { hoy, vista, escala, periodo, ir, consulta, sub, elegirSub, ver }
 }
 
 /** Desde el informe anual, tocar la barra de un mes abre ese mes, arriba del todo */
@@ -76,7 +82,7 @@ const nombrePeriodo = (p: PeriodoInforme) => (p.escala === 'mes' ? mesLargo(`${p
 export function Informes() {
   const db = useDatos()
   const navegar = useNavigate()
-  const { hoy, vista, escala, periodo, ir, consulta } = useEstadoInforme()
+  const { hoy, vista, escala, periodo, ir, consulta, ver } = useEstadoInforme()
   const informe = useMemo(() => calcularInforme(db, periodo, vista, undefined, hoy), [db, periodo.clave, periodo.escala, vista, hoy]) // eslint-disable-line react-hooks/exhaustive-deps
   const primero = useMemo(() => db.movimientos.reduce((min, m) => (m.fecha_operacion < min ? m.fecha_operacion : min), hoy), [db.movimientos, hoy])
   const [claude, setClaude] = useState(false)
@@ -103,13 +109,32 @@ export function Informes() {
       <div>
         <div className="space-y-4">
           <Totales informe={informe} onVista={(v) => ir({ vista: v })} />
-          <PanelQuesito informe={informe} onAbrir={(id) => navegar(`/informes/categoria/${id ?? 'sin'}?${consulta}`)} />
-          <TarjetaDeuda className="" />
-          {vista === 'gasto' && <TarjetaFijos />}
-          <SeccionComercios informe={informe} movimientos={informe.movimientos} />
-          {vista === 'gasto' && <SeccionHormiga informe={informe} hoy={hoy} />}
-          <Evolucion db={db} informe={informe} onPeriodo={(p) => (p.length === 7 && escala === 'anio' ? irAlMes(ir, p) : ir({ p }))} />
-          <SeccionCapital db={db} />
+          {/* Tres vistas en lugar de una pantalla muy larga (v0.33.0): solo se calcula y pinta la elegida */}
+          <Segmentado
+            etiqueta="Qué parte del informe ver"
+            opciones={[
+              ['categorias', 'Categorías'],
+              ['comercios', 'Comercios'],
+              ['evolucion', 'Evolución'],
+            ]}
+            valor={ver}
+            onCambio={(v) => ir({ ver: v })}
+          />
+          {ver === 'categorias' && <PanelQuesito informe={informe} onAbrir={(id) => navegar(`/informes/categoria/${id ?? 'sin'}?${consulta}`)} />}
+          {ver === 'comercios' && (
+            <>
+              <SeccionComercios informe={informe} movimientos={informe.movimientos} />
+              {vista === 'gasto' && <SeccionHormiga informe={informe} hoy={hoy} />}
+              {vista === 'gasto' && <TarjetaFijos />}
+            </>
+          )}
+          {ver === 'evolucion' && (
+            <>
+              <Evolucion db={db} informe={informe} onPeriodo={(p) => (p.length === 7 && escala === 'anio' ? irAlMes(ir, p) : ir({ p }))} />
+              <SeccionCapital db={db} />
+              <TarjetaDeuda className="" />
+            </>
+          )}
           <BotonClaude onPulsar={() => setClaude(true)} />
         </div>
       </div>

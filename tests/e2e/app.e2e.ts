@@ -16,7 +16,7 @@ const errores = (p: Page) => {
 }
 
 async function conDatosDePrueba(p: Page) {
-  await p.goto('/ajustes/herramientas')
+  await p.goto('/ajustes/herramientas/prueba')
   await p.getByText('Generar datos de prueba').first().click()
   await p.getByRole('button', { name: 'Generar', exact: true }).last().click()
   await expect(p.getByText(/movimientos de prueba creados/)).toBeVisible()
@@ -52,9 +52,22 @@ test('arranca, genera datos de prueba y muestra el Extracto', async ({ page }) =
   await page.getByText('Cosas pendientes').tap()
   await expect(page.getByRole('dialog', { name: 'Pendiente' })).toBeVisible()
   await page.getByRole('button', { name: 'Listo' }).tap()
+  // Modo discreto: el ojo de arriba oculta los importes en toda la app
+  await page.getByRole('button', { name: 'Ocultar las cifras' }).first().tap()
+  await expect(page.getByRole('region', { name: /^Resumen de / }).getByText('•••• €').first()).toBeVisible()
+  await page.locator('nav[data-pestanas] a', { hasText: 'Movimientos' }).tap()
+  await expect(page.getByText('•••• €').first()).toBeVisible()
+  await page.locator('nav[data-pestanas] a', { hasText: 'Extracto' }).tap()
+  await page.getByRole('button', { name: 'Mostrar las cifras' }).first().tap()
+  await expect(page.getByRole('region', { name: /^Resumen de / }).getByText('•••• €')).toHaveCount(0)
   // Tu posición, en su pantalla
   await page.getByRole('link', { name: /Capital/ }).tap()
   await expect(page.getByRole('region', { name: 'Tu posición' })).toBeVisible()
+  // Herramientas, por apartados
+  await page.goto('/ajustes/herramientas')
+  await page.getByRole('link', { name: /Registro/ }).tap()
+  await expect(page).toHaveURL(/\/ajustes\/herramientas\/registro$/)
+  await expect(page.getByRole('button', { name: 'Herramientas' })).toBeVisible()
   expect(e).toEqual([])
 })
 
@@ -67,7 +80,7 @@ test('las cuatro pestañas responden; deslizar no cambia de pestaña y en Ajuste
   }
   // Entre pestañas solo con la barra: deslizar sobre Informes no cambia de pestaña ni de mes
   await page.locator('nav[data-pestanas] a', { hasText: 'Informes' }).tap()
-  await expect(page.getByText('Dónde más gastas')).toBeVisible()
+  await expect(page.getByRole('radio', { name: 'Categorías' })).toBeVisible()
   const mes = await page.locator('[role="radiogroup"][aria-label="Periodo del informe"] [aria-checked="true"]').textContent()
   await deslizar(page, 300, 500, 40)
   await deslizar(page, 60, 500, 330)
@@ -119,6 +132,11 @@ test('Informes, gastos fijos, PayPal y presupuesto se abren sin errores', async 
   const e = errores(page)
   await conDatosDePrueba(page)
   await page.goto('/informes')
+  // Informes por vistas: Categorías, Comercios y Evolución
+  await expect(page.getByText('29 movimientos').or(page.getByText(/\d+ movimientos/)).first()).toBeVisible()
+  await page.getByRole('radio', { name: 'Evolución' }).tap()
+  await expect(page.getByText(/Tu capital, mes a mes/i)).toBeVisible()
+  await page.getByRole('radio', { name: 'Comercios' }).tap()
   await expect(page.getByText('Dónde más gastas')).toBeVisible()
   // Un toque en un comercio abre sus movimientos en una hoja, sin salir de Informes
   const comercio = page.locator('section', { hasText: 'Dónde más gastas' }).locator('ol button').first()
@@ -227,7 +245,7 @@ test('ingresos previstos: mi nómina con pagas extra y una segunda nómina simul
 for (const esquema of [3, 5, 7, 8, 9, 10, 11]) {
   test(`importa un archivo del esquema ${esquema} y lo enseña igual`, async ({ page }) => {
     const e = errores(page)
-    await page.goto('/ajustes/herramientas')
+    await page.goto('/ajustes/herramientas/archivo')
     await page.locator('input[type="file"][accept*="json"]').setInputFiles(`tests/fixtures/archivos/esquema-${esquema}.json`)
     await page.getByRole('button', { name: 'Importar', exact: true }).last().click()
     await expect(page.getByText('Datos importados')).toBeVisible()

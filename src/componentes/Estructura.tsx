@@ -2,6 +2,7 @@ import { ArrowLeft, ChartPie, ChevronsLeftRight, EyeOff, List, ReceiptText, Sett
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { registrar } from '../lib/registro'
+import { useDiscreto } from './discreto'
 import { useVolverDesdeBorde } from './gestos'
 import { Hoja } from './Interfaz'
 
@@ -20,6 +21,7 @@ const CLAVE_BIENVENIDA = 'puchifin-bienvenida'
 const DOS_HORAS = 2 * 60 * 60 * 1000
 
 export function Estructura() {
+  const [discreto] = useDiscreto()
   const pantalla = useRef<HTMLElement>(null)
   const sombra = useRef<HTMLDivElement>(null)
   useVolverDesdeBorde(pantalla, sombra)
@@ -58,7 +60,8 @@ export function Estructura() {
         className="pointer-events-none fixed inset-y-0 -left-4 z-10 w-4 bg-gradient-to-l from-black/15 to-transparent opacity-0"
       />
       <main ref={pantalla} className="mx-auto max-w-lg px-4 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[calc(var(--alto-pestanas)+1.5rem)]">
-        <div id="contenido">
+        {/* Al activar o quitar el modo discreto, la pantalla se vuelve a pintar con o sin cifras */}
+        <div id="contenido" key={discreto ? 'discreto' : 'cifras'}>
           <Outlet />
         </div>
       </main>

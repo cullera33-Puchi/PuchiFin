@@ -5,6 +5,7 @@
 import { jsPDF } from 'jspdf'
 import autoTable, { type CellDef, type RowInput } from 'jspdf-autotable'
 import { diaSemana, hoyIso, MESES, mesLargo } from './fechas'
+import { sinDiscreto } from './discreto'
 import { formatearFecha, formatearImporte } from './formato'
 import { indicadores, lineasFueraDelExtracto, porcentaje as pct, textoEnCurso, type Resumen, type Tono } from './resumen'
 import { NOMBRE_TIPO_MOVIMIENTO, type Categoria } from './tipos'
@@ -44,7 +45,12 @@ function hexARgb(hex: string): [number, number, number] {
   return [(v >> 16) & 255, (v >> 8) & 255, v & 255]
 }
 
+/** El PDF sale siempre con las cifras reales, aunque la app esté en modo discreto */
 export function generarPdfResumen(r: Resumen, opciones: OpcionesPdf): jsPDF {
+  return sinDiscreto(() => generar(r, opciones))
+}
+
+function generar(r: Resumen, opciones: OpcionesPdf): jsPDF {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
   const esMes = r.periodo.tipo === 'mes'
   const reducida = !!opciones.reducida

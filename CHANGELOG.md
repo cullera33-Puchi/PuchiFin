@@ -2,6 +2,14 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.33.0. Usabilidad y visual del análisis: modo discreto, Herramientas por apartados, PDF al cerrar el mes e Informes por vistas (14 de noviembre de 2026)
+
+- U4, modo discreto (`src/lib/discreto.ts`, `useDiscreto`): oculta los importes en toda la app («•••• €» en `formatearImporte` y `formatearRedondo`, «••» en los ejes de los gráficos). Se activa con el ojo del Extracto, el de «Tu posición» o Ajustes, General; la pantalla se vuelve a pintar al cambiarlo. Lo que sale de la app lleva las cifras reales (`sinDiscreto` en la generación del PDF). Misma clave en el dispositivo que el ojo de antes.
+- U5, Herramientas por apartados (`ListaHerramientas`, `ApartadoHerramientas`, `/ajustes/herramientas/:apartado`): Copias y archivo, Categorizar con Claude, Datos y Excel de prueba, Empezar de cero, Registro y Versión, cada uno con «‹ Herramientas». Los avisos del Extracto, el cierre de mes y la importación enlazan al apartado que toca.
+- U6, al completar el cierre de mes, «Compartir el resumen de…» genera el PDF para compartir del mes con el plan de pagos (`src/lib/compartirMes.ts`); «Más opciones» lleva a Resúmenes.
+- V2, Informes en tres vistas (Categorías, Comercios y Evolución) bajo los totales, con la elegida en la dirección (`ver`); solo se pinta la vista elegida. Entrar en Informes pasa de 0,94 s a 0,53 s con la CPU cuatro veces más lenta.
+- `BarraNavegacion` se mantiene; pruebas de navegador del modo discreto, los apartados de Herramientas y las vistas de Informes.
+
 ## v0.32.0. Primer lote de mejoras del análisis: usabilidad, visual, reporting y rendimiento (14 de noviembre de 2026)
 
 Análisis de la app con unos 1.670 movimientos; el usuario aprueba el primer lote (U1 a U3, V1, V3, V4, R1, P1, P3 y P4).

@@ -115,7 +115,7 @@ function calcularPasos(db: BaseDatos, mes: string, ultimaExportacion: string | n
     titulo: 'Copia en Archivos o iCloud',
     detalle: exportado ? `Exportada el ${formatearFecha(ultimaExportacion!)}` : 'Exporta una copia cuando hayas terminado',
     hecho: exportado,
-    enlace: exportado ? undefined : '/ajustes/herramientas',
+    enlace: exportado ? undefined : '/ajustes/herramientas/archivo',
   })
   return pasos
 }

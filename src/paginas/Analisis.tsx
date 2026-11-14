@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { esDiscreto } from '../lib/discreto'
 import { Bar, BarChart, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { BarraNavegacion } from '../componentes/Encabezado'
 import { Segmentado } from '../componentes/Interfaz'
@@ -10,7 +11,7 @@ import { porcentaje } from '../lib/resumen'
 
 type Vista = 'evolucion' | 'categoria' | 'anual'
 const mesCorto = (m: string) => `${MESES[Number(m.slice(5, 7)) - 1].slice(0, 3)} ${m.slice(2, 4)}`
-const euroCorto = (v: number) => (Math.abs(v) >= 1000 ? `${(v / 1000).toLocaleString('es-ES', { maximumFractionDigits: 1 })} k€` : `${Math.round(v)} €`)
+const euroCorto = (v: number) => (esDiscreto() ? '••' : Math.abs(v) >= 1000 ? `${(v / 1000).toLocaleString('es-ES', { maximumFractionDigits: 1 })} k€` : `${Math.round(v)} €`)
 const ejes = { stroke: 'var(--graf-texto)', fontSize: 11, tickLine: false, axisLine: false }
 const tooltip = {
   formatter: (v: unknown) => formatearImporte(Number(v)),

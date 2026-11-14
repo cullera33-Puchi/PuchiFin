@@ -291,7 +291,7 @@ export function Importar() {
           )}
           <p className="text-xs text-zinc-500">
             El fichero se lee en el iPhone y no se guarda: solo los movimientos, ya sin números de cuenta, tarjetas ni nombres. ¿Sin ficheros todavía? Descarga los{' '}
-            <Link to="/ajustes/herramientas" className="text-marca-700 underline dark:text-marca-500">
+            <Link to="/ajustes/herramientas/prueba" className="text-marca-700 underline dark:text-marca-500">
               Excel de prueba
             </Link>
             .

@@ -1,5 +1,8 @@
-import { Check, ChevronRight, CircleCheck } from 'lucide-react'
-import { useMemo } from 'react'
+import { Check, ChevronRight, CircleCheck, Share2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { useInterfaz } from '../componentes/Interfaz'
+import { compartirResumenMes } from '../lib/compartirMes'
+import { registrar } from '../lib/registro'
 import { Link, useSearchParams } from 'react-router-dom'
 import { BarraNavegacion } from '../componentes/Encabezado'
 import { useDatos } from '../datos/ProveedorDatos'
@@ -16,6 +19,8 @@ export function Cierre() {
   const hechos = pasos.filter((p) => p.hecho).length
   const nombre = mesLargo(`${mes}-01`).split(' de ')[0].toLowerCase()
   const listo = hechos === pasos.length
+  const [generando, setGenerando] = useState(false)
+  const { avisar } = useInterfaz()
 
   return (
     <>
@@ -25,6 +30,32 @@ export function Cierre() {
           <CircleCheck className="mx-auto size-12 text-[#34C759]" strokeWidth={1.5} />
           <p className="text-[17px] font-semibold">{mesLargo(`${mes}-01`)}, cerrado</p>
           <p className="text-[13px] text-zinc-500">Datos completos, cuadrados con el banco, todo categorizado y con copia.</p>
+          <div className="space-y-2 pt-2">
+            <button
+              className="boton-primario w-full"
+              disabled={generando}
+              onClick={async () => {
+                setGenerando(true)
+                try {
+                  const r = await compartirResumenMes(db, mes)
+                  if (r === 'descargado') avisar('PDF descargado')
+                } catch (e) {
+                  registrar('error', `PDF del cierre: ${(e as Error).message}`)
+                  avisar('No se pudo generar el PDF')
+                } finally {
+                  setGenerando(false)
+                }
+              }}
+            >
+              <Share2 className="size-4" strokeWidth={2} /> {generando ? 'Generando…' : `Compartir el resumen de ${nombre}`}
+            </button>
+            <p className="text-[12px] text-zinc-500">
+              PDF para compartir: ingresos, gastos, ahorro, gasto por categoría y el plan de pagos.{' '}
+              <Link to="/resumenes" className="text-marca-700 dark:text-marca-500">
+                Más opciones
+              </Link>
+            </p>
+          </div>
         </div>
       ) : (
         <p className="mb-3 px-1 text-[13px] text-zinc-500">Sigue los pasos en orden. Cada uno se marca solo cuando está hecho.</p>

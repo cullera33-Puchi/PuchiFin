@@ -1,4 +1,5 @@
 /** Formato español para importes y fechas (regla 6 de CLAUDE.md) */
+import { CIFRA_OCULTA, esDiscreto } from './discreto'
 
 const euros = new Intl.NumberFormat('es-ES', {
   style: 'currency',
@@ -10,6 +11,7 @@ const euros = new Intl.NumberFormat('es-ES', {
 
 /** 1234.56 → "1.234,56 €"; -1234.56 → "-1.234,56 €" */
 export function formatearImporte(importe: number): string {
+  if (esDiscreto()) return CIFRA_OCULTA
   // Evita "-0,00 €"
   const valor = Object.is(Math.round(importe * 100), -0) ? 0 : importe
   return euros.format(valor).replace(/ /g, ' ')
@@ -19,6 +21,7 @@ const eurosRedondos = new Intl.NumberFormat('es-ES', { style: 'currency', curren
 
 /** Importe redondeado al euro, para frases: 1234.56 → "1.235 €" */
 export function formatearRedondo(importe: number): string {
+  if (esDiscreto()) return CIFRA_OCULTA
   const valor = Math.round(importe) === 0 ? 0 : Math.round(importe)
   return eurosRedondos.format(valor).replace(/ /g, ' ')
 }

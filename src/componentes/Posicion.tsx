@@ -1,22 +1,16 @@
 import { CreditCard, Eye, EyeOff, Landmark } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { esDiscreto } from '../lib/discreto'
+import { useDiscreto } from './discreto'
+import { useMemo } from 'react'
 import { useDatos } from '../datos/ProveedorDatos'
 import { formatearFecha, formatearImporte } from '../lib/formato'
 import { mesLargo, sumarDias } from '../lib/fechas'
 import { calcularPosicion, type Posicion } from '../lib/posicion'
 import { Baldosa } from './Icono'
 
-const CLAVE_OCULTA = 'puchifin-posicion-oculta'
-
-/** Cifras ocultas con el ojo de «Tu posición» (se recuerda en el dispositivo) */
+/** Cifras ocultas: el modo discreto de toda la app (v0.33.0) */
 // oxlint-disable-next-line react/only-export-components
-export function leerOculta(): boolean {
-  try {
-    return localStorage.getItem(CLAVE_OCULTA) === '1'
-  } catch {
-    return false
-  }
-}
+export const leerOculta = esDiscreto
 
 /** Línea del saldo de las cuentas a final de cada mes, con el punto de hoy */
 function Evolucion({ datos }: { datos: Posicion['evolucion'] }) {
@@ -59,19 +53,10 @@ function Evolucion({ datos }: { datos: Posicion['evolucion'] }) {
 export function TarjetaPosicion() {
   const db = useDatos()
   const p = useMemo(() => calcularPosicion(db), [db])
-  const [oculta, setOculta] = useState(leerOculta)
+  const [oculta, fijar] = useDiscreto()
   if (!p) return null
-  const cifra = (n: number) => (oculta ? '•••• €' : formatearImporte(n))
-  const alternar = () => {
-    setOculta((o) => {
-      try {
-        localStorage.setItem(CLAVE_OCULTA, o ? '0' : '1')
-      } catch {
-        // sin almacenamiento: solo en esta sesión
-      }
-      return !o
-    })
-  }
+  const cifra = (n: number) => formatearImporte(n)
+  const alternar = () => fijar(!oculta)
   const finMesAnterior = sumarDias(`${p.fecha.slice(0, 7)}-01`, -1)
   const tono = p.variacionMes === null ? '' : p.variacionMes >= 0 ? 'text-[#248A3D] dark:text-[#30D158]' : 'text-[#D70015] dark:text-[#FF6961]'
   return (

@@ -8,7 +8,7 @@ import { Ajustes, PaginaAjuste } from './paginas/ajustes/Ajustes'
 import { Categorias } from './paginas/ajustes/Categorias'
 import { Cuentas } from './paginas/ajustes/Cuentas'
 import { General } from './paginas/ajustes/General'
-import { Herramientas } from './paginas/ajustes/Herramientas'
+import { ApartadoHerramientas, ListaHerramientas } from './paginas/ajustes/Herramientas'
 import { Extracto } from './paginas/Extracto'
 import { CategoriaMes } from './paginas/CategoriaMes'
 import { Importaciones } from './paginas/Importaciones'
@@ -64,7 +64,8 @@ export function App() {
                 <Route path="ajustes/cuentas" element={<PaginaAjuste titulo="Cuentas"><Cuentas /></PaginaAjuste>} />
                 <Route path="ajustes/categorias" element={<PaginaAjuste titulo="Categorías"><Categorias /></PaginaAjuste>} />
                 <Route path="ajustes/general" element={<PaginaAjuste titulo="General"><General /></PaginaAjuste>} />
-                <Route path="ajustes/herramientas" element={<PaginaAjuste titulo="Herramientas"><Herramientas /></PaginaAjuste>} />
+                <Route path="ajustes/herramientas" element={<PaginaAjuste titulo="Herramientas"><ListaHerramientas /></PaginaAjuste>} />
+                <Route path="ajustes/herramientas/:apartado" element={<ApartadoHerramientas />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
             </Routes>

@@ -1,7 +1,8 @@
 import { Plus, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Aviso } from '../../componentes/Encabezado'
-import { Segmentado } from '../../componentes/Interfaz'
+import { Interruptor, Segmentado } from '../../componentes/Interfaz'
+import { useDiscreto } from '../../componentes/discreto'
 import { guardarTema, leerTema, type Tema } from '../../lib/tema'
 import { contieneIdentificativo } from '../../lib/identificativos'
 import { guardarAjustes } from '../../datos/operaciones'
@@ -152,6 +153,7 @@ export function General() {
 /** Tema de la app: Automático (el del iPhone), Claro u Oscuro. Se guarda en este dispositivo */
 function Aspecto() {
   const [tema, setTema] = useState<Tema>(leerTema)
+  const [discreto, fijarDiscreto] = useDiscreto()
   return (
     <section className="space-y-1.5">
       <h2 className="px-4 text-[13px] text-zinc-500 uppercase">Aspecto</h2>
@@ -168,6 +170,13 @@ function Aspecto() {
           setTema(t)
         }}
       />
+      <div className="lista fila mt-3 min-h-12">
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px]">Modo discreto</span>
+          <span className="block text-[12px] text-zinc-500">Oculta los importes en toda la app. Los PDF y los Excel salen con las cifras reales.</span>
+        </span>
+        <Interruptor etiqueta="Modo discreto" activo={discreto} onCambio={fijarDiscreto} />
+      </div>
     </section>
   )
 }

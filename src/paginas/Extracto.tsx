@@ -2,6 +2,8 @@ import {
   ChartColumn,
   ChevronRight,
   Ellipsis,
+  Eye,
+  EyeOff,
   FileText,
   FlaskConical,
   HardDriveDownload,
@@ -17,6 +19,7 @@ import {
 } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useDiscreto } from '../componentes/discreto'
 import { Encabezado } from '../componentes/Encabezado'
 import { HojaClaude } from '../componentes/HojaClaude'
 import { Baldosa } from '../componentes/Icono'
@@ -75,6 +78,7 @@ export function Extracto() {
   const presupuestos = useMemo(() => consumoPresupuestos(db, mes, hoyIso()), [db, mes])
   const pendientes = usePendientes(mes, e.sinCategoria, recurrentes, presupuestos.length > 0)
   const [menu, setMenu] = useState(false)
+  const [discreto, fijarDiscreto] = useDiscreto()
   const [claude, setClaude] = useState(false)
   const irA = (m: string) => setParams({ mes: m }, { replace: true })
   // Meses de la tira: del primero con datos al último (el en curso o uno posterior imputado, como la nómina)
@@ -108,6 +112,9 @@ export function Extracto() {
         titulo="Extracto"
         accion={
           <div className="flex gap-1">
+            <button className="boton-icono" aria-label={discreto ? 'Mostrar las cifras' : 'Ocultar las cifras'} aria-pressed={discreto} onClick={() => fijarDiscreto(!discreto)}>
+              {discreto ? <EyeOff className="size-[22px]" strokeWidth={1.75} /> : <Eye className="size-[22px]" strokeWidth={1.75} />}
+            </button>
             <Link to="/resumenes" className="boton-icono" aria-label="Resúmenes en PDF" title="Resúmenes en PDF">
               <FileText className="size-[22px]" strokeWidth={1.75} />
             </Link>
@@ -213,7 +220,7 @@ function usePendientes(mes: string, sinCategoria: number, recurrentes: ReturnTyp
   const prueba = contarDatosPrueba(db)
   const exportacion = avisoExportacion(db)
   const lista: Pendiente[] = []
-  if (prueba) lista.push({ clave: 'prueba', titulo: 'Datos de prueba', detalle: plural(prueba, 'movimiento inventado', 'movimientos inventados'), a: '/ajustes/herramientas', glifo: FlaskConical, color: '#FF9500' })
+  if (prueba) lista.push({ clave: 'prueba', titulo: 'Datos de prueba', detalle: plural(prueba, 'movimiento inventado', 'movimientos inventados'), a: '/ajustes/herramientas/prueba', glifo: FlaskConical, color: '#FF9500' })
   if (importar)
     lista.push({
       clave: 'importar',
@@ -223,7 +230,7 @@ function usePendientes(mes: string, sinCategoria: number, recurrentes: ReturnTyp
       glifo: Upload,
       color: '#007AFF',
     })
-  if (exportacion) lista.push({ clave: 'exportar', titulo: 'Exporta una copia de tus datos', detalle: exportacion, a: '/ajustes/herramientas', glifo: HardDriveDownload, color: '#007AFF' })
+  if (exportacion) lista.push({ clave: 'exportar', titulo: 'Exporta una copia de tus datos', detalle: exportacion, a: '/ajustes/herramientas/archivo', glifo: HardDriveDownload, color: '#007AFF' })
   if (avisosFijos.length)
     lista.push({
       clave: 'fijos',
