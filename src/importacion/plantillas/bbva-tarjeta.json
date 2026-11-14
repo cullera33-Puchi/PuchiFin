@@ -1,5 +1,5 @@
 {
-  "_nota": "Excel de movimientos de la tarjeta de crédito de bbva.es. Formato pendiente de confirmar con un Excel real: se espera el mismo «Informe BBVA» sin la columna Disponible. Si las compras llegan en positivo, cambiar signo a invertido.",
+  "_nota": "Excel de movimientos de la tarjeta de crédito de bbva.es, confirmado con un Excel real del 14/11/2026: «Informe BBVA» con la cabecera en la fila 5 y las columnas Fecha, Concepto, Movimiento, Importe y Divisa. Las compras llegan en negativo. El concepto trae el comercio en 25 caracteres y la población recortada a continuación, sin país; los movimientos aún sin liquidar traen solo el comercio. La columna Movimiento viene vacía o con la categoría de BBVA («Pendiente de categorizar gastos»).",
   "origen": "bbva_tarjeta",
   "nombre": "BBVA tarjeta de crédito",
   "tipo_cuenta": "tarjeta_credito",
@@ -45,7 +45,7 @@
   "concepto_ancho_fijo": [
     25,
     13,
-    2
+    0
   ],
   "operaciones": [
     "pago con tarjeta",

@@ -95,7 +95,7 @@ Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (po
 
 ## Pendiente de confirmar
 
-- Formato del Excel de la tarjeta de crédito: el resumen de un año (13/11/2026) muestra que la columna Movimiento trae la categoría de BBVA y que el pago llega como «Rebut mes anterior»; falta confirmar columnas y signo con un Excel. El de cuenta está confirmado con un Excel real del 13/11/2026 («Informe BBVA»: Fecha valor, Fecha, Concepto, Movimiento, Importe, Divisa, Disponible, Divisa, Observaciones). Para la tarjeta se supone el mismo sin Disponible; falta un Excel real (columnas y signo de las compras).
+- Formato del Excel de la tarjeta de crédito: confirmado con un Excel real del 14/11/2026 («Informe BBVA»: Fecha, Concepto, Movimiento, Importe y Divisa; compras en negativo; comercio en 25 caracteres y la población recortada detrás; lo aún sin liquidar, solo con el comercio). Falta ver en un Excel el abono de la liquidación («Rebut mes anterior», visto en el resumen de un año) para confirmar su regla. El de cuenta está confirmado con un Excel real del 13/11/2026 («Informe BBVA»: Fecha valor, Fecha, Concepto, Movimiento, Importe, Divisa, Disponible, Divisa, Observaciones).
 - Bizum: la columna Movimiento trae el mensaje («Recibido: …», «ENVIADO: …», «COMPRA: …»), que se conserva aplicando los alias. Confirmar si en algún caso trae el nombre de la persona y debe quitarse.
 - Entidad de cada cuenta y cuenta desde la que se paga la hipoteca.
 - El repositorio es público. No contiene datos personales. El usuario lo deja pendiente. Ojo: GitHub Pages en un repositorio privado exige un plan de pago de GitHub; si se hace privado, habría que publicar en otro servicio gratuito (por ejemplo, Vercel).
@@ -137,6 +137,7 @@ Ordenada por esfuerzo, de menos a más, con prioridad para la usabilidad y el re
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.34.1 (14/11/2026): plantilla de la tarjeta con su Excel real: población recortada separada del comercio (`partirAnchoFijo` con país 0) y deduplicación de lo que llega primero sin liquidar y después liquidado. Pendiente de publicar en `main` hasta que el usuario lo confirme.
 - v0.34.0 (14/11/2026): reporting del análisis: gastos fuera de lo normal (`src/lib/atipicos.ts`), ahorro y gasto fijo mes a mes, comparar periodos (`/informes/comparar`) y resumen del año con PDF (`/informes/anual`); más cálculos guardados por versión de los datos. Queda del análisis la estacionalidad (R6), que el usuario deja para el final.
   - Revisión general del código pedida por el usuario: unos 30 hallazgos de tres revisiones independientes, todos corregidos (detalle en `CHANGELOG.md`). Esquema 13: `tipo_manual` en el movimiento, que protege el tipo puesto a mano de las reglas (`esPendiente` y el emparejamiento de traspasos lo respetan).
 - v0.33.0 (14/11/2026): usabilidad y visual del análisis: modo discreto en toda la app (`src/lib/discreto.ts`; lo exportado sale con cifras reales), Herramientas por apartados (`/ajustes/herramientas/:apartado`), PDF del mes al completar el cierre (`compartirResumenMes`) e Informes en tres vistas (Categorías, Comercios y Evolución). Quedan del análisis: P2 (resto de cálculos compartidos) y el reporting R2 a R6.
@@ -542,7 +543,7 @@ La v1 trabaja solo con BBVA desde octubre de 2026 y queda completa al cerrar la 
 ## 14. Decisiones abiertas
 
 - [x] Excel de cuenta de BBVA para fijar la plantilla (recibido el 13/11/2026).
-- [ ] Excel de la tarjeta de crédito de BBVA para fijar su plantilla.
+- [x] Excel de la tarjeta de crédito de BBVA para fijar su plantilla (recibido el 14/11/2026; falta ver el abono de la liquidación).
 - [x] Transferencia de reembolso: ya no hace falta, el usuario marca los reembolsos a mano (v0.15.0).
 - [x] Deuda familiar sin intereses; colchón sobre la Cuenta 2; pago de todo lo que lo supere, de junio a agosto con julio de referencia (14/11/2026).
 - [ ] Confirmar la entidad de cada cuenta y de la hipoteca, y desde qué cuenta se paga la cuota.

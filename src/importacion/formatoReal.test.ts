@@ -141,3 +141,56 @@ describe('categoría que BBVA añade en la columna Movimiento', () => {
   })
 })
 
+
+describe('Excel real de la tarjeta de crédito (formato del 14/11/2026, datos inventados)', () => {
+  const tarjeta = (comercio: string, poblacion: string) => `${comercio.padEnd(25)}${poblacion}`
+  const filas = [
+    [],
+    [],
+    ['', '', 'Movimientos'],
+    ['', '', 'Fecha de generación del informe: 14/11/2026'],
+    ['', 'Fecha', 'Concepto', 'Movimiento', 'Importe', 'Divisa'],
+    ['', '14/11/2026', tarjeta('SUPER ZETA 1234', 'VILLA'), '', -25.18, 'EUR'],
+    ['', '13/11/2026', tarjeta('PLATAFORMA TV', 'MADRI'), '', -9.99, 'EUR'],
+    ['', '13/11/2026', 'BAR ZETA', 'Pendiente de categorizar gastos', -20.63, 'EUR'],
+    ['', '13/11/2026', 'BAR ZETA', 'Pendiente de categorizar gastos', -20.63, 'EUR'],
+  ]
+  const lectura = extraer(filas)
+
+  it('se reconoce como tarjeta y separa la población recortada', () => {
+    expect(lectura.plantilla.origen).toBe('bbva_tarjeta')
+    expect(lectura.filas).toHaveLength(4)
+    expect(lectura.filas[0]).toMatchObject({ fecha_operacion: '2026-11-14', importe: -25.18, saldo: null, poblacion: 'VILLA' })
+    expect(lectura.filas[1].poblacion).toBe('MADRI')
+    expect(lectura.filas[2]).toMatchObject({ poblacion: null, operacion: 'Pendiente de categorizar gastos' })
+    expect(partirAnchoFijo('UN COMERCIO DE NOMBRE MUY LARGO', [25, 13, 0]).poblacion).toBeNull()
+  })
+
+  it('dos compras iguales el mismo día son dos movimientos y el nombre del comercio no lleva la población', () => {
+    const db = datosIniciales()
+    const p = proponer(db, lectura, db.cuentas.find((c) => c.tipo === 'tarjeta_credito')!.id)
+    expect(p.nuevos).toHaveLength(4)
+    expect(p.nuevos.filter((m) => m.concepto_limpio === 'Bar Zeta').map((m) => m.ocurrencia).sort()).toEqual([1, 2])
+    expect(p.nuevos.find((m) => m.importe === -25.18)!.concepto_limpio).not.toMatch(/villa/i)
+    expect(p.problemas).toEqual([])
+  })
+})
+
+describe('tarjeta: una compra sin liquidar y luego liquidada no entra dos veces', () => {
+  const cabecera = [[], [], ['', '', 'Movimientos'], ['', '', 'Fecha de generación del informe: 14/11/2026'], ['', 'Fecha', 'Concepto', 'Movimiento', 'Importe', 'Divisa']]
+  it('con la población añadida o el nombre recortado a 25 caracteres', () => {
+    const antes = extraer([...cabecera, ['', '13/11/2026', 'BAR ZETA', 'Pendiente de categorizar gastos', -20.63, 'EUR'], ['', '13/11/2026', 'RESTAURANTE DE NOMBRE MUY LARGO', 'Pendiente de categorizar gastos', -48.1, 'EUR']])
+    let db = datosIniciales()
+    const tarjeta = db.cuentas.find((c) => c.tipo === 'tarjeta_credito')!.id
+    db = confirmarImportacion(db, proponer(db, antes, tarjeta), { aceptadas: new Set() })
+    const despues = extraer([
+      ...cabecera,
+      ['', '14/11/2026', `${'SUPER ZETA'.padEnd(25)}VILLA`, '', -12.4, 'EUR'],
+      ['', '13/11/2026', `${'BAR ZETA'.padEnd(25)}VILLA`, '', -20.63, 'EUR'],
+      ['', '13/11/2026', `${'RESTAURANTE DE NOMBRE MUY LARGO'.slice(0, 25)}VILLA`, '', -48.1, 'EUR'],
+    ])
+    const p = proponer(db, despues, tarjeta)
+    expect(p.duplicados).toBe(2)
+    expect(p.nuevos.map((m) => m.importe)).toEqual([-12.4])
+  })
+})

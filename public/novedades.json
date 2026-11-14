@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.34.1",
+    "fecha": "2026-11-14",
+    "cambios": [
+      "Tarjeta de crédito: la importación usa ya el formato real del Excel de BBVA.",
+      "El nombre del comercio de la tarjeta sale limpio, sin la población pegada detrás.",
+      "Una compra que importas aún sin liquidar no se repite cuando vuelve a llegar ya liquidada."
+    ]
+  },
+  {
     "version": "0.34.0",
     "fecha": "2026-11-14",
     "cambios": [

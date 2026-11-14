@@ -59,11 +59,23 @@ export interface FilaBruta {
   saldo: number | null
 }
 
-/** Separa un concepto de ancho fijo (comercio, población, país) si tiene ese formato */
+/**
+ * Separa un concepto de ancho fijo (comercio, población, país) si tiene ese formato. Con país de ancho 0
+ * (tarjeta de crédito, confirmado con un Excel real del 14/11/2026), la población viene recortada al final
+ * («DIA 5970» con 17 espacios y «BEGUE»): se separa si el comercio ocupa sus columnas rellenas con espacios
+ */
 export function partirAnchoFijo(texto: string, anchos?: [number, number, number]): { comercio: string; poblacion: string | null } {
   const t = texto.replace(/\s+$/, '')
   if (anchos) {
     const [a, b, c] = anchos
+    if (c === 0) {
+      if (t.length > a && t.length <= a + b && /\s$/.test(t.slice(0, a))) {
+        const comercio = t.slice(0, a).trim()
+        const poblacion = t.slice(a).replace(/[\s,]+$/, '').trim()
+        if (comercio && poblacion) return { comercio, poblacion }
+      }
+      return { comercio: t.replace(/\s+/g, ' ').trim(), poblacion: null }
+    }
     if (t.length === a + b + c && /^[a-z]{2}$/i.test(t.slice(a + b)) && (/\s$/.test(t.slice(0, a)) || /\s{2}/.test(t))) {
       const comercio = t.slice(0, a).trim()
       const poblacion = t.slice(a, a + b).replace(/[\s,]+$/, '').trim()

@@ -176,6 +176,15 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
   }
   for (const x of filas) if (x.f.saldo !== null) emparejar(x, (m) => m.saldo === x.f.saldo)
   for (const x of filas) if (!yaGuardada.has(x)) emparejar(x, (m) => m.concepto_normalizado === x.normalizado)
+  // Sin saldo (tarjeta): una compra aún sin liquidar trae el nombre entero y, ya liquidada, recortado a 25
+  // caracteres y con la población detrás. Mismo día e importe y el mismo principio del nombre (el más corto
+  // entero, o al menos 20 caracteres): es la misma
+  const empiezaIgual = (a: string, b: string) => {
+    let n = 0
+    while (n < a.length && a[n] === b[n]) n++
+    return n >= 8 && n >= Math.min(20, a.length, b.length)
+  }
+  for (const x of filas) if (!yaGuardada.has(x) && x.f.saldo === null) emparejar(x, (m) => m.saldo === null && empiezaIgual(m.concepto_normalizado, x.normalizado))
   // Filas repetidas dentro del propio fichero (por ejemplo, al pegar dos veces lo mismo): con el mismo saldo son la misma
   const vistasFichero = new Set<string>()
   for (const x of filas) {

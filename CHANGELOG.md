@@ -2,6 +2,14 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.34.1. Excel real de la tarjeta de crédito (14 de noviembre de 2026)
+
+Formato confirmado con un Excel real del usuario (no se guarda en el repositorio): «Informe BBVA» con la cabecera en la fila 5 y las columnas Fecha, Concepto, Movimiento, Importe y Divisa. Sin saldo, compras en negativo, Movimiento vacío o con la categoría de BBVA.
+
+- `partirAnchoFijo` con país de ancho 0: la tarjeta trae el comercio en 25 caracteres y la población recortada detrás (5 letras); se separa si el comercio va relleno con espacios. Antes, la población quedaba pegada al nombre del comercio. Plantilla `bbva-tarjeta.json` con `concepto_ancho_fijo` `[25, 13, 0]` y la nota confirmada.
+- Deduplicación de la tarjeta: una compra aún sin liquidar (solo el comercio) que vuelve a llegar liquidada (nombre recortado a 25 y con la población) se reconoce como la misma si coinciden día, importe y el principio del nombre.
+- Excel de prueba de la tarjeta con el formato real; pruebas con filas inventadas en `formatoReal.test.ts`.
+
 ## v0.34.0. Reporting del análisis (R2 a R5), cálculos compartidos y revisión general (14 de noviembre de 2026)
 
 - P2, más cálculos guardados por versión de los datos: `calcularExtracto` (por mes y día), `avisosRecurrentes` y `efectoMesCerrado`.
