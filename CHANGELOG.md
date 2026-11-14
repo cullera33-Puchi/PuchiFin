@@ -2,6 +2,14 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.38.0. Tres mejoras rápidas antes de la pausa de uso (14 de noviembre de 2026)
+
+Propuestas tras el rediseño del presupuesto y aprobadas por el usuario, que después deja la app en uso unas semanas.
+
+- Tarjeta del mes coherente con el presupuesto (`referenciaConPresupuesto`): con presupuesto, todo el gasto del mes se compara con la suma de los presupuestos más lo habitual en las categorías que no lo tienen (media de hasta tres meses anteriores completos). Antes se comparaba solo con los presupuestos, y un gasto en una categoría sin presupuesto se comía el de las demás; además, la tarjeta y la pantalla de Presupuesto no decían lo mismo. La etiqueta pasa a «Presupuesto y resto» cuando hay categorías sin presupuesto, y «Cómo se calcula» lo desglosa. Se quita la condición de que el presupuesto cubriera el 80 % de la media.
+- Presupuesto de meses anteriores: tira de meses en la pantalla de Presupuesto (`TiraPeriodos`). Un mes cerrado enseña lo gastado frente al presupuesto de hoy, con «Sobraron» o «Superado» y sin cierre previsto; el año del selector sigue al mes elegido.
+- Resumen al acabar una tanda de importación de varios ficheros (`lote`, `resumenLote` en `Importar`): ficheros importados sobre los elegidos, movimientos nuevos y cuántos quedan sin categoría, sin contar lo deshecho; «Categorizar» cuenta los de toda la tanda.
+
 ## v0.37.0. Importar varios ficheros a la vez y atípicos en «Cosas pendientes» (14 de noviembre de 2026)
 
 Los dos retoques propuestos con el rediseño del presupuesto, pedidos por el usuario.

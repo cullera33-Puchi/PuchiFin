@@ -55,6 +55,8 @@ export function Importar() {
   // Varios ficheros elegidos a la vez (v0.37.0): se revisan uno detrás de otro
   const [cola, setCola] = useState<{ pendientes: File[]; total: number }>({ pendientes: [], total: 0 })
   const quedan = cola.pendientes.length
+  // Importaciones hechas en esta tanda de varios ficheros, para el resumen final (v0.38.0)
+  const [lote, setLote] = useState<string[]>([])
   /** «2 de 3»: el fichero que se está viendo */
   const posicion = cola.total > 1 ? `${cola.total - quedan} de ${cola.total}` : ''
 
@@ -74,7 +76,14 @@ export function Importar() {
     () => (propuesta ? cuadrarCuenta([...base.movimientos.filter((m) => m.cuenta_id === propuesta.cuenta_id), ...propuesta.nuevos]) : null),
     [propuesta, base],
   )
-  const pendientesHecha = hecha ? db.movimientos.filter((m) => m.importacion_id === hecha.id && esPendiente(m)).length : 0
+  // Al acabar una tanda de varios ficheros: lo importado entre todos (sin lo deshecho) y lo que queda sin categoría
+  const resumenLote = useMemo(() => {
+    if (!hecha || cola.total < 2 || cola.pendientes.length) return null
+    const ids = new Set(db.importaciones.filter((i) => lote.includes(i.id) && i.estado === 'confirmada').map((i) => i.id))
+    const movs = db.movimientos.filter((m) => m.importacion_id && ids.has(m.importacion_id))
+    return { ficheros: ids.size, total: cola.total, movimientos: movs.length, pendientes: movs.filter(esPendiente).length }
+  }, [hecha, cola, lote, db])
+  const pendientesHecha = resumenLote ? resumenLote.pendientes : hecha ? db.movimientos.filter((m) => m.importacion_id === hecha.id && esPendiente(m)).length : 0
   const cuadreHecha = useMemo(() => (hecha ? cuadrarCuenta(db.movimientos.filter((m) => m.cuenta_id === hecha.cuenta_id)) : null), [hecha, db])
   // Presupuesto: categorías que pasan del 80 % o del 100 % en el mes en curso o el anterior, si la importación los toca
   const avisosHecha = useMemo(() => {
@@ -93,7 +102,10 @@ export function Importar() {
     setDesactivadas({ para: propuesta, ids: typeof f === 'function' ? f(rechazadas) : f })
 
   const leer = (f: File) => cargar(async () => leerFichero(new Uint8Array(await f.arrayBuffer())))
-  const sinCola = () => setCola({ pendientes: [], total: 0 })
+  const sinCola = () => {
+    setCola({ pendientes: [], total: 0 })
+    setLote([])
+  }
   /** Pasa al siguiente fichero de los elegidos; el que se estaba viendo se deja */
   const siguiente = () => {
     const [f, ...resto] = cola.pendientes
@@ -190,6 +202,7 @@ export function Importar() {
         cuadra: cuadre?.conSaldo ? cuadre.cuadra : null,
       })
       setHecha({ id, nuevos: propuesta.nuevos.length, cuenta_id: propuesta.cuenta_id })
+      if (cola.total > 1) setLote((l) => [...l, id])
       setLectura(null)
     } finally {
       setGuardando(false)
@@ -222,6 +235,7 @@ export function Importar() {
           e.target.value = ''
           if (!elegidos.length) return
           setCola({ pendientes: elegidos.slice(1), total: elegidos.length })
+          setLote([])
           if (elegidos.length > 1) registrar('info', 'Varios ficheros elegidos para importar', { ficheros: elegidos.length })
           leer(elegidos[0])
         }}
@@ -237,6 +251,13 @@ export function Importar() {
         <div className="tarjeta space-y-3 text-center">
           <CircleCheck className="mx-auto size-12 text-[#34C759]" strokeWidth={1.5} />
           <p className="text-[17px] font-semibold">{plural(hecha.nuevos, 'movimiento importado', 'movimientos importados')}</p>
+          {resumenLote && (
+            <p className="rounded-xl bg-zinc-100 px-3 py-2 text-[13px] dark:bg-zinc-800" role="status">
+              <span className="font-medium">Tanda terminada.</span> {resumenLote.ficheros === resumenLote.total ? `Los ${resumenLote.total} ficheros importados` : `${resumenLote.ficheros} de ${resumenLote.total} ficheros importados`}:{' '}
+              {plural(resumenLote.movimientos, 'movimiento nuevo', 'movimientos nuevos')}
+              {resumenLote.pendientes ? `, ${resumenLote.pendientes} sin categoría` : ', todos con categoría'}.
+            </p>
+          )}
           {cuadreHecha?.conSaldo && (
             <div className="text-left">
               <CuadreSaldo cuadre={cuadreHecha} />

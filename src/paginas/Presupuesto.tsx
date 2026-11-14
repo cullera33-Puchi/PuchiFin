@@ -6,12 +6,14 @@ import { BarraNavegacion } from '../componentes/Encabezado'
 import { BotonClaude, HojaClaude } from '../componentes/HojaClaude'
 import { Baldosa } from '../componentes/Icono'
 import { Hoja, Segmentado } from '../componentes/Interfaz'
+import { opcionesMeses, TiraPeriodos } from '../componentes/TiraPeriodos'
 import { guardarExcepcionPresupuesto, guardarPresupuesto } from '../datos/operaciones'
 import { useDatos } from '../datos/ProveedorDatos'
 import { textoPresupuesto } from '../lib/analizar'
 import { movimientosDelPeriodo } from '../lib/csvClaude'
 import { fechaDeLosDatos } from '../lib/extracto'
 import { hoyIso, mesLargo, sumarMeses } from '../lib/fechas'
+import { mesEfectivo } from '../lib/imputacion'
 import { formatearRedondo, leerImporteUsuario, plural } from '../lib/formato'
 import { consumoPresupuestos, margen, presupuestoAnual, sugerirPresupuestos, totalPresupuesto, type EstadoPresupuesto } from '../lib/presupuesto'
 import { detectarRecurrentes } from '../lib/recurrentes'
@@ -28,11 +30,16 @@ export function Presupuesto() {
   const db = useDatos()
   const hacer = useHacer()
   const hoy = hoyIso()
-  const mes = hoy.slice(0, 7)
+  const actual = hoy.slice(0, 7)
+  // El mes que se mira: el actual o uno anterior, para ver cómo cerró (v0.38.0)
+  const [mes, setMes] = useState(actual)
+  const enCurso = mes === actual
+  const meses = useMemo(() => opcionesMeses(db.movimientos.reduce((min, m) => (mesEfectivo(m) < min ? mesEfectivo(m) : min), actual), actual), [db.movimientos, actual])
   const recurrentes = useMemo(() => detectarRecurrentes(db), [db])
   const lineas = useMemo(() => consumoPresupuestos(db, mes, hoy, recurrentes), [db, mes, hoy, recurrentes])
   const total = totalPresupuesto(lineas)
-  const sugeridos = useMemo(() => sugerirPresupuestos(db, mes), [db, mes])
+  // La propuesta de importes siempre parte de los últimos meses, se mire el mes que se mire
+  const sugeridos = useMemo(() => sugerirPresupuestos(db, actual), [db, actual])
   const anual = useMemo(() => presupuestoAnual(db, mes.slice(0, 4), hoy), [db, mes, hoy])
   const [vista, setVista] = useState<'mes' | 'anio'>('mes')
   const [editando, setEditando] = useState<string | null>(null)
@@ -88,18 +95,19 @@ export function Presupuesto() {
           <Segmentado
             etiqueta="Periodo del presupuesto"
             opciones={[
-              ['mes', mesLargo(`${mes}-01`).replace(/ de \d+$/, '')],
+              ['mes', 'Mes'],
               ['anio', `Año ${mes.slice(0, 4)}`],
             ]}
             valor={vista}
             onCambio={setVista}
           />
+          {vista === 'mes' && meses.length > 1 && <TiraPeriodos etiqueta="Mes del presupuesto" opciones={meses} valor={mes} onElegir={setMes} />}
 
           {vista === 'mes' ? (
             <>
               {lineas.length > 0 && (
                 <section className="tarjeta" aria-label="Presupuesto del mes">
-                  <h2 className="text-[13px] font-medium text-zinc-500 uppercase">Hasta el día {dia}</h2>
+                  <h2 className="text-[13px] font-medium text-zinc-500 uppercase">{enCurso ? `${nombreMes(mes)}, hasta el día ${dia}` : `${nombreMes(mes)}, mes cerrado`}</h2>
                   <div className="flex items-baseline gap-2">
                     <p className="text-[30px] leading-tight font-bold tracking-tight tabular-nums">{formatearRedondo(total.gastado)}</p>
                     <p className="text-[15px] text-zinc-500 tabular-nums">de {formatearRedondo(total.presupuesto)}</p>
@@ -113,9 +121,9 @@ export function Presupuesto() {
                         ? `Superado en ${formatearRedondo(total.gastado - total.presupuesto)}`
                         : total.cierre !== null
                           ? `Cerrarás en unos ${formatearRedondo(total.cierre)}`
-                          : `Quedan ${formatearRedondo(total.presupuesto - total.gastado)}`}
+                          : `Sobraron ${formatearRedondo(total.presupuesto - total.gastado)}`}
                     </span>
-                    <span className={avisos.length ? TONO_ESTADO[total.superadas ? 'superado' : 'riesgo'] : 'text-zinc-500'}>{avisos.length ? avisos.join(', ') : 'Todas van bien'}</span>
+                    <span className={avisos.length ? TONO_ESTADO[total.superadas ? 'superado' : 'riesgo'] : 'text-zinc-500'}>{avisos.length ? avisos.join(', ') : enCurso ? 'Todas van bien' : 'Ninguna superada'}</span>
                   </div>
                 </section>
               )}
@@ -154,9 +162,12 @@ export function Presupuesto() {
                   </li>
                 ))}
               </ul>
+              {!lineas.length && !soloEspeciales.length && <p className="tarjeta text-center text-[15px] text-zinc-500">Sin presupuesto en este mes.</p>}
               <p className="px-4 text-[12px] text-zinc-500">
-                La parte clara de cada barra es cómo cerrará el mes: lo gastado, los recibos que faltan y lo que sueles gastar en los días que quedan. Toca una categoría para cambiar
-                su importe.
+                {enCurso
+                  ? 'La parte clara de cada barra es cómo cerrará el mes: lo gastado, los recibos que faltan y lo que sueles gastar en los días que quedan. '
+                  : 'Lo gastado en el mes frente al presupuesto que tiene hoy cada categoría. '}
+                Toca una categoría para cambiar su importe.
               </p>
             </>
           ) : (
@@ -214,6 +225,7 @@ export function Presupuesto() {
   )
 }
 
+const nombreMes = (mes: string) => mesLargo(`${mes}-01`).replace(/ de \d+$/, '')
 const raizDe = (db: BaseDatos, c: Categoria) => (c.padre_id ? db.categorias.find((x) => x.id === c.padre_id) : c)
 
 /** Presupuesto acumulado del año frente a lo gastado */

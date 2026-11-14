@@ -14,6 +14,7 @@ import { fechaDeLosDatos } from './extracto'
 import { previstosPendientes } from './previstos'
 import { mesesDeReferencia, primerMes, recibosPendientes, trasElDia } from './prevision'
 import { detectarRecurrentes, type Recurrente } from './recurrentes'
+import { calcularTotales } from './resumen'
 import type { BaseDatos, Categoria } from './tipos'
 
 const redondear = (n: number) => Math.round(n * 100) / 100
@@ -121,6 +122,30 @@ export function totalPresupuesto(lineas: LineaPresupuesto[]): TotalPresupuesto {
     superadas: lineas.filter((l) => l.estado === 'superado').length,
     enRiesgo: lineas.filter((l) => l.estado === 'riesgo').length,
   }
+}
+
+export interface ReferenciaMes {
+  /** Con qué se compara todo el gasto del mes: presupuesto más resto */
+  importe: number
+  presupuesto: number
+  /** Lo que se suele gastar en las categorías sin presupuesto */
+  resto: number
+}
+
+/**
+ * Referencia para todo el gasto del mes cuando hay presupuesto (v0.38.0): la suma de los presupuestos más
+ * lo habitual en las categorías que no lo tienen (media de hasta 3 meses anteriores completos). Antes se
+ * comparaba todo el gasto solo con los presupuestos, y un gasto en una categoría sin presupuesto se comía
+ * el de las demás. Sin meses anteriores, el resto es lo gastado este mes fuera del presupuesto.
+ */
+export function referenciaConPresupuesto(db: BaseDatos, mes: string, lineas: LineaPresupuesto[]): ReferenciaMes | null {
+  if (!lineas.length) return null
+  const presupuesto = redondear(lineas.reduce((s, l) => s + l.presupuesto, 0))
+  const ids = new Set(lineas.flatMap((l) => [...idsDe(db, l.categoria)]))
+  const fuera = (m: string) => Math.max(0, calcularTotales(db.movimientos.filter((x) => mesEfectivo(x) === m), db.categorias).gastos - gastoDe(db, m, ids))
+  const previos = mesesDeReferencia(db, mes)
+  const resto = redondear(previos.length ? previos.reduce((s, m) => s + fuera(m), 0) / previos.length : fuera(mes))
+  return { importe: redondear(presupuesto + resto), presupuesto, resto }
 }
 
 /** Propuesta de presupuesto: la media de los 3 meses anteriores completos, redondeada a 10 € */

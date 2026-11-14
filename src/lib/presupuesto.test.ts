@@ -144,6 +144,18 @@ describe('cierre previsto y estado por categoría (v0.36.0)', async () => {
     expect(linea(guardarPresupuesto(base, vivienda, 950), 'Vivienda').estado).toBe('dentro')
   })
 
+  it('la referencia del mes suma al presupuesto lo habitual de las categorías sin presupuesto', async () => {
+    const { referenciaConPresupuesto } = await import('./presupuesto')
+    const solo = guardarPresupuesto(base, restaurantes, 400)
+    // Septiembre y octubre: 1.750 € al mes, de ellos 300 en Restaurantes; el resto, 1.450
+    expect(referenciaConPresupuesto(solo, '2026-11', consumoPresupuestos(solo, '2026-11', '2026-11-14', recurrentes))).toEqual({ importe: 1850, presupuesto: 400, resto: 1450 })
+    let todo = guardarPresupuesto(solo, vivienda, 1000)
+    todo = guardarPresupuesto(todo, suministros, 100)
+    todo = guardarPresupuesto(todo, hijos, 450)
+    expect(referenciaConPresupuesto(todo, '2026-11', consumoPresupuestos(todo, '2026-11', '2026-11-14', recurrentes))).toEqual({ importe: 1950, presupuesto: 1950, resto: 0 })
+    expect(referenciaConPresupuesto(base, '2026-11', [])).toBeNull()
+  })
+
   it('el total suma presupuestos, gasto y cierres, y cuenta los avisos', () => {
     let d = guardarPresupuesto(base, vivienda, 1000)
     d = guardarPresupuesto(d, suministros, 50)

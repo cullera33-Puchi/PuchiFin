@@ -196,6 +196,8 @@ test('importar varios Excel a la vez: se revisan seguidos, se puede saltar uno y
   await expect(page.getByText(/movimientos importados/)).toBeVisible()
   await expect(page.getByRole('button', { name: /Seguir con el siguiente/ })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Importar otro' })).toBeVisible()
+  // Resumen de la tanda: dos de los tres ficheros (uno se saltó) y lo que queda sin categoría
+  await expect(page.getByRole('status').filter({ hasText: 'Tanda terminada' })).toContainText(/2 de 3 ficheros importados: \d+ movimientos nuevos/)
   expect(e).toEqual([])
 })
 
@@ -225,6 +227,10 @@ test('presupuesto: empezar con las medias, ver cómo va, cambiar un importe y ve
   await viajes.getByLabel('Importe mensual de Viajes').fill('200')
   await viajes.getByRole('button', { name: 'Guardar', exact: true }).tap()
   await expect(page.getByRole('button', { name: 'Presupuesto de Viajes' })).toBeVisible()
+  // Un mes anterior: cómo cerró frente al presupuesto
+  await page.getByRole('radiogroup', { name: 'Mes del presupuesto' }).getByRole('radio').first().tap()
+  await expect(page.getByRole('region', { name: 'Presupuesto del mes' }).getByText(/mes cerrado/i)).toBeVisible()
+  await expect(page.getByText(/^(Sobraron|Justo|Superado)/).first()).toBeVisible()
   // El año, en su vista
   await page.getByRole('radio', { name: /^Año/ }).tap()
   await expect(page.getByText(/en lo que va de año/)).toBeVisible()
@@ -232,6 +238,8 @@ test('presupuesto: empezar con las medias, ver cómo va, cambiar un importe y ve
   await page.locator('nav[data-pestanas] a', { hasText: 'Extracto' }).tap()
   await expect(page.getByRole('link', { name: 'Presupuesto', exact: true })).toBeVisible()
   await expect(page.getByRole('progressbar', { name: 'Presupuesto de Vivienda' })).toBeVisible()
+  // La tarjeta del mes compara todo el gasto con el presupuesto más lo habitual del resto
+  await expect(page.getByRole('region', { name: /^Resumen de / }).getByText(/Presupuesto( y resto)?: \d/)).toBeVisible()
   await expect(page.getByRole('button', { name: /Restaurantes.*de 5\.000\s€/ })).toBeVisible()
   await expect(page.getByText('Editar', { exact: true })).toHaveCount(0)
   expect(e).toEqual([])

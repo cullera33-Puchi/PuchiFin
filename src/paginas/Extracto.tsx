@@ -41,7 +41,7 @@ import { movimientosDelPeriodo } from '../lib/csvClaude'
 import { hoyIso, mesLargo } from '../lib/fechas'
 import { formatearFecha, formatearRedondo, plural } from '../lib/formato'
 import { mesEfectivo } from '../lib/imputacion'
-import { consumoPresupuestos, type LineaPresupuesto } from '../lib/presupuesto'
+import { consumoPresupuestos, referenciaConPresupuesto, type LineaPresupuesto, type ReferenciaMes } from '../lib/presupuesto'
 import { BarraPresupuesto, textoEstado, TONO_ESTADO } from '../componentes/BarraPresupuesto'
 import { preverCierre, type Prevision } from '../lib/prevision'
 import { avisosRecurrentes, detectarRecurrentes } from '../lib/recurrentes'
@@ -360,12 +360,12 @@ function TarjetaMes({ e, mes, prevision, presupuestos }: { e: DatosExtracto; mes
   const t = e.totales
   const m = e.media
   const v = m && m.gastos > 0 ? (t.gastos - m.gastos) / m.gastos : null
-  const presupuesto = presupuestos.reduce((s, l) => s + l.presupuesto, 0)
-  // Referencia del mes entero: el presupuesto si cubre la mayor parte del gasto habitual (un presupuesto
-  // solo de Alimentación no sirve para comparar todo el mes); si no, la media de los meses completos
+  const db = useDatos()
+  // Referencia del mes entero: con presupuesto, su suma más lo habitual en las categorías que no lo tienen
+  // (así todo el gasto se compara con algo de su mismo alcance); sin presupuesto, la media de los meses completos
+  const conPresupuesto = useMemo(() => referenciaConPresupuesto(db, mes, presupuestos), [db, mes, presupuestos])
   const media = e.enCurso ? (prevision?.media ?? null) : (m?.gastos ?? null)
-  const cubre = presupuesto > 0 && (!media || presupuesto >= media * 0.8)
-  const ref = cubre ? { importe: presupuesto, nombre: 'Presupuesto' } : media ? { importe: media, nombre: 'Media' } : null
+  const ref = conPresupuesto ? { importe: conPresupuesto.importe, nombre: conPresupuesto.resto >= 1 ? 'Presupuesto y resto' : 'Presupuesto' } : media ? { importe: media, nombre: 'Media' } : null
   const previsto = e.enCurso && prevision && prevision.diasRestantes > 0 ? prevision.total : null
   const escala = Math.max(ref?.importe ?? 0, t.gastos, previsto ?? 0) || 1
   const pasa = ref ? (previsto ?? t.gastos) > ref.importe : false
@@ -429,7 +429,7 @@ function TarjetaMes({ e, mes, prevision, presupuestos }: { e: DatosExtracto; mes
         <Dato etiqueta="Tasa de ahorro" valor={t.tasaAhorro === null ? '—' : porcentaje(t.tasaAhorro)} />
       </div>
 
-      <HojaDetalleMes abierta={detalle} onCerrar={() => setDetalle(false)} e={e} mes={mes} prevision={previsto !== null ? prevision : null} />
+      <HojaDetalleMes abierta={detalle} onCerrar={() => setDetalle(false)} e={e} mes={mes} prevision={previsto !== null ? prevision : null} referencia={conPresupuesto} />
     </section>
   )
 }
@@ -441,7 +441,7 @@ function TarjetaMes({ e, mes, prevision, presupuestos }: { e: DatosExtracto; mes
 function Quedan({ referencia, prevision }: { referencia: { importe: number; nombre: string }; prevision: Prevision }) {
   const comprometido = prevision.recibos + prevision.importePrevistos
   const quedan = referencia.importe - prevision.gastado - comprometido
-  const nombre = referencia.nombre === 'Presupuesto' ? 'tu presupuesto' : 'tu media'
+  const nombre = referencia.nombre === 'Presupuesto' ? 'tu presupuesto' : referencia.nombre === 'Media' ? 'tu media' : 'tu presupuesto y tu media del resto'
   if (quedan <= 0)
     return (
       <p className={`mt-2 text-[13px] ${ROJO}`}>
@@ -459,7 +459,21 @@ function Quedan({ referencia, prevision }: { referencia: { importe: number; nomb
 }
 
 /** Cómo se calcula: el mes frente a la media (y hace un año, si hay datos) y la previsión de cierre */
-function HojaDetalleMes({ abierta, onCerrar, e, mes, prevision }: { abierta: boolean; onCerrar: () => void; e: DatosExtracto; mes: string; prevision: Prevision | null }) {
+function HojaDetalleMes({
+  abierta,
+  onCerrar,
+  e,
+  mes,
+  prevision,
+  referencia,
+}: {
+  abierta: boolean
+  onCerrar: () => void
+  e: DatosExtracto
+  mes: string
+  prevision: Prevision | null
+  referencia: ReferenciaMes | null
+}) {
   const t = e.totales
   const m = e.media
   const a = e.haceUnAno && e.haceUnAno.movimientos > 0 ? e.haceUnAno : null
@@ -533,6 +547,12 @@ function HojaDetalleMes({ abierta, onCerrar, e, mes, prevision }: { abierta: boo
             </p>
           )}
         </section>
+        {referencia && (
+          <p className="px-4 text-[13px] text-zinc-500">
+            La barra de la tarjeta compara todo el gasto del mes con {formatearRedondo(referencia.importe)}: tu presupuesto ({formatearRedondo(referencia.presupuesto)})
+            {referencia.resto >= 1 ? ` más lo que sueles gastar en las categorías sin presupuesto (${formatearRedondo(referencia.resto)})` : ''}.
+          </p>
+        )}
         {bloquePrevision}
         <div className="flex flex-wrap gap-x-4 px-1">
           <Link to="/extracto/previstos" className="boton-texto px-1" onClick={onCerrar}>

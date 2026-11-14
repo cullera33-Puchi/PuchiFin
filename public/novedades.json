@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.38.0",
+    "fecha": "2026-11-14",
+    "cambios": [
+      "Extracto: «Te quedan X €» ya no baja por gastos en categorías sin presupuesto; compara con tu presupuesto más lo habitual del resto.",
+      "Presupuesto: elige un mes anterior para ver cómo cerró.",
+      "Importar varios ficheros: al terminar, un resumen de lo importado y de lo que queda sin categoría."
+    ]
+  },
+  {
     "version": "0.37.0",
     "fecha": "2026-11-14",
     "cambios": [
