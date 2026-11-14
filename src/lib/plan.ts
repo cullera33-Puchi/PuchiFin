@@ -61,6 +61,20 @@ export function simulaNominas(db: BaseDatos, sim: Simulacion): boolean {
   )
 }
 
+/**
+ * Escenario «con la segunda nómina»: las nóminas guardadas que no cuentan en la previsión, sumadas.
+ * Null si no hay ninguna (para el PDF, que enseña siempre el plan actual y este escenario).
+ */
+export function escenarioNominas(db: BaseDatos): { sim: Simulacion; nombres: string[] } | null {
+  const fuera = (db.ajustes.nominas ?? []).filter((n) => !n.incluida)
+  if (!fuera.length) return null
+  return { sim: { ...SIN_SIMULACION, nominas: Object.fromEntries(fuera.map((n) => [n.id, true])) }, nombres: fuera.map((n) => n.nombre) }
+}
+
+/** La simulación cambia algo respecto a lo guardado */
+export const haySimulacion = (db: BaseDatos, sim: Simulacion) =>
+  sim.ahorroExtra !== 0 || sim.recorte !== null || sim.colchon !== undefined || sim.deuda !== undefined || simulaNominas(db, sim)
+
 /** Nóminas que cuentan: las incluidas, con lo que cambie la simulación */
 export const nominasActivas = (db: BaseDatos, sim: Simulacion) => (db.ajustes.nominas ?? []).filter((n) => sim.nominas?.[n.id] ?? n.incluida)
 
@@ -117,7 +131,29 @@ interface Estadistica {
   gastos: Map<string | null, number>
 }
 
+// Una vez por cada versión de los datos: la simulación recalcula solo la proyección
+const cacheEstadisticas = new WeakMap<BaseDatos, Map<string, Estadistica>>()
+const cacheCapital = new WeakMap<BaseDatos, { capital: number | null }>()
+
+/** Capital de hoy (posición), calculado una vez por cada versión de los datos */
+function capitalDeHoy(db: BaseDatos): number | null {
+  let c = cacheCapital.get(db)
+  if (!c) {
+    c = { capital: calcularPosicion(db)?.capital ?? null }
+    cacheCapital.set(db, c)
+  }
+  return c.capital
+}
+
 function estadisticas(db: BaseDatos): Map<string, Estadistica> {
+  const guardadas = cacheEstadisticas.get(db)
+  if (guardadas) return guardadas
+  const res = calcularEstadisticas(db)
+  cacheEstadisticas.set(db, res)
+  return res
+}
+
+function calcularEstadisticas(db: BaseDatos): Map<string, Estadistica> {
   const porMes = new Map<string, Movimiento[]>()
   for (const m of db.movimientos) anadirA(porMes, mesEfectivo(m), m)
   const nomina = idsNomina(db)
@@ -247,7 +283,7 @@ export function calcularPlan(db: BaseDatos, hoy: string, sim: Simulacion = SIN_S
   let saldo = cuadre.saldoBanco
   let deuda = deudaPendiente
   const pagos: PagoPrevisto[] = []
-  const capitalHoy = calcularPosicion(db)?.capital ?? cuadre.saldoBanco
+  const capitalHoy = capitalDeHoy(db) ?? cuadre.saldoBanco
   const serie: PuntoCapital[] = []
   let mes = mesDatos
   // Hasta saldarla y, como mínimo, dos años para ver el capital
@@ -311,7 +347,7 @@ export function preverIngresos(db: BaseDatos, hoy: string, sim: Simulacion = SIN
   for (const e of estadoEventos(db, hoy)) if (e.estado === 'pendiente') puntuales.set(e.evento.fecha.slice(0, 7), (puntuales.get(e.evento.fecha.slice(0, 7)) ?? 0) + e.evento.importe)
   const resto = (diasDelMes(mesDatos) - Number(datos.slice(8, 10))) / diasDelMes(mesDatos)
   const ahorroDe = (mes: string) => mod.ahorro(mes) + (puntuales.get(mes) ?? 0)
-  const capitalHoy = calcularPosicion(db)?.capital ?? null
+  const capitalHoy = capitalDeHoy(db)
   const suma12 = meses.reduce((s, m) => s + ahorroDe(m.mes), 0)
   // Media de nómina real de los meses cerrados, como referencia para darla de alta
   const primero = primerMes(db)

@@ -2,6 +2,13 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.28.0. Plan de pagos más rápido, a mano y en el PDF (14 de noviembre de 2026)
+
+- Rendimiento: las estadísticas por mes y el capital de hoy (`calcularPosicion`) se calculan una vez por cada versión de los datos (`WeakMap` en `plan.ts`); la simulación solo recalcula la proyección. Con unos 1.000 movimientos, cada cambio de la simulación pasa de unos 14 ms a menos de 1 ms (antes se repetía hasta cuatro veces por pulsación en Ingresos previstos). El cálculo usa `useDeferredValue`: los campos no se bloquean al escribir.
+- Coherencia: una sola simulación compartida entre Ingresos previstos y el Plan de pagos (`useSimulacion`, en memoria mientras la app está abierta), con «Restablecer» en las dos y aviso en Ingresos cuando cuenta algo cambiado en el plan. `haySimulacion` reúne la comprobación.
+- Acceso: `TarjetaDeuda` (componente propio) justo debajo de «Tu posición» en el Extracto, fuera de los meses, y en Informes; sin deuda configurada, invita a configurarla. «Compartir en PDF» en el plan.
+- PDF de los resúmenes: apartado «Plan de pagos de la deuda» (`seccionPlan`) con la deuda, el colchón y el ahorro previsto, el calendario del plan actual y con las nóminas que no cuentan (`escenarioNominas`), el año en que queda saldada, el gráfico del capital previsto con leyenda y las cifras a 12 y 24 meses. En el completo y en el de compartir, con el interruptor «Incluir el plan de pagos» en Resúmenes (activado por defecto).
+
 ## v0.27.0. Deuda y colchón editables en la simulación del plan de pagos (14 de noviembre de 2026)
 
 - `Simulacion.deuda` y `Simulacion.colchon`: otra deuda pendiente u otro colchón solo en la simulación (`calcularPlan` los usa en lugar de los guardados).

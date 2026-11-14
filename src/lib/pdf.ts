@@ -4,10 +4,11 @@
  */
 import { jsPDF } from 'jspdf'
 import autoTable, { type CellDef, type RowInput } from 'jspdf-autotable'
-import { diaSemana, hoyIso } from './fechas'
+import { diaSemana, hoyIso, MESES, mesLargo } from './fechas'
 import { formatearFecha, formatearImporte } from './formato'
 import { indicadores, lineasFueraDelExtracto, porcentaje as pct, textoEnCurso, type Resumen, type Tono } from './resumen'
 import { NOMBRE_TIPO_MOVIMIENTO, type Categoria } from './tipos'
+import type { Plan } from './plan'
 import { APP_VERSION } from './version'
 
 export interface OpcionesPdf {
@@ -20,6 +21,8 @@ export interface OpcionesPdf {
   categorias: Categoria[]
   /** Fecha de generación (por defecto, hoy) */
   generado?: string
+  /** Plan de pagos de la deuda: el actual y, si lo hay, el escenario con las nóminas que no cuentan */
+  plan?: { actual: Plan; conNominas: { nombres: string[]; plan: Plan } | null } | null
 }
 
 const MARCA: [number, number, number] = [15, 118, 110]
@@ -265,6 +268,8 @@ export function generarPdfResumen(r: Resumen, opciones: OpcionesPdf): jsPDF {
     despues()
   }
 
+  if (opciones.plan) seccionPlan(doc, opciones.plan, () => y, (v) => (y = v), estiloTabla, cabecera)
+
   // Lo que no computa (solo en la versión completa)
   const lineas = reducida ? [] : lineasFueraDelExtracto(r)
   if (lineas.length) titulo('Fuera del extracto')
@@ -290,6 +295,133 @@ export function generarPdfResumen(r: Resumen, opciones: OpcionesPdf): jsPDF {
     doc.text(`Página ${i} de ${paginas}`, ANCHO - MARGEN, 290, { align: 'right' })
   }
   return doc
+}
+
+const corto = (mes: string) => mesLargo(`${mes}-01`).replace(/ de /, ' ').toLowerCase()
+
+/**
+ * Plan de pagos de la deuda en el PDF: deuda pendiente y colchón, pago de cada verano y deuda tras el pago
+ * en el plan actual y con la segunda nómina, año en que queda saldada y capital previsto con su gráfico.
+ */
+function seccionPlan(
+  doc: jsPDF,
+  datos: NonNullable<OpcionesPdf['plan']>,
+  leerY: () => number,
+  fijarY: (y: number) => void,
+  estilo: Record<string, unknown>,
+  cabecera: (textos: string[], derecha: number[]) => RowInput[],
+) {
+  const { actual, conNominas } = datos
+  const otro = conNominas?.plan ?? null
+  const c = actual.compromiso
+  // Unos 110 mm: si no caben, a una página nueva
+  let y = leerY()
+  if (y > 175) {
+    doc.addPage()
+    y = 20
+  }
+  doc.setTextColor(...TINTA).setFont('helvetica', 'bold').setFontSize(11.5)
+  doc.text('Plan de pagos de la deuda', MARGEN, y)
+  y += 5.5
+  doc.setTextColor(...TINTA).setFont('helvetica', 'normal').setFontSize(8.5)
+  const intro = `Deuda pendiente: ${eur(actual.deudaPendiente)}${actual.pagado ? ` (ya pagado ${eur(actual.pagado)})` : ''}. Cada ${MESES[c.mes_referencia - 1]} se paga lo que supera el colchón de ${eur(c.colchon)} en ${actual.cuenta.alias}. Ahorro previsto: ${eur(actual.ahorroMensual)} al mes.`
+  const partes = doc.splitTextToSize(intro, ANCHO - 2 * MARGEN)
+  doc.text(partes, MARGEN, y)
+  y += partes.length * 4 + 1
+  if (otro && conNominas) {
+    const texto = doc.splitTextToSize(`Con ${conNominas.nombres.join(' y ')}: ahorro previsto de ${eur(otro.ahorroMensual)} al mes.`, ANCHO - 2 * MARGEN)
+    doc.setTextColor(...VERDE)
+    doc.text(texto, MARGEN, y)
+    y += texto.length * 4 + 1
+  }
+
+  // Calendario: un año por fila, el actual y con la segunda nómina
+  const anios = [...new Set([...actual.pagos, ...(otro?.pagos ?? [])].map((p) => p.anio))].sort((a, b) => a - b)
+  const de = (plan: Plan | null, anio: number) => plan?.pagos.find((p) => p.anio === anio)
+  const nombreOtro = conNominas ? `Con ${conNominas.nombres.join(' y ')}` : ''
+  autoTable(doc, {
+    ...estilo,
+    startY: y,
+    head: otro ? cabecera(['Pago de', 'Pago previsto', 'Deuda tras el pago', `${nombreOtro}: pago`, 'Deuda tras el pago'], [1, 2, 3, 4]) : cabecera(['Pago de', 'Pago previsto', 'Deuda tras el pago'], [1, 2]),
+    body: anios.map((anio) => {
+      const a = de(actual, anio)
+      const o = de(otro, anio)
+      const fila: RowInput = [`${MESES[c.mes_referencia - 1]} de ${anio}`, a ? eur(a.pago) : '', a ? eur(a.deudaTras) : '']
+      if (otro) fila.push({ content: o ? eur(o.pago) : '', styles: { textColor: VERDE } }, { content: o ? eur(o.deudaTras) : '', styles: { textColor: VERDE } })
+      return fila
+    }),
+    foot: [
+      otro
+        ? ['Saldada en', String(actual.saldadaEn ?? 'más de 30 años'), '', { content: String(otro.saldadaEn ?? 'más de 30 años'), styles: { textColor: VERDE } }, '']
+        : ['Saldada en', String(actual.saldadaEn ?? 'más de 30 años'), ''],
+    ],
+    footStyles: { fontStyle: 'bold', lineWidth: { top: 0.3 }, textColor: TINTA },
+    columnStyles: otro ? { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } } : { 1: { halign: 'right' }, 2: { halign: 'right' } },
+  })
+  y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
+
+  // Capital previsto: gráfico de dos años y cifras a 12 y 24 meses
+  const base = actual.serie
+  if (base.length > 1) {
+    if (y > 235) {
+      doc.addPage()
+      y = 20
+    }
+    doc.setTextColor(...TINTA).setFont('helvetica', 'bold').setFontSize(9.5)
+    doc.text('Capital previsto', MARGEN, y)
+    doc.setTextColor(...GRIS).setFont('helvetica', 'normal').setFontSize(7.5)
+    doc.text('Cuentas menos lo pendiente de la tarjeta, más el ahorro previsto y menos los pagos de la deuda', ANCHO - MARGEN, y, { align: 'right' })
+    y += 3
+    const alto = 32
+    const ancho = ANCHO - 2 * MARGEN
+    const valores = [...base, ...(otro?.serie ?? [])].map((p) => p.capital)
+    const min = Math.min(...valores, 0)
+    const max = Math.max(...valores)
+    const rango = max - min || 1
+    const px = (i: number) => MARGEN + (i * ancho) / (base.length - 1)
+    const py = (v: number) => y + 2 + (alto - 4) * (1 - (v - min) / rango)
+    doc.setDrawColor(228, 228, 231).setLineWidth(0.2)
+    doc.line(MARGEN, py(0), MARGEN + ancho, py(0))
+    const linea = (serie: Plan['serie'], color: [number, number, number], discontinua: boolean) => {
+      doc.setDrawColor(...color).setLineWidth(0.6)
+      doc.setLineDashPattern(discontinua ? [1.5, 1] : [], 0)
+      for (let i = 1; i < serie.length; i++) doc.line(px(i - 1), py(serie[i - 1].capital), px(i), py(serie[i].capital))
+      doc.setLineDashPattern([], 0)
+    }
+    linea(base, MARCA, false)
+    if (otro) linea(otro.serie, VERDE, true)
+    y += alto + 4
+    doc.setTextColor(...GRIS).setFontSize(7.5)
+    doc.text(corto(base[0].mes), MARGEN, y)
+    doc.text(corto(base[base.length - 1].mes), ANCHO - MARGEN, y, { align: 'right' })
+    // Leyenda
+    const leyenda = (x: number, texto: string, color: [number, number, number], discontinua: boolean) => {
+      doc.setDrawColor(...color).setLineWidth(0.6).setLineDashPattern(discontinua ? [1.5, 1] : [], 0)
+      doc.line(x, y - 1, x + 6, y - 1)
+      doc.setLineDashPattern([], 0)
+      doc.setTextColor(...GRIS)
+      doc.text(texto, x + 8, y)
+      return x + 8 + doc.getTextWidth(texto) + 6
+    }
+    const x2 = leyenda(ANCHO / 2 - 40, 'Plan actual', MARCA, false)
+    if (otro && conNominas) leyenda(x2, nombreOtro, VERDE, true)
+    y += 5
+    const filas: RowInput[] = [12, 24]
+      .filter((i) => base[i])
+      .map((i) => {
+        const fila: RowInput = [`En ${corto(base[i].mes)}`, { content: eur(base[i].capital), styles: { halign: 'right' } }]
+        if (otro) fila.push({ content: otro.serie[i] ? eur(otro.serie[i].capital) : '', styles: { halign: 'right', textColor: VERDE } })
+        return fila
+      })
+    autoTable(doc, {
+      ...estilo,
+      startY: y,
+      head: otro ? cabecera(['Capital', 'Plan actual', nombreOtro], [1, 2]) : cabecera(['Capital', 'Plan actual'], [1]),
+      body: filas,
+    })
+    y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 9
+  }
+  fijarY(y)
 }
 
 export function nombreArchivoResumen(r: Resumen, reducida = false): string {

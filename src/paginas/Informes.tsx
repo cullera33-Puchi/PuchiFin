@@ -18,6 +18,7 @@ import { porDia } from '../lib/vista'
 import { gastosHormiga, IMPORTE_HORMIGA, rankingComercios } from '../lib/comercios'
 import { textoInforme } from '../lib/analizar'
 import { BotonClaude, HojaClaude } from '../componentes/HojaClaude'
+import { TarjetaDeuda } from '../componentes/TarjetaDeuda'
 import { avisosRecurrentes, detectarRecurrentes, resumenFijos } from '../lib/recurrentes'
 import { Baldosa } from '../componentes/Icono'
 
@@ -99,6 +100,7 @@ export function Informes() {
         <div className="space-y-4">
           <Totales informe={informe} onVista={(v) => ir({ vista: v })} />
           <PanelQuesito informe={informe} onAbrir={(id) => navegar(`/informes/categoria/${id ?? 'sin'}?${consulta}`)} />
+          <TarjetaDeuda className="" />
           {vista === 'gasto' && <TarjetaFijos />}
           <SeccionComercios informe={informe} movimientos={informe.movimientos} />
           {vista === 'gasto' && <SeccionHormiga informe={informe} hoy={hoy} />}

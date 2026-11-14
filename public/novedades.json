@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.28.0",
+    "fecha": "2026-11-14",
+    "cambios": [
+      "La simulación del plan va más fluida y es la misma en Ingresos previstos y en el Plan de pagos.",
+      "El plan de pagos, a mano: justo debajo de «Tu posición» en el Extracto y también en Informes.",
+      "El resumen en PDF incluye el plan de pagos: el actual y con la segunda nómina, con el pago de cada verano, cuándo queda saldada y el capital previsto. Se puede quitar en Resúmenes."
+    ]
+  },
+  {
     "version": "0.27.0",
     "fecha": "2026-11-14",
     "cambios": [

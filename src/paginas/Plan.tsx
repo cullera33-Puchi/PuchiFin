@@ -1,5 +1,5 @@
-import { CalendarCheck, CircleCheck, HandCoins, Settings2 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { CalendarCheck, CircleCheck, FileText, HandCoins, Settings2 } from 'lucide-react'
+import { useDeferredValue, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useHacer } from '../componentes/acciones'
 import { BarraNavegacion } from '../componentes/Encabezado'
@@ -14,7 +14,8 @@ import { useDatos } from '../datos/ProveedorDatos'
 import { textoPlan } from '../lib/analizar'
 import { hoyIso, MESES } from '../lib/fechas'
 import { formatearFecha, formatearImporte, formatearRedondo, leerImporteUsuario } from '../lib/formato'
-import { calcularPlan, efectoMesCerrado, simulaNominas, SIN_SIMULACION, type Plan as DatosPlan, type ResultadoPlan, type Simulacion } from '../lib/plan'
+import { useSimulacion } from '../componentes/simulacion'
+import { calcularPlan, efectoMesCerrado, haySimulacion, SIN_SIMULACION, type Plan as DatosPlan, type ResultadoPlan, type Simulacion } from '../lib/plan'
 import type { BaseDatos, Compromiso } from '../lib/tipos'
 import { nombreCategoria } from '../lib/vista'
 
@@ -42,9 +43,11 @@ export function Plan() {
   const db = useDatos()
   const hoy = hoyIso()
   const r = useMemo(() => calcularPlan(db, hoy), [db, hoy])
-  const [sim, setSim] = useState<Simulacion>(SIN_SIMULACION)
-  const simulando = sim.ahorroExtra !== 0 || sim.recorte !== null || sim.colchon !== undefined || sim.deuda !== undefined || simulaNominas(db, sim)
-  const simulado = useMemo(() => (simulando ? calcularPlan(db, hoy, sim).plan : null), [db, hoy, sim, simulando])
+  const [sim, setSim] = useSimulacion()
+  // El cálculo va un paso por detrás de lo que se escribe: el campo no se bloquea
+  const diferida = useDeferredValue(sim)
+  const simulando = haySimulacion(db, diferida)
+  const simulado = useMemo(() => (simulando ? calcularPlan(db, hoy, diferida).plan : null), [db, hoy, diferida, simulando])
   const efecto = useMemo(() => efectoMesCerrado(db, hoy), [db, hoy])
   const [ajustes, setAjustes] = useState(false)
   const [claude, setClaude] = useState(false)
@@ -281,6 +284,10 @@ function ContenidoPlan({
         .
       </p>
       <BotonClaude onPulsar={onClaude} />
+      <Link to="/resumenes" className="boton-secundario w-full">
+        <FileText className="size-4" strokeWidth={2} /> Compartir en PDF
+      </Link>
+      <p className="-mt-2 px-4 text-[12px] text-zinc-500">El resumen en PDF incluye el plan actual y el escenario con las nóminas que no cuentan.</p>
 
       <SelectorCategoria
         abierta={eligiendo}

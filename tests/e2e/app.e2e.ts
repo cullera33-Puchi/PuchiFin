@@ -186,9 +186,12 @@ test('ingresos previstos: mi nómina con pagas extra y una segunda nómina simul
   await expect(page.getByText(/Capital dentro de un año: .*\(\+/)).toBeVisible()
   await expect(page.getByText(/Pago de julio de 2027:/)).toBeVisible()
   // También en el plan de pagos
+  // La simulación es la misma en el plan: la segunda nómina llega ya activada
   await page.getByText('Ver el plan de pagos').tap()
-  await page.getByRole('switch', { name: 'Simular con Nómina 2' }).tap()
+  await expect(page.getByRole('switch', { name: 'Simular con Nómina 2' })).toHaveAttribute('aria-checked', 'true')
   await expect(page.getByText('Con la simulación')).toBeVisible()
+  await page.getByRole('button', { name: 'Restablecer' }).tap()
+  await expect(page.getByRole('switch', { name: 'Simular con Nómina 2' })).toHaveAttribute('aria-checked', 'false')
   expect(e).toEqual([])
 })
 

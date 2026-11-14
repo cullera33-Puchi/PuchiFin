@@ -43,6 +43,25 @@ describe('generarPdfResumen', () => {
     expect(texto(reducida)).not.toContain('Fuera del extracto')
   })
 
+  it('incluye el plan de pagos: el actual y con la segunda nómina, con el capital previsto', async () => {
+    const { datosIniciales, guardarCompromiso, guardarNomina } = await import('../datos/operaciones')
+    const { calcularPlan, escenarioNominas } = await import('./plan')
+    const base = datosIniciales()
+    let db = { ...base, ...generarDatosPrueba({ cuentas: base.cuentas, categorias: base.categorias, desde: '2026-08-01', hasta: '2026-11-13' }) }
+    db = guardarCompromiso(db, db.compromisos[0].id, { deuda_inicial: 30000, fecha_referencia: '2026-10-01', colchon: 2000, cuenta_colchon_id: db.cuentas[1].id, ventana_mes_inicio: 6, ventana_mes_fin: 8, mes_referencia: 7 })
+    db = guardarNomina(db, { nombre: 'Nómina 2', neto_mensual: 1500, pagas: [], desde: '2027-01', hasta: null, incluida: false, bonus: null })
+    const esc = escenarioNominas(db)!
+    const actual = calcularPlan(db, '2026-11-13').plan!
+    const otro = calcularPlan(db, '2026-11-13', esc.sim).plan!
+    const r = calcularResumen(periodoMes('2026-11-01'), db.movimientos, db.categorias)
+    const doc = generarPdfResumen(r, { incluirConceptos: false, hayDatosPrueba: true, categorias: db.categorias, reducida: true, plan: { actual, conNominas: { nombres: esc.nombres, plan: otro } } })
+    const texto = new TextDecoder('latin1').decode(new Uint8Array(doc.output('arraybuffer')))
+    expect(texto).toContain('Plan de pagos de la deuda')
+    expect(texto).toContain('Capital previsto')
+    expect(texto).toContain('Saldada en')
+    expect(doc.getNumberOfPages()).toBeLessThanOrEqual(2)
+  })
+
   it('nombra el archivo según el periodo', () => {
     expect(nombreArchivoResumen(calcularResumen(periodoMes('2026-11-05'), [], categorias))).toBe('PuchiFin resumen 2026-11.pdf')
     expect(nombreArchivoResumen(calcularResumen(periodoSemana('2026-11-13'), [], categorias))).toBe('PuchiFin semana 2026-11-09.pdf')

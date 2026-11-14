@@ -1,5 +1,5 @@
 import { Briefcase, ChevronRight, Plus } from 'lucide-react'
-import { Fragment, useMemo, useState } from 'react'
+import { Fragment, useDeferredValue, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useHacer } from '../componentes/acciones'
 import { BarraNavegacion } from '../componentes/Encabezado'
@@ -9,7 +9,8 @@ import { borrarNomina, guardarNomina } from '../datos/operaciones'
 import { useDatos } from '../datos/ProveedorDatos'
 import { hoyIso, MESES, mesLargo, sumarMeses } from '../lib/fechas'
 import { formatearRedondo, leerImporteUsuario, plural } from '../lib/formato'
-import { calcularPlan, preverIngresos, simulaNominas, SIN_SIMULACION, type Simulacion } from '../lib/plan'
+import { useSimulacion } from '../componentes/simulacion'
+import { calcularPlan, haySimulacion, preverIngresos, SIN_SIMULACION, type Simulacion } from '../lib/plan'
 import type { BaseDatos, Nomina, PagaExtra } from '../lib/tipos'
 
 const conMayuscula = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
@@ -96,12 +97,14 @@ export function Ingresos() {
   const hoy = hoyIso()
   const nominas = db.ajustes.nominas ?? []
   const [editando, setEditando] = useState<Nomina | 'nueva' | null>(null)
-  const [sim, setSim] = useState<Simulacion>(SIN_SIMULACION)
-  const simulando = simulaNominas(db, sim)
+  const [sim, setSim] = useSimulacion()
+  const diferida = useDeferredValue(sim)
+  const simulando = haySimulacion(db, diferida)
+  const otrosCambios = diferida.ahorroExtra !== 0 || diferida.recorte !== null || diferida.colchon !== undefined || diferida.deuda !== undefined
   const base = useMemo(() => preverIngresos(db, hoy), [db, hoy])
-  const conSim = useMemo(() => (simulando ? preverIngresos(db, hoy, sim) : null), [db, hoy, sim, simulando])
+  const conSim = useMemo(() => (simulando ? preverIngresos(db, hoy, diferida) : null), [db, hoy, diferida, simulando])
   const plan = useMemo(() => calcularPlan(db, hoy).plan, [db, hoy])
-  const planSim = useMemo(() => (simulando && plan ? calcularPlan(db, hoy, sim).plan : null), [db, hoy, sim, simulando, plan])
+  const planSim = useMemo(() => (simulando && plan ? calcularPlan(db, hoy, diferida).plan : null), [db, hoy, diferida, simulando, plan])
   const vista = conSim ?? base
   const total12 = vista ? vista.meses.reduce((s, m) => s + m.total, 0) : 0
 
@@ -161,9 +164,17 @@ export function Ingresos() {
 
       {nominas.length > 0 && base && (
         <section className="mt-4">
-          <h3 className="cabecera-grupo">Simular</h3>
+          <div className="flex items-baseline justify-between">
+            <h3 className="cabecera-grupo">Simular</h3>
+            {simulando && (
+              <button className="boton-texto px-4 text-[15px]" onClick={() => setSim(SIN_SIMULACION)}>
+                Restablecer
+              </button>
+            )}
+          </div>
           <div className="lista space-y-3 px-4 py-3">
             <SimularNominas db={db} sim={sim} setSim={setSim} />
+            {otrosCambios && <p className="text-[12px] text-zinc-500">También cuenta lo que has cambiado en la simulación del plan de pagos (deuda, colchón, ahorro o recorte).</p>}
             <div className="rounded-xl bg-zinc-100 px-3 py-2 text-[15px] tabular-nums dark:bg-zinc-800">
               <p>
                 Ahorro previsto: {formatearRedondo(vista!.ahorroMensual)} al mes

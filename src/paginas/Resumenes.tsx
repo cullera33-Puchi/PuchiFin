@@ -8,6 +8,7 @@ import { compartirArchivo, puedeCompartirArchivos } from '../lib/compartir'
 import { contarDatosPrueba } from '../datos/operaciones'
 import { useDatos } from '../datos/ProveedorDatos'
 import { diaSemana, hoyIso } from '../lib/fechas'
+import { calcularPlan, escenarioNominas } from '../lib/plan'
 import { formatearImporte } from '../lib/formato'
 import { registrar } from '../lib/registro'
 import {
@@ -27,6 +28,7 @@ import { NOMBRE_TIPO_MOVIMIENTO, type Categoria } from '../lib/tipos'
 
 const CLAVE_CONCEPTOS = 'puchifin-resumen-conceptos'
 const CLAVE_VERSION = 'puchifin-resumen-version'
+const CLAVE_PLAN = 'puchifin-resumen-plan'
 const TONO: Record<Tono, string> = {
   bueno: 'text-emerald-700 dark:text-emerald-400',
   malo: 'text-red-700 dark:text-red-400',
@@ -57,6 +59,13 @@ export function Resumenes() {
   const categorias = db.categorias
   const hayPrueba = contarDatosPrueba(db) > 0
   const [conceptos, setConceptos] = useState(() => leerPreferencia(CLAVE_CONCEPTOS, 'si') !== 'no')
+  const [conPlan, setConPlan] = useState(() => leerPreferencia(CLAVE_PLAN, 'si') !== 'no')
+  const hayPlan = useMemo(() => !!calcularPlan(db, hoyIso()).plan, [db])
+  const escenario = useMemo(() => escenarioNominas(db), [db])
+  const cambiarPlan = (v: boolean) => {
+    setConPlan(v)
+    guardarPreferencia(CLAVE_PLAN, v ? 'si' : 'no')
+  }
   const [reducida, setReducida] = useState(() => leerPreferencia(CLAVE_VERSION, 'completa') === 'reducida')
   const [error, setError] = useState<string | null>(null)
   const [generando, setGenerando] = useState(false)
@@ -80,9 +89,13 @@ export function Resumenes() {
     setGenerando(true)
     try {
       const { generarPdfResumen, nombreArchivoResumen } = await import('../lib/pdf')
-      const doc = generarPdfResumen(resumen, { incluirConceptos: conceptos, hayDatosPrueba: hayPrueba, categorias, reducida })
+      // Plan de pagos: el actual y con las nóminas que no cuentan (la segunda), calculados al generar
+      const actual = hayPlan && conPlan ? calcularPlan(db, hoyIso()).plan : null
+      const otro = actual && escenario ? calcularPlan(db, hoyIso(), escenario.sim).plan : null
+      const plan = actual ? { actual, conNominas: otro && escenario ? { nombres: escenario.nombres, plan: otro } : null } : null
+      const doc = generarPdfResumen(resumen, { incluirConceptos: conceptos, hayDatosPrueba: hayPrueba, categorias, reducida, plan })
       const nombre = nombreArchivoResumen(resumen, reducida)
-      registrar('info', `Resumen ${resumen.periodo.tipo === 'mes' ? 'mensual' : 'semanal'} en PDF`, { periodo: resumen.periodo.inicio, paginas: doc.getNumberOfPages(), conceptos, reducida })
+      registrar('info', `Resumen ${resumen.periodo.tipo === 'mes' ? 'mensual' : 'semanal'} en PDF`, { periodo: resumen.periodo.inicio, paginas: doc.getNumberOfPages(), conceptos, reducida, plan: !!plan })
       const r = await compartirArchivo(doc.output('blob'), nombre, resumen.periodo.etiqueta, descargar)
       if (r === 'descargado') avisar(`${nombre} descargado`)
     } catch (e) {
@@ -134,9 +147,17 @@ export function Resumenes() {
             </div>
           </div>
           {reducida ? (
-            <p className="text-xs text-zinc-500">Solo ingresos, gastos, ahorro y gasto por categoría, sin movimientos ni lo que queda fuera del extracto.</p>
+            <p className="text-xs text-zinc-500">Solo ingresos, gastos, ahorro y gasto por categoría, sin movimientos ni lo que queda fuera del extracto. El plan de pagos va si lo incluyes.</p>
           ) : (
             <FilaInterruptor texto="Incluir los conceptos" nota="Sin ellos, solo fechas, categorías e importes" activo={conceptos} onCambio={cambiarConceptos} />
+          )}
+          {hayPlan && (
+            <FilaInterruptor
+              texto="Incluir el plan de pagos"
+              nota={escenario ? `El actual y con ${escenario.nombres.join(' y ')}, con el capital previsto` : 'Pago de cada verano, deuda y capital previsto'}
+              activo={conPlan}
+              onCambio={cambiarPlan}
+            />
           )}
         </div>
 

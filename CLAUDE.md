@@ -137,6 +137,7 @@ Ordenada por esfuerzo, de menos a más, con prioridad para la usabilidad y el re
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.28.0 (14/11/2026): plan de pagos más rápido (estadísticas y capital calculados una vez por versión de los datos, simulación diferida), una sola simulación compartida entre Ingresos previstos y el plan (`useSimulacion`), tarjeta de la deuda debajo de «Tu posición» y en Informes, y apartado del plan en el PDF de los resúmenes con el escenario actual y el de las nóminas que no cuentan.
 - v0.27.0 (14/11/2026): la deuda pendiente y el colchón se pueden cambiar en la simulación del plan de pagos (`Simulacion.deuda` y `colchon`) y guardar en el plan si convencen.
 - v0.26.0 (14/11/2026): decisiones del usuario sobre la navegación. Entre pestañas solo con la barra (fuera `useCambioDePestana`) y sin cambio de mes deslizando en el Extracto e Informes: el mes se elige en la tira, que enseña siempre cinco meses enteros. Ajustes pasa a una lista agrupada al estilo del iPhone (`PaginaAjuste`, «‹ Ajustes»); las pantallas del Extracto abiertas desde Ajustes vuelven a Ajustes (`state.atras`).
 - v0.25.0 (14/11/2026): bonus anual en cada nómina, aparte de las pagas extra (esquema 12, `bonus`): mes e importe neto, cuenta en la previsión y se puede quitar en la simulación (`Simulacion.bonus`).
@@ -431,6 +432,7 @@ Pantalla Resúmenes (en el móvil, desde el Extracto; en escritorio, en el menú
 
 - **Periodos:** semana de lunes a domingo y mes natural. La comparativa es siempre con el periodo anterior (semana anterior o mes anterior). Si el periodo está en curso, se compara con los mismos días del anterior y se indica en pantalla y en el PDF.
 - **Cálculo:** solo computan los movimientos de tipo Normal. En una categoría de gasto, una devolución resta gasto; sin categoría, se clasifica por el signo.
+- **Plan de pagos (v0.28.0):** si hay deuda configurada y está activado «Incluir el plan de pagos», el PDF (completo o para compartir) lleva el calendario de pagos del plan actual y con las nóminas que no cuentan en la previsión, el año en que queda saldada y el capital previsto a 12 y 24 meses con su gráfico.
 - **Contenido común:** ingresos, gastos, ahorro y tasa de ahorro con su variación; gasto por categoría con peso, importe del periodo anterior y diferencia; bloque «Fuera del extracto» con gastos de empleado, reembolsos, traspasos y pagos de deuda (solo lo que haya).
 - **Semanal:** todos los movimientos de la semana por día, con los que no computan en gris.
 - **Mensual:** subcategorías, ingresos por concepto, tabla semana a semana (semanas recortadas al mes) y los diez mayores gastos.
