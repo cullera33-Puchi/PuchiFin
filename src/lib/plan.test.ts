@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { datosIniciales, ErrorDatos, guardarCompromiso, guardarEvento, guardarNomina, guardarPresupuesto, guardarPrevision } from '../datos/operaciones'
-import { calcularPlan, efectoMesCerrado, hayCrecimiento, haySimulacion, importeNomina, preverIngresos, SIN_SIMULACION } from './plan'
+import { calcularPlan, comprobarPrevision, efectoMesCerrado, evolucionAnual, hayCrecimiento, haySimulacion, importeNomina, preverIngresos, SIN_SIMULACION } from './plan'
 import type { BaseDatos, Movimiento, NominaBruta } from './tipos'
 
 const db0 = datosIniciales()
@@ -240,5 +240,81 @@ describe('crecimiento: inflación del gasto y subidas de sueldo (v0.39.0)', () =
     expect(() => conNomina(db0, { bonus_consecucion: 300 })).toThrow(ErrorDatos)
     expect(() => conNomina(db0, { hijos: [20] })).toThrow(/nacimiento/)
     expect(conNomina(db0, { hijos: [2024, 2020] }).ajustes.nominas[0].bruto!.hijos).toEqual([2020, 2024])
+  })
+})
+
+describe('de dónde sale el ahorro previsto y evolución por años (v0.40.0)', () => {
+  const bruta: NominaBruta = {
+    fijo_anual: 60000, pagas: 12, meses_extra: [], bonus_objetivo: 10000, bonus_consecucion: 80, bonus_mes: 8,
+    flexible_mes: 0, especie_mes: 0, subida_anual: 10, subida_mes: 9, vigente_desde: '2026-09', hijos: [], tipo_actual: null,
+  }
+  const conBruta = (db: BaseDatos) => guardarNomina(db, { nombre: 'Mi nómina', neto_mensual: 3000, pagas: [], desde: null, hasta: null, incluida: true, bonus: null, bruto: bruta })
+
+  it('sin nóminas guardadas, lo previsto coincide con el historial y solo avisa de los pocos meses', () => {
+    const c = comprobarPrevision(crear(20000), HOY)!
+    expect(c.meses).toBe(3)
+    expect(c.real).toEqual({ nominas: 3000, otros: 0, gastos: 2000, ahorro: 1000 })
+    expect(c.previsto).toMatchObject({ nominas: 0, otros: 3000, gastos: 2000, puntuales: 0, ahorro: 1000 })
+    expect(c.presupuestos).toBe(0)
+    expect(c.avisos).toHaveLength(1)
+    expect(c.avisos[0]).toMatch(/3 meses cerrados/)
+  })
+
+  it('las partidas previstas suman el ahorro previsto, que es el de la previsión de ingresos', () => {
+    const db = guardarEvento(conBruta(crear(20000)), { fecha: '2027-03-10', concepto: 'IBI', importe: -600, categoria_id: null })
+    const sim = { ...SIN_SIMULACION, ahorroExtra: 100 }
+    const c = comprobarPrevision(db, HOY, sim)!
+    const p = c.previsto
+    expect(p.nominas + p.otros - p.gastos + p.puntuales + p.extra).toBeCloseTo(p.ahorro, 0)
+    expect(p.ahorro).toBeCloseTo(preverIngresos(db, HOY, sim)!.ahorroMensual, 1)
+    expect(p.puntuales).toBe(-50)
+    expect(p.otros).toBe(0)
+  })
+
+  it('avisa si las nóminas previstas superan al historial, si hay otros ingresos de más y si el presupuesto queda por debajo del gasto', () => {
+    const db = conBruta(crear(20000))
+    // 60.000 brutos y un bonus de 8.000 dan más neto que los 3.000 del historial
+    expect(comprobarPrevision(db, HOY)!.avisos.some((a) => /nóminas previstas dan/.test(a))).toBe(true)
+    // La nómina del historial sin su categoría: se cuenta como otros ingresos, además de la nómina guardada
+    const sinCategoria = { ...db, movimientos: db.movimientos.map((m) => (m.importe === 3000 ? { ...m, categoria_id: cat('Ingresos > Otros ingresos') } : m)) }
+    const c = comprobarPrevision(sinCategoria, HOY)!
+    expect(c.previsto.otros).toBe(3000)
+    expect(c.avisos.some((a) => /se están contando dos veces/.test(a))).toBe(true)
+    // Presupuesto de 600 en una categoría en la que se gastan 1.000
+    const conPresupuesto = guardarPresupuesto(db, cat('Alimentación'), 600)
+    const p = comprobarPrevision(conPresupuesto, HOY)!
+    expect(p.presupuestos).toBe(400)
+    expect(p.previsto.gastos).toBe(1600)
+    expect(p.avisos.some((a) => /400 € al mes menos de lo que gastas/.test(a))).toBe(true)
+    expect(comprobarPrevision(db, HOY)!.avisos.some((a) => /presupuestos/.test(a))).toBe(false)
+  })
+
+  it('por años: el bruto sube un 10 % al año, el neto sube menos y la retención crece', () => {
+    const db = conBruta(crear(20000))
+    const e = evolucionAnual(db, HOY)!
+    expect(e.map((x) => x.anio)).toEqual([2026, 2027, 2028, 2029, 2030, 2031])
+    // Del año de los datos, solo los ingresos
+    expect(e[0]).toMatchObject({ otros: null, gastos: null, ahorro: null })
+    expect(e[0].bruto).toBeGreaterThan(60000)
+    // 2027: ocho meses a 60.000 y cuatro a 66.000, más el 80 % del bonus de 10.000
+    expect(e[1].bruto).toBe(70000)
+    expect(e[1].bonusBruto).toBe(8000)
+    expect(e[1].neto).toBeCloseTo(e[1].bruto! - e[1].seguridadSocial - e[1].irpf, 0)
+    expect(e[2].bruto).toBeCloseTo(77000, 0)
+    const subeBruto = e[2].bruto! / e[1].bruto!
+    const subeNeto = e[2].neto / e[1].neto
+    expect(subeNeto).toBeGreaterThan(1)
+    expect(subeNeto).toBeLessThan(subeBruto)
+    expect(e[2].retencion!).toBeGreaterThan(e[1].retencion!)
+    // El ahorro del año es lo que entra menos lo que se gasta
+    expect(e[1].ahorro!).toBeCloseTo(e[1].neto + e[1].otros! - e[1].gastos!, 0)
+    expect(e[1].gastos).toBe(24000)
+    // Sin el bonus en la simulación, el bruto y el neto bajan
+    const sinBonus = evolucionAnual(db, HOY, { ...SIN_SIMULACION, bonus: { [db.ajustes.nominas[0].id]: false } })!
+    expect(sinBonus[1].bruto).toBe(62000)
+    expect(sinBonus[1].neto).toBeLessThan(e[1].neto)
+    // Con una nómina en neto no hay bruto ni retención
+    const neta = guardarNomina(crear(20000), { nombre: 'Mi nómina', neto_mensual: 3000, pagas: [], desde: null, hasta: null, incluida: true, bonus: null })
+    expect(evolucionAnual(neta, HOY)![1]).toMatchObject({ bruto: null, retencion: null, neto: 36000 })
   })
 })

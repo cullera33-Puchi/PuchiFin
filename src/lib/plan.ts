@@ -296,11 +296,11 @@ function modelo(db: BaseDatos, stats: Map<string, Estadistica>, base: string, si
     const d = desglose(mes)
     return d.otros + d.nominas.reduce((s, x) => s + x.importe, 0)
   }
-  const gastos = (mes: string) => {
+  const gastoDe = (mes: string, conPresupuesto: boolean) => {
     let total = 0
     const sube = subidaGasto(mes)
     for (const [k, media] of mediaGasto) {
-      const p = k ? presupuestos.get(k) : undefined
+      const p = k && conPresupuesto ? presupuestos.get(k) : undefined
       const presupuesto = p ? (p.excepciones[mes] ?? p.importe_mensual) : 0
       let g = presupuesto > 0 ? presupuesto : media
       if (sim.recorte && k === sim.recorte.categoria_id) g *= 1 - sim.recorte.porcentaje / 100
@@ -310,7 +310,20 @@ function modelo(db: BaseDatos, stats: Map<string, Estadistica>, base: string, si
     }
     return total
   }
-  return { meses: n, desglose, ingresos, gastos, ahorro: (mes: string) => ingresos(mes) - gastos(mes) + sim.ahorroExtra }
+  const gastos = (mes: string) => gastoDe(mes, true)
+  return {
+    meses: n,
+    desglose,
+    ingresos,
+    gastos,
+    /** El gasto previsto si no hubiera presupuestos: la media de cada categoría, con la inflación */
+    gastosSegunMedia: (mes: string) => gastoDe(mes, false),
+    /** Medias mensuales reales de los meses cerrados */
+    real: { ingresos: mediaIngresos, nomina: mediaNomina, gastos: [...mediaGasto.values()].reduce((s, x) => s + x, 0) },
+    cerrados,
+    reemplaza,
+    ahorro: (mes: string) => ingresos(mes) - gastos(mes) + sim.ahorroExtra,
+  }
 }
 
 /** Deuda pendiente y pagos reales: los movimientos de tipo Pago de deuda desde la fecha de referencia */
@@ -344,8 +357,7 @@ export function calcularPlan(db: BaseDatos, hoy: string, sim: Simulacion = SIN_S
   const deudaPendiente = redondear(Math.max(0, sim.deuda ?? compromiso.deuda_inicial - pagado))
   const colchon = sim.colchon ?? compromiso.colchon
   // Previstos pendientes por mes (con su signo)
-  const puntuales = new Map<string, number>()
-  for (const e of estadoEventos(db, hoy)) if (e.estado === 'pendiente') puntuales.set(e.evento.fecha.slice(0, 7), (puntuales.get(e.evento.fecha.slice(0, 7)) ?? 0) + e.evento.importe)
+  const puntuales = previstosPorMes(db, hoy)
 
   const pagadoEnVentana = (anio: number) =>
     db.movimientos.some(
@@ -430,8 +442,7 @@ export function preverIngresos(db: BaseDatos, hoy: string, sim: Simulacion = SIN
     const otros = redondear(Math.max(0, d.otros))
     return { mes, nominas: d.nominas, otros, total: redondear(otros + d.nominas.reduce((s, x) => s + x.importe, 0)) }
   })
-  const puntuales = new Map<string, number>()
-  for (const e of estadoEventos(db, hoy)) if (e.estado === 'pendiente') puntuales.set(e.evento.fecha.slice(0, 7), (puntuales.get(e.evento.fecha.slice(0, 7)) ?? 0) + e.evento.importe)
+  const puntuales = previstosPorMes(db, hoy)
   const resto = (diasDelMes(mesDatos) - Number(datos.slice(8, 10))) / diasDelMes(mesDatos)
   const ahorroDe = (mes: string) => mod.ahorro(mes) + (puntuales.get(mes) ?? 0)
   const capitalHoy = capitalDeHoy(db)
@@ -447,6 +458,176 @@ export function preverIngresos(db: BaseDatos, hoy: string, sim: Simulacion = SIN
     capital12: capitalHoy === null ? null : redondear(capitalHoy + mod.ahorro(mesDatos) * Math.max(0, resto) + (puntuales.get(mesDatos) ?? 0) + suma12),
     mediaNomina: conNomina.length ? redondear(conNomina.reduce((s, m) => s + stats.get(m)!.nomina, 0) / conNomina.length) : null,
   }
+}
+
+/** Previstos pendientes por mes (con su signo) */
+function previstosPorMes(db: BaseDatos, hoy: string): Map<string, number> {
+  const res = new Map<string, number>()
+  for (const e of estadoEventos(db, hoy)) if (e.estado === 'pendiente') res.set(e.evento.fecha.slice(0, 7), (res.get(e.evento.fecha.slice(0, 7)) ?? 0) + e.evento.importe)
+  return res
+}
+
+export interface Comprobacion {
+  /** Meses cerrados en los que se basa la previsión */
+  meses: number
+  /** Hay nóminas guardadas que cuentan: sustituyen a la nómina del historial. Sin ellas, todo el ingreso previsto sale del historial */
+  conNominas: boolean
+  /** Medias mensuales de esos meses */
+  real: { nominas: number; otros: number; gastos: number; ahorro: number }
+  /** Medias mensuales de los 12 próximos. «extra» es el ahorro de más de la simulación */
+  previsto: { nominas: number; otros: number; gastos: number; puntuales: number; extra: number; ahorro: number }
+  /** Lo que los presupuestos bajan (en positivo) o suben el gasto previsto frente a la media, al mes */
+  presupuestos: number
+  /** Lo que ha subido el capital al mes según el banco (sin los pagos de deuda) frente al ahorro del extracto, en los mismos meses */
+  banco: { meses: number; capital: number; extracto: number } | null
+  avisos: string[]
+}
+
+/**
+ * De dónde sale el ahorro previsto (v0.40.0): las medias de los 12 próximos meses frente a las de los
+ * meses cerrados, y lo que conviene revisar si la previsión se aleja del historial. Null sin un mes cerrado.
+ */
+export function comprobarPrevision(db: BaseDatos, hoy: string, sim: Simulacion = SIN_SIMULACION): Comprobacion | null {
+  const stats = estadisticas(db)
+  const mesDatos = fechaDeLosDatos(db, hoy).slice(0, 7)
+  const mod = modelo(db, stats, mesDatos, sim)
+  if (!mod.meses) return null
+  const proximos = Array.from({ length: 12 }, (_, i) => sumarMeses(`${mesDatos}-01`, i + 1).slice(0, 7))
+  const puntuales = previstosPorMes(db, hoy)
+  const media = (f: (mes: string) => number) => proximos.reduce((s, m) => s + f(m), 0) / 12
+  const nominas = media((m) => mod.desglose(m).nominas.reduce((s, x) => s + x.importe, 0))
+  const otros = media((m) => mod.desglose(m).otros)
+  const gastos = media(mod.gastos)
+  const previsto = {
+    nominas: redondear(nominas),
+    otros: redondear(otros),
+    gastos: redondear(gastos),
+    puntuales: redondear(media((m) => puntuales.get(m) ?? 0)),
+    extra: sim.ahorroExtra,
+    ahorro: redondear(media((m) => mod.ahorro(m) + (puntuales.get(m) ?? 0))),
+  }
+  const real = {
+    nominas: redondear(mod.real.nomina),
+    otros: redondear(mod.real.ingresos - mod.real.nomina),
+    gastos: redondear(mod.real.gastos),
+    ahorro: redondear(mod.real.ingresos - mod.real.gastos),
+  }
+  const presupuestos = redondear(media(mod.gastosSegunMedia) - gastos)
+
+  // Con el banco: lo que ha variado el capital en los meses cerrados (sin los pagos de deuda) frente al extracto
+  let banco: Comprobacion['banco'] = null
+  const evolucion = calcularPosicion(db)?.evolucion ?? []
+  let capital = 0
+  let extracto = 0
+  let n = 0
+  for (let i = 1; i < evolucion.length; i++) {
+    const { mes } = evolucion[i]
+    if (mes >= mesDatos || !mod.cerrados.includes(mes) || evolucion[i - 1].mes !== sumarMeses(`${mes}-01`, -1).slice(0, 7)) continue
+    const st = stats.get(mes)
+    if (!st) continue
+    let deuda = 0
+    for (const m of db.movimientos) if (m.tipo === 'pago_deuda' && m.fecha_operacion.slice(0, 7) === mes) deuda -= m.importe
+    capital += evolucion[i].capital - evolucion[i - 1].capital + deuda
+    extracto += st.ingresos - [...st.gastos.values()].reduce((s, x) => s + x, 0)
+    n++
+  }
+  if (n >= 2) banco = { meses: n, capital: redondear(capital / n), extracto: redondear(extracto / n) }
+
+  const eur = (x: number) => `${Math.round(Math.abs(x)).toLocaleString('es-ES', { useGrouping: 'always' } as Intl.NumberFormatOptions)} €`
+  const avisos: string[] = []
+  if (mod.meses < 12)
+    avisos.push(
+      `La previsión se basa en ${mod.meses === 1 ? 'un mes cerrado' : `${mod.meses} meses cerrados`}. Hasta tener un año, los gastos de una vez al año (seguros, impuestos, vacaciones, colegio) pueden no estar en la media: añádelos en Gastos previstos.`,
+    )
+  if (mod.reemplaza && previsto.nominas > 0 && real.nominas > 0 && previsto.nominas > real.nominas * 1.15)
+    avisos.push(
+      `Tus nóminas previstas dan ${eur(previsto.nominas)} al mes de media, con pagas y bonus, y en tu historial entran ${eur(real.nominas)}. Es normal si el historial no incluye todavía el bonus o alguna paga, o si la nómina ha subido; si no, revisa el bruto y el porcentaje del bonus.`,
+    )
+  if (mod.reemplaza && previsto.otros > 100 && previsto.otros > previsto.nominas * 0.1)
+    avisos.push(
+      `La previsión cuenta con ${eur(previsto.otros)} al mes de otros ingresos, según tu historial. Si ahí hay nóminas, pagas o un bonus sin la categoría Ingresos, Nómina, se están contando dos veces.`,
+    )
+  if (presupuestos > Math.max(50, real.gastos * 0.05)) avisos.push(`Tus presupuestos suman ${eur(presupuestos)} al mes menos de lo que gastas de media. La previsión cuenta con que los cumples.`)
+  if (banco && banco.extracto - banco.capital > Math.max(300, Math.abs(banco.extracto) * 0.25))
+    avisos.push(
+      `En los últimos ${banco.meses} meses el extracto da un ahorro de ${eur(banco.extracto)} al mes, pero tu capital ha ${banco.capital >= 0 ? 'subido' : 'bajado'} ${eur(banco.capital)}. Parte del ahorro no se queda en tus cuentas: revisa si hay salidas marcadas como traspaso o como que no cuentan.`,
+    )
+  return { meses: mod.meses, conNominas: mod.reemplaza, real, previsto, presupuestos, banco, avisos }
+}
+
+export interface AnioPrevisto {
+  anio: number
+  /** Fijo y bonus brutos de las nóminas en bruto que cuentan; null si ninguna está en bruto */
+  bruto: number | null
+  bonusBruto: number
+  seguridadSocial: number
+  irpf: number
+  /** IRPF retenido sobre el bruto, en porcentaje; null sin nóminas en bruto */
+  retencion: number | null
+  /** Lo que llega al banco por las nóminas, con pagas y bonus */
+  neto: number
+  /** Del año de los datos solo se enseñan los ingresos: el resto del año ya es en parte real */
+  otros: number | null
+  gastos: number | null
+  ahorro: number | null
+}
+
+/**
+ * Evolución por años naturales (v0.40.0), desde el de los datos: bruto, retención y neto de las nóminas
+ * y, en los años siguientes, otros ingresos, gasto y ahorro previstos. Con el mismo modelo que el plan.
+ */
+export function evolucionAnual(db: BaseDatos, hoy: string, sim: Simulacion = SIN_SIMULACION, anios = 6): AnioPrevisto[] | null {
+  const stats = estadisticas(db)
+  const mesDatos = fechaDeLosDatos(db, hoy).slice(0, 7)
+  const mod = modelo(db, stats, mesDatos, sim)
+  if (!mod.meses) return null
+  const ajuste = ajusteNominas(db, sim)
+  const activas = nominasActivas(db, sim)
+  const puntuales = previstosPorMes(db, hoy)
+  const primero = Number(mesDatos.slice(0, 4))
+  const hayBruta = activas.some((n) => n.bruto)
+  return Array.from({ length: anios }, (_, i) => {
+    const anio = primero + i
+    const futuro = i > 0
+    let bruto = 0
+    let bonusBruto = 0
+    let seguridadSocial = 0
+    let irpf = 0
+    let neto = 0
+    let otros = 0
+    let gastos = 0
+    let ahorro = 0
+    for (let m = 1; m <= 12; m++) {
+      const mes = `${anio}-${String(m).padStart(2, '0')}`
+      for (const n of activas) {
+        const conBonus = sim.bonus?.[n.id] !== false
+        neto += importeNomina(n, mes, conBonus, ajuste)
+        if (!n.bruto || (n.desde && mes < n.desde) || (n.hasta && mes > n.hasta)) continue
+        const d = mesDeNomina(n.bruto, mes, ajuste, n.desde, n.hasta)
+        bruto += d.bruto + (conBonus ? d.bonusBruto : 0)
+        bonusBruto += conBonus ? d.bonusBruto : 0
+        seguridadSocial += d.seguridadSocial
+        irpf += d.irpf + (conBonus ? d.bonusBruto - d.bonusNeto : 0)
+      }
+      if (futuro) {
+        otros += mod.desglose(mes).otros
+        gastos += mod.gastos(mes)
+        ahorro += mod.ahorro(mes) + (puntuales.get(mes) ?? 0)
+      }
+    }
+    return {
+      anio,
+      bruto: hayBruta ? redondear(bruto) : null,
+      bonusBruto: redondear(bonusBruto),
+      seguridadSocial: redondear(seguridadSocial),
+      irpf: redondear(irpf),
+      retencion: hayBruta && bruto > 0 ? Math.round((irpf / bruto) * 1000) / 10 : null,
+      neto: redondear(neto),
+      otros: futuro ? redondear(otros) : null,
+      gastos: futuro ? redondear(gastos) : null,
+      ahorro: futuro ? redondear(ahorro) : null,
+    }
+  })
 }
 
 /**

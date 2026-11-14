@@ -1,4 +1,4 @@
-import { Briefcase, ChevronRight, Plus } from 'lucide-react'
+import { Briefcase, ChevronRight, CircleCheck, Plus, TriangleAlert } from 'lucide-react'
 import { Fragment, useDeferredValue, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useHacer } from '../componentes/acciones'
@@ -11,7 +11,20 @@ import { hoyIso, MESES, mesLargo, sumarMeses } from '../lib/fechas'
 import { formatearImporte, formatearRedondo, leerImporteUsuario, plural } from '../lib/formato'
 import { fijoEn, objetivoEn, resumenBruta, vigenteDesde } from '../lib/nomina'
 import { useSimulacion } from '../componentes/simulacion'
-import { calcularPlan, hayCrecimiento, haySimulacion, inflacionDe, preverIngresos, SIN_SIMULACION, tieneBonus, type Simulacion } from '../lib/plan'
+import {
+  calcularPlan,
+  comprobarPrevision,
+  evolucionAnual,
+  hayCrecimiento,
+  haySimulacion,
+  inflacionDe,
+  preverIngresos,
+  SIN_SIMULACION,
+  tieneBonus,
+  type AnioPrevisto,
+  type Comprobacion,
+  type Simulacion,
+} from '../lib/plan'
 import type { BaseDatos, Nomina, NominaBruta, PagaExtra } from '../lib/tipos'
 
 const conMayuscula = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
@@ -206,6 +219,10 @@ export function Ingresos() {
   const plan = useMemo(() => calcularPlan(db, hoy).plan, [db, hoy])
   const planSim = useMemo(() => (simulando && plan ? calcularPlan(db, hoy, diferida).plan : null), [db, hoy, diferida, simulando, plan])
   const vista = conSim ?? base
+  // De dónde sale el ahorro y la evolución por años, con la simulación si la hay
+  const comprobacion = useMemo(() => comprobarPrevision(db, hoy, diferida), [db, hoy, diferida])
+  const anios = useMemo(() => (nominas.length ? evolucionAnual(db, hoy, diferida) : null), [db, hoy, diferida, nominas.length])
+  const [porAnios, setPorAnios] = useState(false)
   const total12 = vista ? vista.meses.reduce((s, m) => s + m.total, 0) : 0
 
   const alternar = (n: Nomina) =>
@@ -316,7 +333,23 @@ export function Ingresos() {
         </section>
       )}
 
-      {vista && (
+      {comprobacion && <ComoSale c={comprobacion} simulando={simulando} />}
+
+      {vista && anios && (
+        <div className="mt-5 px-1">
+          <Segmentado
+            etiqueta="Ingresos previstos"
+            opciones={[
+              ['meses', 'Mes a mes'],
+              ['anios', 'Por años'],
+            ]}
+            valor={porAnios ? 'anios' : 'meses'}
+            onCambio={(v) => setPorAnios(v === 'anios')}
+          />
+        </div>
+      )}
+      {vista && anios && porAnios && <PorAnios anios={anios} simulando={simulando} />}
+      {vista && !(anios && porAnios) && (
         <section className="mt-4">
           <h3 className="cabecera-grupo">Próximos 12 meses{simulando ? ', con la simulación' : ''}</h3>
           <ul className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
@@ -352,6 +385,141 @@ export function Ingresos() {
 
       <HojaNomina nomina={editando} onCerrar={() => setEditando(null)} sugerido={base?.mediaNomina ?? null} />
     </>
+  )
+}
+
+/**
+ * De dónde sale el ahorro previsto (v0.40.0): la media al mes de los meses cerrados frente a la de los
+ * 12 próximos, partida a partida, y lo que conviene revisar si la previsión se aleja del historial.
+ */
+function ComoSale({ c, simulando }: { c: Comprobacion; simulando: boolean }) {
+  const filas: [string, number | null, number][] = c.conNominas
+    ? [
+        ['Nóminas', c.real.nominas, c.previsto.nominas],
+        ['Otros ingresos', c.real.otros, c.previsto.otros],
+      ]
+    : [['Ingresos', c.real.nominas + c.real.otros, c.previsto.nominas + c.previsto.otros]]
+  filas.push(['Gastos', -c.real.gastos, -c.previsto.gastos])
+  if (c.previsto.puntuales) filas.push(['Gastos previstos', null, c.previsto.puntuales])
+  if (c.previsto.extra) filas.push(['Ahorro de más', null, c.previsto.extra])
+  const celda = 'py-1 text-right'
+  return (
+    <section className="mt-4">
+      <h3 className="cabecera-grupo">De dónde sale el ahorro{simulando ? ', con la simulación' : ''}</h3>
+      <div className="lista px-4 py-3">
+        <table className="w-full text-[15px] tabular-nums">
+          <thead>
+            <tr className="text-[12px] text-zinc-500">
+              <th className="py-1 text-left font-normal">Media al mes</th>
+              <th className="py-1 text-right font-normal">{c.meses === 1 ? 'Último mes' : `Últimos ${c.meses} meses`}</th>
+              <th className="py-1 text-right font-normal">Próximos 12</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filas.map(([nombre, real, previsto]) => (
+              <tr key={nombre}>
+                <th scope="row" className="py-1 text-left font-normal">
+                  {nombre}
+                </th>
+                <td className={`${celda} text-zinc-500`}>{real === null ? '' : formatearRedondo(real)}</td>
+                <td className={celda}>{formatearRedondo(previsto)}</td>
+              </tr>
+            ))}
+            <tr className="border-t border-zinc-200/70 font-semibold dark:border-zinc-800">
+              <th scope="row" className="py-1.5 text-left font-semibold">
+                Ahorro
+              </th>
+              <td className={`${celda} text-zinc-500`}>{formatearRedondo(c.real.ahorro)}</td>
+              <td className={celda}>{formatearRedondo(c.previsto.ahorro)}</td>
+            </tr>
+          </tbody>
+        </table>
+        {c.banco && (
+          <p className="mt-2 text-[12px] text-zinc-500 tabular-nums">
+            Según el banco, en {plural(c.banco.meses, 'mes', 'meses')} tu capital ha {c.banco.capital >= 0 ? 'subido' : 'bajado'} {formatearRedondo(Math.abs(c.banco.capital))} al mes, sin contar los
+            pagos de la deuda. El extracto de esos meses da {formatearRedondo(c.banco.extracto)}.
+          </p>
+        )}
+        {c.avisos.length ? (
+          <ul className="mt-3 space-y-2" aria-label="Para revisar">
+            {c.avisos.map((a) => (
+              <li key={a} className="flex gap-2 text-[13px]">
+                <TriangleAlert className="mt-0.5 size-4 shrink-0 text-[#C93400] dark:text-[#FF9F0A]" strokeWidth={2} />
+                <span>{a}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 flex gap-2 text-[13px]">
+            <CircleCheck className="mt-0.5 size-4 shrink-0 text-[#248A3D] dark:text-[#30D158]" strokeWidth={2} />
+            <span>La previsión es coherente con tu historial: no hay nada que revisar.</span>
+          </p>
+        )}
+      </div>
+    </section>
+  )
+}
+
+/**
+ * Evolución por años naturales (v0.40.0): neto de las nóminas con su bruto y su retención y, desde el año
+ * siguiente, el gasto y el ahorro previstos. Dos barras por año sobre la misma escala: lo que entra y lo que se gasta.
+ */
+function PorAnios({ anios, simulando }: { anios: AnioPrevisto[]; simulando: boolean }) {
+  const max = Math.max(...anios.map((a) => Math.max(a.neto + (a.otros ?? 0), a.gastos ?? 0)), 1)
+  const ancho = (n: number) => `${Math.max(0, Math.min(100, (n / max) * 100))}%`
+  return (
+    <section className="mt-4">
+      <h3 className="cabecera-grupo">Por años{simulando ? ', con la simulación' : ''}</h3>
+      <ul className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
+        {anios.map((a, i) => {
+          const antes = i ? anios[i - 1].neto : 0
+          const sube = antes > 0 ? Math.round((a.neto / antes - 1) * 1000) / 10 : null
+          return (
+            <li key={a.anio} className="px-4 py-2.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-[15px] font-medium">{a.anio}</span>
+                <span className="text-[15px] tabular-nums">
+                  {formatearRedondo(a.neto)} netos
+                  {sube !== null && (
+                    <span className="text-[12px] text-zinc-500">
+                      {' '}
+                      ({sube >= 0 ? '+' : ''}
+                      {texto(sube)} %)
+                    </span>
+                  )}
+                </span>
+              </div>
+              {a.bruto !== null && a.retencion !== null && (
+                <p className="text-[12px] text-zinc-500 tabular-nums">
+                  {formatearRedondo(a.bruto)} brutos{a.bonusBruto > 0 ? `, ${formatearRedondo(a.bonusBruto)} de bonus` : ''}. IRPF {texto(a.retencion)}{'\u00a0'}%
+                </p>
+              )}
+              <div className="mt-1.5 space-y-[2px]" aria-hidden="true">
+                <span className="block h-1.5 rounded-r-[4px]" style={{ width: ancho(a.neto + (a.otros ?? 0)), background: 'var(--serie-1)' }} />
+                {a.gastos !== null && <span className="block h-1.5 rounded-r-[4px]" style={{ width: ancho(a.gastos), background: 'var(--serie-2)' }} />}
+              </div>
+              {a.gastos !== null && a.ahorro !== null && (
+                <p className="mt-1 text-[12px] text-zinc-500 tabular-nums">
+                  {(a.otros ?? 0) >= 12 ? `Otros ingresos ${formatearRedondo(a.otros ?? 0)}. ` : ''}Gastos {formatearRedondo(a.gastos)}. Ahorro {formatearRedondo(a.ahorro)}
+                </p>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+      <div className="mt-1.5 flex flex-wrap gap-x-4 px-4 text-[12px] text-zinc-500">
+        <span className="flex items-center gap-1.5">
+          <span className="size-2.5 rounded-sm" style={{ background: 'var(--serie-1)' }} /> Ingresos netos
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="size-2.5 rounded-sm" style={{ background: 'var(--serie-2)' }} /> Gastos
+        </span>
+      </div>
+      <p className="mt-1 px-4 text-[12px] text-zinc-500">
+        Años naturales. De {anios[0].anio} se enseñan solo las nóminas, calculadas con tu sueldo; desde {anios[0].anio + 1}, también el gasto y el ahorro previstos. El sueldo sube
+        con la subida anual y el gasto, con la inflación. El ahorro cuenta los gastos previstos que has dado de alta.
+      </p>
+    </section>
   )
 }
 

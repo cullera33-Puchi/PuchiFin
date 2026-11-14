@@ -2,6 +2,16 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.40.0. De dónde sale el ahorro previsto y evolución de ingresos por años (14 de noviembre de 2026)
+
+El usuario ve mucho ahorro previsto en la simulación y pide comprobar que es coherente, y ver la evolución de sus ingresos.
+
+- Revisión del cálculo con un caso completo, mes a mes: lo retenido en el año coincide con la cuota anual de IRPF, el neto de los doce meses es el bruto menos la Seguridad Social y la retención, y el ahorro previsto es lo que entra menos lo que se gasta. No había errores de cálculo; el ahorro alto sale de los supuestos (pagas y bonus que el historial corto no recoge, y un sueldo que sube más que el gasto).
+- De dónde sale el ahorro (`comprobarPrevision` en `src/lib/plan.ts`, sección `ComoSale` en Ingresos previstos): media al mes de los meses cerrados frente a la de los 12 próximos, por partidas (nóminas, otros ingresos, gastos, gastos previstos y ahorro), y el contraste con el banco (lo que ha variado el capital, sin los pagos de deuda, frente al ahorro del extracto). Avisa de lo que puede inflar la previsión: menos de 12 meses cerrados, nóminas previstas por encima del historial, otros ingresos que pueden ser una nómina sin su categoría (se contaría dos veces), presupuestos por debajo del gasto real y ahorro del extracto que no llega a las cuentas.
+- Evolución por años (`evolucionAnual`, sección `PorAnios`): en Ingresos previstos, «Mes a mes» o «Por años». Seis años naturales con el bruto, el bonus, el IRPF sobre el bruto y el neto con su variación; desde el año siguiente, también el gasto y el ahorro previstos, con dos barras por año sobre la misma escala (ingresos netos y gastos, con los colores de Análisis). Sigue la simulación.
+- `modelo` expone el gasto con y sin presupuestos y las medias reales; `previstosPorMes` unifica los previstos pendientes. Enlace «Ver de dónde sale» en el plan de pagos.
+- Pruebas: 465 unitarias (las partidas suman el ahorro, los avisos y la evolución por años) y la prueba de navegador de la nómina en bruto recorre las dos secciones.
+
 ## v0.39.0. Nómina en bruto, subidas de sueldo, inflación del gasto y pago en agosto (14 de noviembre de 2026)
 
 Pedido por el usuario para que la simulación del plan de pagos sea realista: el sueldo sube cada año, el bonus no se cobra entero, el gasto sube con la inflación y la deuda se paga la primera semana de agosto, después de cobrar el bonus.

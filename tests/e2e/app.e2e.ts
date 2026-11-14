@@ -323,7 +323,7 @@ test('ingresos previstos: mi nómina con pagas extra y una segunda nómina simul
   // La simulación es la misma en el plan: la segunda nómina llega ya activada
   await page.getByText('Ver el plan de pagos').tap()
   await expect(page.getByRole('switch', { name: 'Simular con Nómina 2' })).toHaveAttribute('aria-checked', 'true')
-  await expect(page.getByText('Con la simulación')).toBeVisible()
+  await expect(page.getByText('Con la simulación', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Restablecer' }).tap()
   await expect(page.getByRole('switch', { name: 'Simular con Nómina 2' })).toHaveAttribute('aria-checked', 'false')
   expect(e).toEqual([])
@@ -358,6 +358,17 @@ test('nómina en bruto: neto calculado, subidas, bonus cobrado e inflación del 
   await expect(page.getByText(/60\.000\s€ brutos en 12 pagas, unos 3\.\d{3}\s€ netos al mes, bonus de 10\.000\s€ al 80 % en agosto, subida del 10 % cada septiembre/).first()).toBeVisible()
   // Con subidas, y debajo, sin ellas
   await expect(page.getByText(/Sin subidas ni inflación: /)).toBeVisible()
+  // De dónde sale el ahorro: lo real frente a lo previsto, con lo que conviene revisar
+  const sale = page.locator('section', { hasText: 'De dónde sale el ahorro' })
+  await expect(sale.getByRole('rowheader', { name: 'Nóminas' })).toBeVisible()
+  await expect(sale.getByRole('columnheader', { name: 'Próximos 12' })).toBeVisible()
+  await expect(sale.getByLabel('Para revisar').getByText(/los gastos de una vez al año/)).toBeVisible()
+  // Evolución por años: bruto, IRPF y neto, y desde el año siguiente el gasto y el ahorro
+  await page.getByRole('radio', { name: 'Por años' }).tap()
+  await expect(page.getByText(/70\.000\s€ brutos, 8\.000\s€ de bonus\. IRPF \d/)).toBeVisible()
+  await expect(page.getByText('Ingresos netos')).toBeVisible()
+  await expect(page.getByText(/Gastos .*\. Ahorro /).first()).toBeVisible()
+  await page.getByRole('radio', { name: 'Mes a mes' }).tap()
   // Otro porcentaje de bonus cobrado sube el capital
   await page.getByLabel('Bonus que cobras').selectOption('95')
   await expect(page.getByText(/Capital dentro de un año: .*\(\+/)).toBeVisible()

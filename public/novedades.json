@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.40.0",
+    "fecha": "2026-11-14",
+    "cambios": [
+      "Ingresos previstos: «De dónde sale el ahorro» compara lo que entra y lo que gastas en tus últimos meses con lo previsto para los 12 próximos.",
+      "La app avisa de lo que puede inflar el ahorro previsto: pocos meses de datos, una nómina contada dos veces o presupuestos por debajo de lo que gastas.",
+      "Nueva vista «Por años»: bruto, bonus, IRPF y neto de cada año, con el gasto y el ahorro previstos."
+    ]
+  },
+  {
     "version": "0.39.0",
     "fecha": "2026-11-14",
     "cambios": [

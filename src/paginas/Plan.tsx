@@ -151,7 +151,10 @@ function ContenidoPlan({
           </p>
         )}
         <p className="mt-1 text-[12px] text-zinc-500">
-          {plan.cuenta.alias}: {formatearRedondo(plan.saldo)} al {formatearFecha(plan.fechaSaldo)}. Ahorro previsto: unos {formatearRedondo(plan.ahorroMensual)} al mes.
+          {plan.cuenta.alias}: {formatearRedondo(plan.saldo)} al {formatearFecha(plan.fechaSaldo)}. Ahorro previsto: unos {formatearRedondo(plan.ahorroMensual)} al mes.{' '}
+          <Link to="/extracto/ingresos" className="text-marca-700 dark:text-marca-500">
+            Ver de dónde sale
+          </Link>
         </p>
         {efecto && (
           <p className={`mt-1 text-[12px] ${efecto.diferencia >= 0 ? 'text-[#248A3D] dark:text-[#30D158]' : 'text-[#D70015] dark:text-[#FF6961]'}`}>
