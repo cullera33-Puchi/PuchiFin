@@ -157,9 +157,30 @@ export interface Ajustes {
   dias_fin_de_mes: number
   /** Versión de la app cuyas reglas ya se aplicaron a lo pendiente de categorizar (esquema 5) */
   version_logica: string | null
+  /** Nóminas previstas (esquema 11): la del usuario y otras para simular; netas, lo que llega al banco */
+  nominas: Nomina[]
 }
 
-export const VERSION_ESQUEMA = 10
+export interface PagaExtra {
+  /** Mes del año (1 a 12) */
+  mes: number
+  importe: number
+}
+
+export interface Nomina {
+  id: string
+  /** Nombre corto que elige el usuario («Mi nómina», «Nómina 2») */
+  nombre: string
+  neto_mensual: number
+  pagas: PagaExtra[]
+  /** Primer y último mes (AAAA-MM) en que se cobra; null: ya se cobra o sin fin */
+  desde: string | null
+  hasta: string | null
+  /** Cuenta en la previsión; si no, solo se usa al simularla */
+  incluida: boolean
+}
+
+export const VERSION_ESQUEMA = 11
 
 export interface BaseDatos {
   esquema: number

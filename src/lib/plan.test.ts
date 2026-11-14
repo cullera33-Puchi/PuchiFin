@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { datosIniciales, guardarCompromiso, guardarEvento, guardarPresupuesto } from '../datos/operaciones'
-import { calcularPlan, efectoMesCerrado } from './plan'
+import { datosIniciales, ErrorDatos, guardarCompromiso, guardarEvento, guardarNomina, guardarPresupuesto } from '../datos/operaciones'
+import { calcularPlan, efectoMesCerrado, importeNomina, preverIngresos } from './plan'
 import type { BaseDatos, Movimiento } from './tipos'
 
 const db0 = datosIniciales()
@@ -86,5 +86,49 @@ describe('plan de pagos de la deuda', () => {
   it('efecto del mes cerrado: ahorro real frente al previsto', () => {
     const e = efectoMesCerrado(crear(10000, -700), HOY)!
     expect(e).toEqual({ mes: '2026-10', real: 1300, previsto: 1000, diferencia: 300 })
+  })
+})
+
+describe('nóminas previstas', () => {
+  const nomina = (db: BaseDatos, nombre: string, neto: number, extra: Partial<Parameters<typeof guardarNomina>[1]> = {}) =>
+    guardarNomina(db, { nombre, neto_mensual: neto, pagas: [], desde: null, hasta: null, incluida: true, ...extra })
+
+  it('la nómina guardada sustituye al historial de nómina, con sus pagas extra', () => {
+    expect(calcularPlan(nomina(crear(20000), 'Mi nómina', 3000), HOY).plan!.pagos[0].pago).toBe(10500)
+    const db = nomina(crear(20000), 'Mi nómina', 2800, { pagas: [{ mes: 6, importe: 2800 }, { mes: 12, importe: 2800 }] })
+    // 5.000 + 400 (medio noviembre) + 3.600 (diciembre) + 5 x 800 + 3.600 (junio) + 800 (julio) = 17.400
+    expect(calcularPlan(db, HOY).plan!.pagos[0].pago).toBe(14400)
+    const ing = preverIngresos(db, HOY)!
+    expect(ing.meses[0]).toMatchObject({ mes: '2026-12', otros: 0, total: 5600 })
+    expect(ing.mediaNomina).toBe(3000)
+  })
+
+  it('una segunda nómina se simula sin guardarla como incluida, desde el mes en que empieza', () => {
+    const db = nomina(crear(20000), 'Nómina 2', 1000, { desde: '2027-01', incluida: false })
+    const id = db.ajustes.nominas[0].id
+    expect(calcularPlan(db, HOY).plan!.pagos[0].pago).toBe(10500)
+    // Sin nómina propia guardada, el historial sigue mandando y la simulada se suma: 7 meses x 1.000
+    const sim = calcularPlan(db, HOY, { ahorroExtra: 0, recorte: null, nominas: { [id]: true } }).plan!
+    expect(sim.pagos[0].pago).toBe(17500)
+    expect(sim.serie[0].mes).toBe('2026-11')
+    expect(sim.serie).toHaveLength(25)
+    expect(preverIngresos(db, HOY, { ahorroExtra: 0, recorte: null, nominas: { [id]: true } })!.meses[1]).toMatchObject({ mes: '2027-01', total: 4000 })
+  })
+
+  it('importe de un mes: mensual más paga extra, dentro de sus fechas', () => {
+    const n = { id: 'n', nombre: 'X', neto_mensual: 2000, pagas: [{ mes: 7, importe: 1500 }], desde: '2027-03', hasta: '2027-12', incluida: true }
+    expect(importeNomina(n, '2027-02')).toBe(0)
+    expect(importeNomina(n, '2027-07')).toBe(3500)
+    expect(importeNomina(n, '2028-01')).toBe(0)
+  })
+
+  it('comprobaciones al guardar', () => {
+    const db = nomina(db0, 'Mi nómina', 2000)
+    expect(() => nomina(db, 'mi nómina', 2000)).toThrow(ErrorDatos)
+    expect(() => nomina(db0, '', 2000)).toThrow(ErrorDatos)
+    expect(() => nomina(db0, 'X', 0)).toThrow(ErrorDatos)
+    expect(() => nomina(db0, 'X', 1000, { pagas: [{ mes: 6, importe: 1 }, { mes: 6, importe: 2 }] })).toThrow(ErrorDatos)
+    expect(() => nomina(db0, 'X', 1000, { desde: '2027-05', hasta: '2027-01' })).toThrow(ErrorDatos)
+    expect(() => nomina(db0, 'ES9121000418450200051332', 1000)).toThrow(ErrorDatos)
   })
 })

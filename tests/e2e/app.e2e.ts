@@ -129,7 +129,41 @@ test('gastos previstos, plan de pagos y Analizar con Claude', async ({ page }) =
   expect(e).toEqual([])
 })
 
-for (const esquema of [3, 5, 7, 8, 9]) {
+test('ingresos previstos: mi nómina con pagas extra y una segunda nómina simulada', async ({ page }) => {
+  const e = errores(page)
+  await conDatosDePrueba(page)
+  // La deuda, para ver el efecto en el plan
+  await page.goto('/extracto/plan')
+  await page.getByRole('button', { name: 'Configurar' }).tap()
+  await page.getByPlaceholder('0,00 €').nth(0).fill('30000')
+  await page.getByPlaceholder('0,00 €').nth(1).fill('2000')
+  await page.getByRole('button', { name: 'Guardar', exact: true }).tap()
+  await expect(page.locator('#contenido').getByText('Deuda pendiente', { exact: true })).toBeVisible()
+  // Mi nómina con dos pagas extra
+  await page.goto('/extracto/ingresos')
+  await page.getByRole('button', { name: 'Añadir mi nómina' }).tap()
+  await page.getByPlaceholder('0,00 €').first().fill('2800')
+  await page.getByRole('button', { name: 'Añadir paga extra' }).tap()
+  await page.getByRole('button', { name: 'Añadir paga extra' }).tap()
+  await page.getByRole('button', { name: 'Guardar', exact: true }).tap()
+  await expect(page.getByText(/2\.800\s€ al mes, pagas en junio y diciembre/).first()).toBeVisible()
+  // Segunda nómina, fuera de la previsión
+  await page.getByRole('button', { name: 'Añadir una nómina' }).tap()
+  await page.getByPlaceholder('0,00 €').first().fill('1200')
+  await page.getByRole('button', { name: 'Guardar', exact: true }).tap()
+  await expect(page.getByRole('switch', { name: 'Simular con Nómina 2' })).toBeVisible()
+  // Simularla: cambian el capital y el pago
+  await page.getByRole('switch', { name: 'Simular con Nómina 2' }).tap()
+  await expect(page.getByText(/Capital dentro de un año: .*\(\+/)).toBeVisible()
+  await expect(page.getByText(/Pago de julio de 2027: .*\(\+/)).toBeVisible()
+  // También en el plan de pagos
+  await page.getByText('Ver el plan de pagos').tap()
+  await page.getByRole('switch', { name: 'Simular con Nómina 2' }).tap()
+  await expect(page.getByText('Con la simulación')).toBeVisible()
+  expect(e).toEqual([])
+})
+
+for (const esquema of [3, 5, 7, 8, 9, 10]) {
   test(`importa un archivo del esquema ${esquema} y lo enseña igual`, async ({ page }) => {
     const e = errores(page)
     await page.goto('/ajustes/herramientas')

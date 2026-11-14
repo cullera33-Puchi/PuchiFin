@@ -2,6 +2,14 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.24.0. Previsión de ingresos con nóminas y simulación de una segunda (14 de noviembre de 2026)
+
+- Esquema 11: `nominas` en los ajustes (`Nomina`: nombre, neto mensual, pagas extra por mes, desde y hasta, incluida). `guardarNomina` y `borrarNomina` con sus comprobaciones (nombre único y sin datos identificativos, neto y pagas mayores que cero, una paga por mes, desde antes que hasta). La pantalla General ya no pisa las nóminas ni la versión de la lógica al guardar sus ajustes.
+- Previsión (`src/lib/plan.ts`): con alguna nómina incluida, los ingresos de cada mes son esas nóminas (`importeNomina`: mensual más la paga extra de ese mes, dentro de sus fechas) y el resto de ingresos del historial sin la categoría Nómina; sin ninguna, todo sale del historial y las simuladas se suman. `Simulacion.nominas` suma o quita nóminas solo en la simulación. `preverIngresos`: ingresos de los 12 próximos meses con su desglose, ahorro mensual, capital dentro de un año y nómina real media como referencia.
+- Plan de pagos: `serie` con el capital y el saldo de la cuenta de ahorro previstos a final de cada mes durante dos años (capital de hoy según la posición, más el ahorro previsto y menos los pagos). Gráfico «Capital previsto» (`GraficoCapital`) con la simulación al lado, y nóminas en la simulación. El texto para Claude incluye las nóminas (solo importes) y la simulación.
+- Pantalla Ingresos previstos (`/extracto/ingresos`): nóminas con interruptor «cuenta en la previsión», alta y edición con pagas extra, simulación con su efecto en el ahorro, el capital, el pago de julio y el año en que se salda la deuda, y los 12 próximos meses. Accesos desde la previsión del Extracto, el plan de pagos y Ajustes, General.
+- Archivo de prueba del esquema 10 y recorrido de navegador de la pantalla nueva.
+
 ## v0.23.0. Presupuesto completo, gastos previstos, plan de pagos y Analizar con Claude (14 de noviembre de 2026)
 
 Puntos 1 a 6 de la hoja de ruta revisada (fase 4).

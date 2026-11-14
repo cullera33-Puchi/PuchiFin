@@ -16,7 +16,8 @@ import { estadoEventos } from './previstos'
 import { primerMes } from './prevision'
 import { calcularTotales } from './resumen'
 import { cuadrarCuenta } from './saldos'
-import type { BaseDatos, Compromiso, Cuenta, Movimiento } from './tipos'
+import { calcularPosicion } from './posicion'
+import type { BaseDatos, Compromiso, Cuenta, Movimiento, Nomina } from './tipos'
 
 const redondear = (n: number) => Math.round(n * 100) / 100
 const siguienteMes = (mes: string) => sumarMeses(`${mes}-01`, 1).slice(0, 7)
@@ -28,9 +29,28 @@ export interface Simulacion {
   ahorroExtra: number
   /** Recorte de una categoría de gasto, en porcentaje */
   recorte: { categoria_id: string; porcentaje: number } | null
+  /** Nóminas que se suman o se quitan solo en la simulación (por id); sin dato, lo guardado */
+  nominas?: Record<string, boolean>
 }
 
 export const SIN_SIMULACION: Simulacion = { ahorroExtra: 0, recorte: null }
+
+/** Neto de una nómina en un mes (AAAA-MM): el mensual más la paga extra de ese mes, dentro de sus fechas */
+export function importeNomina(n: Nomina, mes: string): number {
+  if ((n.desde && mes < n.desde) || (n.hasta && mes > n.hasta)) return 0
+  return n.neto_mensual + n.pagas.filter((p) => p.mes === numMes(mes)).reduce((s, p) => s + p.importe, 0)
+}
+
+/** Nóminas que cuentan: las incluidas, con lo que cambie la simulación */
+export const nominasActivas = (db: BaseDatos, sim: Simulacion) => (db.ajustes.nominas ?? []).filter((n) => sim.nominas?.[n.id] ?? n.incluida)
+
+/** Categorías de nómina: Ingresos > Nómina (y sus subcategorías, si las hubiera) */
+function idsNomina(db: BaseDatos): Set<string> {
+  const ids = new Set<string>()
+  for (const c of db.categorias) if (c.naturaleza === 'ingreso' && c.nombre.trim().toLowerCase() === 'nómina') ids.add(c.id)
+  for (const c of db.categorias) if (c.padre_id && ids.has(c.padre_id)) ids.add(c.id)
+  return ids
+}
 
 export interface PagoPrevisto {
   anio: number
@@ -57,6 +77,14 @@ export interface Plan {
   ahorroMensual: number
   /** Meses cerrados en los que se basa la previsión */
   mesesBase: number
+  /** Capital y saldo de la cuenta de ahorro previstos a final de cada mes (el actual y 24 más), ya descontados los pagos */
+  serie: PuntoCapital[]
+}
+
+export interface PuntoCapital {
+  mes: string
+  saldo: number
+  capital: number
 }
 
 export type ResultadoPlan = { plan: Plan; falta: null } | { plan: null; falta: 'sin_compromiso' | 'sin_deuda' | 'sin_cuenta' | 'sin_saldo' | 'sin_historia' }
@@ -64,15 +92,28 @@ export type ResultadoPlan = { plan: Plan; falta: null } | { plan: null; falta: '
 /** Ingresos y gasto por categoría raíz de cada mes, de una pasada */
 interface Estadistica {
   ingresos: number
+  /** De esos ingresos, los de nómina */
+  nomina: number
   gastos: Map<string | null, number>
 }
 
 function estadisticas(db: BaseDatos): Map<string, Estadistica> {
   const porMes = new Map<string, Movimiento[]>()
   for (const m of db.movimientos) anadirA(porMes, mesEfectivo(m), m)
+  const nomina = idsNomina(db)
   const res = new Map<string, Estadistica>()
-  for (const [mes, movs] of porMes) res.set(mes, { ingresos: calcularTotales(movs, db.categorias).ingresos, gastos: gastoPorCategoria(movs, db.categorias) })
+  for (const [mes, movs] of porMes) {
+    let n = 0
+    for (const m of movs) if (m.tipo === 'normal' && m.categoria_id && nomina.has(m.categoria_id)) n += m.importe
+    res.set(mes, { ingresos: calcularTotales(movs, db.categorias).ingresos, nomina: redondear(n), gastos: gastoPorCategoria(movs, db.categorias) })
+  }
   return res
+}
+
+export interface IngresoNomina {
+  id: string
+  nombre: string
+  importe: number
 }
 
 /**
@@ -89,9 +130,25 @@ function modelo(db: BaseDatos, stats: Map<string, Estadistica>, base: string, si
   const presupuestos = new Map(db.presupuestos.map((p) => [p.categoria_id, p]))
   for (const p of db.presupuestos) if (!mediaGasto.has(p.categoria_id)) mediaGasto.set(p.categoria_id, 0)
 
-  const ingresos = (mes: string) => {
+  // Con alguna nómina guardada como incluida, las nóminas mandan sobre el historial de nómina; el
+  // resto de ingresos sigue saliendo del historial. Sin ninguna, todo sale del historial y las
+  // simuladas se suman.
+  const reemplaza = (db.ajustes.nominas ?? []).some((x) => x.incluida)
+  const activas = nominasActivas(db, sim)
+  const mediaNomina = n ? cerrados.reduce((s, m) => s + stats.get(m)!.nomina, 0) / n : 0
+  const historico = (mes: string) => {
     const haceUnAno = sumarMeses(`${mes}-01`, -12).slice(0, 7)
-    return cerrados.includes(haceUnAno) ? stats.get(haceUnAno)!.ingresos : mediaIngresos
+    const st = cerrados.includes(haceUnAno) ? stats.get(haceUnAno)! : null
+    const total = st ? st.ingresos : mediaIngresos
+    return reemplaza ? total - (st ? st.nomina : mediaNomina) : total
+  }
+  const desglose = (mes: string) => {
+    const nominas: IngresoNomina[] = activas.map((x) => ({ id: x.id, nombre: x.nombre, importe: importeNomina(x, mes) })).filter((x) => x.importe > 0)
+    return { nominas, otros: historico(mes) }
+  }
+  const ingresos = (mes: string) => {
+    const d = desglose(mes)
+    return d.otros + d.nominas.reduce((s, x) => s + x.importe, 0)
   }
   const gastos = (mes: string) => {
     let total = 0
@@ -104,7 +161,7 @@ function modelo(db: BaseDatos, stats: Map<string, Estadistica>, base: string, si
     }
     return total
   }
-  return { meses: n, ahorro: (mes: string) => ingresos(mes) - gastos(mes) + sim.ahorroExtra }
+  return { meses: n, desglose, ingresos, gastos, ahorro: (mes: string) => ingresos(mes) - gastos(mes) + sim.ahorroExtra }
 }
 
 /** Deuda pendiente y pagos reales: los movimientos de tipo Pago de deuda desde la fecha de referencia */
@@ -161,18 +218,22 @@ export function calcularPlan(db: BaseDatos, hoy: string, sim: Simulacion = SIN_S
   let saldo = cuadre.saldoBanco
   let deuda = deudaPendiente
   const pagos: PagoPrevisto[] = []
+  const capitalHoy = calcularPosicion(db)?.capital ?? cuadre.saldoBanco
+  const serie: PuntoCapital[] = []
   let mes = mesDatos
-  for (let i = 0; i < 30 * 12 && deuda > 0; i++, mes = siguienteMes(mes)) {
+  // Hasta saldarla y, como mínimo, dos años para ver el capital
+  for (let i = 0; i < 30 * 12 && (deuda > 0 || i <= 24); i++, mes = siguienteMes(mes)) {
     // Del mes de los datos, solo los días que quedan (el saldo de la cuenta sigue igual hasta su último dato)
     const parte = i === 0 ? (diasDelMes(mes) - Number(datos.slice(8, 10))) / diasDelMes(mes) : 1
     const ahorro = mod.ahorro(mes) * Math.max(0, parte) + (puntuales.get(mes) ?? 0)
     saldo += ahorro
-    if (esMesDePago(mes)) {
+    if (deuda > 0 && esMesDePago(mes)) {
       const pago = redondear(Math.min(deuda, Math.max(0, saldo - compromiso.colchon)))
       deuda = redondear(deuda - pago)
       saldo -= pago
       pagos.push({ anio: Number(mes.slice(0, 4)), mes, saldo: redondear(saldo + pago), pago, deudaTras: deuda })
     }
+    if (i <= 24) serie.push({ mes, saldo: redondear(saldo), capital: redondear(capitalHoy + saldo - cuadre.saldoBanco) })
   }
   return {
     falta: null,
@@ -188,7 +249,51 @@ export function calcularPlan(db: BaseDatos, hoy: string, sim: Simulacion = SIN_S
       saldadaEn: deuda <= 0 && pagos.length ? pagos[pagos.length - 1].anio : deudaPendiente === 0 ? (pagosReales.at(-1)?.anio ?? Number(mesDatos.slice(0, 4))) : null,
       ahorroMensual: redondear(proximos.reduce((s, m) => s + mod.ahorro(m) + (puntuales.get(m) ?? 0), 0) / 12),
       mesesBase: mod.meses,
+      serie,
     },
+  }
+}
+
+export interface MesIngresos {
+  mes: string
+  nominas: IngresoNomina[]
+  /** Otros ingresos, según el historial (y la nómina, si no hay ninguna guardada como incluida) */
+  otros: number
+  total: number
+}
+
+/**
+ * Previsión de ingresos de los 12 próximos meses (desde el siguiente al de los datos) y capital previsto,
+ * sin pagos de deuda: el de hoy más el ahorro previsto de cada mes. Null sin un mes cerrado de datos.
+ */
+export function preverIngresos(db: BaseDatos, hoy: string, sim: Simulacion = SIN_SIMULACION): { meses: MesIngresos[]; ahorroMensual: number; capitalHoy: number | null; capital12: number | null; mediaNomina: number | null } | null {
+  const stats = estadisticas(db)
+  const datos = fechaDeLosDatos(db, hoy)
+  const mesDatos = datos.slice(0, 7)
+  const mod = modelo(db, stats, mesDatos, sim)
+  if (!mod.meses) return null
+  const meses = Array.from({ length: 12 }, (_, i) => {
+    const mes = sumarMeses(`${mesDatos}-01`, i + 1).slice(0, 7)
+    const d = mod.desglose(mes)
+    const otros = redondear(Math.max(0, d.otros))
+    return { mes, nominas: d.nominas, otros, total: redondear(otros + d.nominas.reduce((s, x) => s + x.importe, 0)) }
+  })
+  const puntuales = new Map<string, number>()
+  for (const e of estadoEventos(db, hoy)) if (e.estado === 'pendiente') puntuales.set(e.evento.fecha.slice(0, 7), (puntuales.get(e.evento.fecha.slice(0, 7)) ?? 0) + e.evento.importe)
+  const resto = (diasDelMes(mesDatos) - Number(datos.slice(8, 10))) / diasDelMes(mesDatos)
+  const ahorroDe = (mes: string) => mod.ahorro(mes) + (puntuales.get(mes) ?? 0)
+  const capitalHoy = calcularPosicion(db)?.capital ?? null
+  const suma12 = meses.reduce((s, m) => s + ahorroDe(m.mes), 0)
+  // Media de nómina real de los meses cerrados, como referencia para darla de alta
+  const primero = primerMes(db)
+  const cerrados = [...stats.keys()].filter((m) => m > primero && m < mesDatos).sort().slice(-12)
+  const conNomina = cerrados.filter((m) => stats.get(m)!.nomina > 0)
+  return {
+    meses,
+    ahorroMensual: redondear(suma12 / 12),
+    capitalHoy,
+    capital12: capitalHoy === null ? null : redondear(capitalHoy + mod.ahorro(mesDatos) * Math.max(0, resto) + (puntuales.get(mesDatos) ?? 0) + suma12),
+    mediaNomina: conNomina.length ? redondear(conNomina.reduce((s, m) => s + stats.get(m)!.nomina, 0) / conNomina.length) : null,
   }
 }
 

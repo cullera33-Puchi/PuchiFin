@@ -196,9 +196,14 @@ export function Extracto() {
                   {formatearRedondo(prevision.variable)} de gasto variable en los {prevision.diasRestantes} días que quedan, a tu ritmo habitual.
                   {prevision.media !== null && ` Tu media mensual: ${formatearRedondo(prevision.media)}.`}
                 </p>
-                <Link to="/extracto/previstos" className="boton-texto mt-1 -ml-1 inline-flex px-1">
-                  Gastos previstos del año
-                </Link>
+                <div className="mt-1 -ml-1 flex flex-wrap gap-x-4">
+                  <Link to="/extracto/previstos" className="boton-texto inline-flex px-1">
+                    Gastos previstos del año
+                  </Link>
+                  <Link to="/extracto/ingresos" className="boton-texto inline-flex px-1">
+                    Ingresos previstos
+                  </Link>
+                </div>
                 {prevision.pendientes.length > 0 && (
                   <>
                     <button className="boton-texto mt-1 -ml-1 px-1" onClick={() => setVerPendientes((v) => !v)}>

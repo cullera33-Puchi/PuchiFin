@@ -5,7 +5,7 @@ import { Aviso } from '../../componentes/Encabezado'
 import { Segmentado } from '../../componentes/Interfaz'
 import { guardarTema, leerTema, type Tema } from '../../lib/tema'
 import { contieneIdentificativo } from '../../lib/identificativos'
-import { formatearImporte } from '../../lib/formato'
+import { formatearImporte, plural } from '../../lib/formato'
 import { guardarAjustes } from '../../datos/operaciones'
 import { intentar, useDatos } from '../../datos/ProveedorDatos'
 import type { Ajustes } from '../../lib/tipos'
@@ -41,7 +41,8 @@ export function General() {
   const guardar = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
-    const err = await intentar((d) => guardarAjustes(d, ajustes), 'Ajustes guardados')
+    // Lo que se guarda en otras pantallas (nóminas) o solo la app (versión de la lógica), tal como esté ahora
+    const err = await intentar((d) => guardarAjustes(d, { ...ajustes, nominas: d.ajustes.nominas, version_logica: d.ajustes.version_logica }), 'Ajustes guardados')
     if (err) setError(err)
     else setGuardado(true)
   }
@@ -149,6 +150,16 @@ export function General() {
       <Link to="/ajustes/reglas" className="lista fila">
         <span className="flex-1 text-[15px]">Reglas de categorización</span>
         <span className="text-[15px] text-zinc-500">{db.reglas.filter((r) => r.activa).length} activas</span>
+        <ChevronRight className="size-4 text-zinc-400" />
+      </Link>
+
+      <Link to="/extracto/ingresos" className="lista fila min-h-14">
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px]">Nóminas e ingresos previstos</span>
+          <span className="block text-[12px] text-zinc-500">
+            {(db.ajustes.nominas ?? []).length ? plural((db.ajustes.nominas ?? []).length, 'nómina', 'nóminas') : 'Tu nómina neta y sus pagas extra, y otra para simular'}
+          </span>
+        </span>
         <ChevronRight className="size-4 text-zinc-400" />
       </Link>
 

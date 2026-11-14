@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.24.0",
+    "fecha": "2026-11-14",
+    "cambios": [
+      "Ingresos previstos (Extracto o Ajustes, General): tu nómina neta con sus pagas extra y los ingresos de los próximos 12 meses.",
+      "Añade una segunda nómina sin que cuente y simúlala: verás el ahorro al mes, el capital dentro de un año, el pago de julio y cuándo queda saldada la deuda.",
+      "Plan de pagos: gráfico del capital previsto para los próximos dos años, con la simulación al lado."
+    ]
+  },
+  {
     "version": "0.23.0",
     "fecha": "2026-11-14",
     "cambios": [

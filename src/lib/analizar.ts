@@ -106,12 +106,22 @@ export function textoPlan(db: BaseDatos, plan: Plan, sim: Simulacion | null, sim
     ...plan.pagos.map((p) => `- ${p.anio}: pago ${eur(p.pago)}, deuda tras el pago ${eur(p.deudaTras)}`),
     plan.saldadaEn ? `Queda saldada en ${plan.saldadaEn}.` : 'Con el ahorro previsto no se salda en 30 años.',
   ]
-  if (sim && simulado && (sim.ahorroExtra || sim.recorte)) {
+  const nominas = db.ajustes.nominas ?? []
+  const cambios = nominas.filter((n) => sim?.nominas?.[n.id] !== undefined && sim.nominas[n.id] !== n.incluida)
+  if (nominas.some((n) => n.incluida)) {
+    lineas.push('', 'Nóminas netas previstas:')
+    for (const n of nominas.filter((x) => x.incluida))
+      lineas.push(`- ${eur(n.neto_mensual)} al mes${n.pagas.length ? `, pagas extra de ${n.pagas.map((p) => eur(p.importe)).join(' y ')}` : ''}${n.desde ? `, desde ${n.desde}` : ''}${n.hasta ? `, hasta ${n.hasta}` : ''}`)
+  }
+  if (sim && simulado && (sim.ahorroExtra || sim.recorte || cambios.length)) {
     const partes = [
+      ...cambios.map((n) =>
+        sim.nominas![n.id] ? `sumar una nómina de ${eur(n.neto_mensual)} al mes${n.pagas.length ? ` con ${n.pagas.length} pagas extra` : ''}${n.desde ? ` desde ${n.desde}` : ''}` : `sin una nómina de ${eur(n.neto_mensual)} al mes`,
+      ),
       sim.ahorroExtra ? `ahorrar ${eur(sim.ahorroExtra)} más al mes` : '',
       sim.recorte ? `recortar ${nombreCategoria(db, sim.recorte.categoria_id)} un ${sim.recorte.porcentaje} %` : '',
     ].filter(Boolean)
-    lineas.push('', `Simulación (${partes.join(' y ')}): primer pago ${eur(simulado.pagos[0]?.pago ?? 0)}, saldada en ${simulado.saldadaEn ?? 'más de 30 años'}.`)
+    lineas.push('', `Simulación (${partes.join(' y ')}): primer pago ${eur(simulado.pagos[0]?.pago ?? 0)}, saldada en ${simulado.saldadaEn ?? 'más de 30 años'}, capital dentro de un año ${eur(simulado.serie[12]?.capital ?? 0)} frente a ${eur(plan.serie[12]?.capital ?? 0)}.`)
   }
   return cierre(lineas)
 }

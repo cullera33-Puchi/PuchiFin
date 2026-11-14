@@ -13,6 +13,7 @@ import {
   type Categoria,
   type Cuenta,
   type Naturaleza,
+  type PagaExtra,
   type TipoCuenta,
 } from '../lib/tipos'
 
@@ -81,6 +82,7 @@ export const AJUSTES_POR_DEFECTO: Ajustes = {
   zona_casa: [],
   dias_fin_de_mes: 5,
   version_logica: null,
+  nominas: [],
 }
 
 /** Primer arranque: ajustes, las cuatro cuentas por alias, el catálogo y la deuda familiar */
@@ -369,6 +371,56 @@ export function guardarCompromiso(db: BaseDatos, id: string, datos: DatosComprom
     interes_anual: 0,
   }
   return { ...db, compromisos: db.compromisos.map((c) => (c.id === id ? { ...c, ...valores } : c)) }
+}
+
+export interface DatosNomina {
+  nombre: string
+  neto_mensual: number
+  pagas: PagaExtra[]
+  desde: string | null
+  hasta: string | null
+  incluida: boolean
+}
+
+const MES_ISO = /^\d{4}-(0[1-9]|1[0-2])$/
+
+/** Nómina prevista: neto mensual, pagas extra y desde cuándo se cobra. Solo vive en el dispositivo */
+export function guardarNomina(db: BaseDatos, datos: DatosNomina, id?: string): BaseDatos {
+  const nombre = datos.nombre.trim()
+  if (!nombre) throw new ErrorDatos('Ponle un nombre (por ejemplo, Mi nómina)')
+  if (nombre.length > 40) throw new ErrorDatos('El nombre admite un máximo de 40 caracteres')
+  exigirSinIdentificativos('Nombre de la nómina', nombre)
+  const lista = db.ajustes.nominas ?? []
+  if (lista.some((n) => n.id !== id && n.nombre.toLowerCase() === nombre.toLowerCase())) throw new ErrorDatos('Ya hay una nómina con ese nombre')
+  const importe = (n: number) => Number.isFinite(n) && n >= 0 && n <= 1_000_000
+  if (!importe(datos.neto_mensual) || datos.neto_mensual === 0) throw new ErrorDatos('Escribe el neto mensual')
+  const meses = new Set<number>()
+  for (const p of datos.pagas) {
+    if (!Number.isInteger(p.mes) || p.mes < 1 || p.mes > 12) throw new ErrorDatos('Mes de paga extra no válido')
+    if (meses.has(p.mes)) throw new ErrorDatos('Hay dos pagas extra en el mismo mes')
+    if (!importe(p.importe) || p.importe === 0) throw new ErrorDatos('Escribe el importe de cada paga extra')
+    meses.add(p.mes)
+  }
+  if ((datos.desde && !MES_ISO.test(datos.desde)) || (datos.hasta && !MES_ISO.test(datos.hasta))) throw new ErrorDatos('Mes no válido')
+  if (datos.desde && datos.hasta && datos.desde > datos.hasta) throw new ErrorDatos('La nómina termina antes de empezar')
+  const r = (n: number) => Math.round(n * 100) / 100
+  const valores = {
+    nombre,
+    neto_mensual: r(datos.neto_mensual),
+    pagas: [...datos.pagas].sort((a, b) => a.mes - b.mes).map((p) => ({ mes: p.mes, importe: r(p.importe) })),
+    desde: datos.desde,
+    hasta: datos.hasta,
+    incluida: datos.incluida,
+  }
+  if (id) {
+    if (!lista.some((n) => n.id === id)) throw new ErrorDatos('Nómina no encontrada')
+    return { ...db, ajustes: { ...db.ajustes, nominas: lista.map((n) => (n.id === id ? { ...n, ...valores } : n)) } }
+  }
+  return { ...db, ajustes: { ...db.ajustes, nominas: [...lista, { id: nuevoId(), ...valores }] } }
+}
+
+export function borrarNomina(db: BaseDatos, id: string): BaseDatos {
+  return { ...db, ajustes: { ...db.ajustes, nominas: (db.ajustes.nominas ?? []).filter((n) => n.id !== id) } }
 }
 
 export function guardarAjustes(db: BaseDatos, cambios: Partial<Ajustes>): BaseDatos {

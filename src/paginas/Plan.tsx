@@ -3,6 +3,8 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useHacer } from '../componentes/acciones'
 import { BarraNavegacion } from '../componentes/Encabezado'
+import { GraficoCapital } from '../componentes/GraficoCapital'
+import { SimularNominas } from './Ingresos'
 import { BotonClaude, HojaClaude } from '../componentes/HojaClaude'
 import { Baldosa } from '../componentes/Icono'
 import { Hoja } from '../componentes/Interfaz'
@@ -41,7 +43,7 @@ export function Plan() {
   const hoy = hoyIso()
   const r = useMemo(() => calcularPlan(db, hoy), [db, hoy])
   const [sim, setSim] = useState<Simulacion>(SIN_SIMULACION)
-  const simulando = sim.ahorroExtra !== 0 || sim.recorte !== null
+  const simulando = sim.ahorroExtra !== 0 || sim.recorte !== null || Object.entries(sim.nominas ?? {}).some(([id, v]) => (db.ajustes.nominas ?? []).find((n) => n.id === id)?.incluida !== v)
   const simulado = useMemo(() => (simulando ? calcularPlan(db, hoy, sim).plan : null), [db, hoy, sim, simulando])
   const efecto = useMemo(() => efectoMesCerrado(db, hoy), [db, hoy])
   const [ajustes, setAjustes] = useState(false)
@@ -142,6 +144,14 @@ function ContenidoPlan({
       </section>
 
       <section>
+        <h3 className="cabecera-grupo">Capital previsto</h3>
+        <div className="lista px-4 py-3">
+          <GraficoCapital base={plan.serie} simulado={simulado?.serie ?? null} />
+          <p className="mt-2 text-[12px] text-zinc-500">Cuentas menos lo pendiente de la tarjeta, más el ahorro previsto y menos los pagos de la deuda.</p>
+        </div>
+      </section>
+
+      <section>
         <h3 className="cabecera-grupo">Calendario</h3>
         <ul className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
           {plan.pagosReales.map((p) => (
@@ -176,6 +186,10 @@ function ContenidoPlan({
       <section>
         <h3 className="cabecera-grupo">Simulación</h3>
         <div className="lista space-y-3 px-4 py-3">
+          <div>
+            <p className="mb-1 text-[13px] text-zinc-500">Nóminas</p>
+            <SimularNominas db={db} sim={sim} setSim={setSim} />
+          </div>
           <div>
             <p className="text-[13px] text-zinc-500">Ahorro de más cada mes</p>
             <div className="mt-1.5 flex gap-2 overflow-x-auto [scrollbar-width:none]">
@@ -236,7 +250,11 @@ function ContenidoPlan({
       </section>
 
       <p className="px-4 text-[12px] text-zinc-500">
-        Supuesto: lo que ahorras cada mes acaba en {plan.cuenta.alias} y la cuenta principal mantiene su nivel. Ingresos: los del mismo mes del año anterior o la media; gastos: tu{' '}
+        Supuesto: lo que ahorras cada mes acaba en {plan.cuenta.alias} y la cuenta principal mantiene su nivel. Ingresos: tus{' '}
+        <Link to="/extracto/ingresos" className="text-marca-700 dark:text-marca-500">
+          nóminas
+        </Link>{' '}
+        y, para el resto, los del mismo mes del año anterior o la media; gastos: tu{' '}
         <Link to="/extracto/presupuesto" className="text-marca-700 dark:text-marca-500">
           presupuesto
         </Link>{' '}
