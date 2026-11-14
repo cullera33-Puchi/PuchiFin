@@ -137,6 +137,7 @@ Ordenada por esfuerzo, de menos a más, con prioridad para la usabilidad y el re
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.36.0 (14/11/2026): presupuesto rediseñado a propuesta aprobada por el usuario. En el Extracto, una sola lista: las categorías con presupuesto se miden contra él (`BarraPresupuesto`, `textoEstado`). Estado `dentro`, `riesgo` o `superado` según el cierre previsto de cada categoría (`consumoPresupuestos`: gastado, recibos que faltan y lo que se suele gastar en los días que quedan); el umbral del 80 % deja de usarse. Pantalla Presupuesto para ver (total, categorías, «Mes» y «Año») y hoja de edición por categoría. `preverCierre` estima el gasto variable con lo gastado esos mismos días en los meses anteriores. Sin cambio de esquema.
 - v0.35.1 (14/11/2026): pantalla en negro al volver atrás, informada por el usuario: un toque durante la salida del gesto de volver dejaba la pantalla desplazada. `recolocar()` en `useVolverDesdeBorde` y red de seguridad en `Estructura` en cada cambio de pantalla; prueba de navegador que lo reproduce.
 - v0.35.0 (14/11/2026): exportación a Claude completa (apartado 11), pedida por el usuario: detalle en CSV por la hoja de compartir (`src/lib/csvClaude.ts`, `detalle` en `HojaClaude`), plantillas editables por vista (`src/lib/plantillas.ts`, `/ajustes/claude`) y envío sin comercios. Esquema 14 (`ajustes.claude`). El resto de pendientes (estacionalidad, fase 6, validar fases 2 a 4 con datos reales y los datos que faltan por confirmar) queda en segundo plano por decisión del usuario.
 - v0.34.1 (14/11/2026): plantilla de la tarjeta con su Excel real: población recortada separada del comercio (`partirAnchoFijo` con país 0) y deduplicación de lo que llega primero sin liquidar y después liquidado. Publicada el 14/11/2026 a petición del usuario.
@@ -419,7 +420,7 @@ El extracto mensual es la pantalla de inicio y solo cuenta movimientos de tipo N
 
 - Arriba, en dos filas (v0.31.0): el capital (saldo de las cuentas según el banco menos lo gastado con la tarjeta pendiente de cargar) con su variación del mes, y la deuda con el pago previsto. El detalle de «Tu posición» (cada cuenta, tarjeta y evolución) está en su pantalla.
 - Tarjeta principal del mes (v0.31.0): gastado frente a la media de los meses anteriores disponibles (hasta 12), barra con el presupuesto o la media y el cierre previsto, la categoría que más sube, e ingresos, ahorro y tasa de ahorro. La comparación completa (media y hace un año) y la previsión, en «Cómo se calcula».
-- Desglose por categoría con importe, peso sobre el gasto total y diferencia con la media cuando es relevante (al menos 20 € y un 15 %); las seis primeras y «Ver todas».
+- Desglose por categoría, en una sola lista (v0.36.0): con presupuesto, lo gastado frente a su importe, con el cierre previsto y cuánto queda; sin él, importe, peso sobre el gasto total y diferencia con la media cuando es relevante (al menos 20 € y un 15 %). Las seis primeras y «Ver todas»; las que se pasan del presupuesto o van camino se ven siempre.
 - Avisos agrupados en «Cosas pendientes»; las acciones (PDF, evolución anual, Claude y Excel), en el menú «…».
 - Al tocar una categoría se abren sus movimientos del mes.
 - Aviso visible si hay movimientos sin categoría, mejoras de categoría o descuadres con el banco.
@@ -456,11 +457,12 @@ Cada categoría o subcategoría puede tener un presupuesto mensual, y el extract
 
 - **Definición:** importe mensual por categoría, igual todos los meses o con excepciones en meses concretos (Viajes en agosto, Hijos en septiembre).
 - **Propuesta inicial:** con pocos meses de datos se define a mano. Con tres o más meses, la app sugiere la media de cada categoría como punto de partida.
-- **Seguimiento:** barra de consumo por categoría en el extracto, con lo gastado, lo que queda y la proyección a fin de mes según el ritmo de gasto.
-- **Estado:** dentro, cerca del límite (a partir del 80 %) y superado, con color.
+- **Seguimiento:** barra de consumo por categoría en el extracto, dentro de la lista de gasto por categoría (v0.36.0), con lo gastado, lo que queda y el cierre previsto: lo gastado, los recibos que faltan y lo que se suele gastar en los días que quedan.
+- **Estado (v0.36.0):** dentro, camino de pasarse (el cierre previsto supera el presupuesto en más de un 5 % y de 5 €) y superado, con color. Antes, «cerca del límite» a partir del 80 % usado.
+- **Pantalla (v0.36.0):** primero se ve cómo va el mes (total y categorías); el importe y los meses especiales se cambian tocando una categoría.
 - **Vista anual:** presupuesto acumulado frente a gasto real por categoría.
 - **Exclusiones:** los gastos de empleado, los traspasos internos y los pagos de deuda no consumen presupuesto.
-- **Avisos:** al confirmar una importación, la app avisa de las categorías que han pasado del 80 % o del 100 %.
+- **Avisos:** al confirmar una importación, la app avisa de las categorías superadas o camino de pasarse (v0.36.0; antes, del 80 % o del 100 %).
 
 ## 10. Deuda familiar y plan de pagos (fase 4)
 

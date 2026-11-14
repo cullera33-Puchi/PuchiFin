@@ -67,14 +67,10 @@ export function General() {
     <form onSubmit={guardar} className="space-y-4">
 
       <section className="tarjeta space-y-3">
-        <h2 className="text-sm font-semibold">Umbrales</h2>
+        <h2 className="text-sm font-semibold">Fin de mes</h2>
         <div className="grid gap-3">
           <label>
-            <span className="etiqueta">Aviso de presupuesto (%)</span>
-            <input type="number" min={1} max={100} className="campo" value={ajustes.umbral_aviso_presupuesto} onChange={(e) => cambiar({ umbral_aviso_presupuesto: Number(e.target.value) })} />
-          </label>
-          <label>
-            <span className="etiqueta">Fin de mes (días)</span>
+            <span className="etiqueta">Días</span>
             <input type="number" min={0} max={10} className="campo" value={ajustes.dias_fin_de_mes} onChange={(e) => cambiar({ dias_fin_de_mes: Number(e.target.value) })} />
             <span className="mt-1 block text-xs text-zinc-500">
               En los últimos {ajustes.dias_fin_de_mes} días del mes, la nómina y la hipoteca cuentan ya en el mes siguiente. 0 para no hacerlo.

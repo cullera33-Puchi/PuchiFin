@@ -152,6 +152,7 @@ export interface AliasTercero {
 export interface Ajustes {
   alias_terceros: AliasTercero[]
   dias_aviso_reembolso: number
+  /** Sin uso desde la v0.36.0 (el aviso va por el cierre previsto); se conserva para leer archivos anteriores */
   umbral_aviso_presupuesto: number
   /** Poblaciones de casa; vacío: se deducen de las más habituales */
   zona_casa: string[]

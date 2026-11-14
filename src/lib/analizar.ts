@@ -74,8 +74,8 @@ export function textoPresupuesto(db: BaseDatos, mes: string, hoy: string): strin
     `Revisa mi presupuesto mensual por categoría (${mesLargo(`${mes}-01`).toLowerCase()}):`,
     instrucciones(db, 'presupuesto'),
     '',
-    'Este mes (presupuesto, gastado y proyección a fin de mes):',
-    ...lineas.map((l) => `- ${l.categoria.nombre}: presupuesto ${eur(l.presupuesto)}, gastado ${eur(l.gastado)}${l.proyeccion !== null ? `, al ritmo actual ${eur(l.proyeccion)}` : ''}`),
+    'Este mes (presupuesto, gastado y cierre previsto, contando los recibos que faltan y mi ritmo habitual):',
+    ...lineas.map((l) => `- ${l.categoria.nombre}: presupuesto ${eur(l.presupuesto)}, gastado ${eur(l.gastado)}${l.cierre !== null ? `, cierre previsto ${eur(l.cierre)}` : ''}`),
   ]
   if (anual.lineas.length) {
     res.push('', `En lo que va de año (${anual.meses} ${anual.meses === 1 ? 'mes' : 'meses'} con datos), presupuesto y gastado:`)

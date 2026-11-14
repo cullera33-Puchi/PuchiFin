@@ -40,6 +40,7 @@ import { hoyIso, mesLargo } from '../lib/fechas'
 import { formatearFecha, formatearRedondo, plural } from '../lib/formato'
 import { mesEfectivo } from '../lib/imputacion'
 import { consumoPresupuestos, type LineaPresupuesto } from '../lib/presupuesto'
+import { BarraPresupuesto, textoEstado, TONO_ESTADO } from '../componentes/BarraPresupuesto'
 import { preverCierre, type Prevision } from '../lib/prevision'
 import { avisosRecurrentes, detectarRecurrentes } from '../lib/recurrentes'
 import { porcentaje } from '../lib/resumen'
@@ -77,7 +78,7 @@ export function Extracto() {
   const e = useMemo(() => calcularExtracto(db, mes, hoyIso()), [db, mes])
   const recurrentes = useMemo(() => detectarRecurrentes(db), [db])
   const prevision = useMemo(() => preverCierre(db, mes, hoyIso(), recurrentes), [db, mes, recurrentes])
-  const presupuestos = useMemo(() => consumoPresupuestos(db, mes, hoyIso()), [db, mes])
+  const presupuestos = useMemo(() => consumoPresupuestos(db, mes, hoyIso(), recurrentes), [db, mes, recurrentes])
   const pendientes = usePendientes(mes, e.sinCategoria, recurrentes, presupuestos.length > 0)
   const [menu, setMenu] = useState(false)
   const [discreto, fijarDiscreto] = useDiscreto()
@@ -149,8 +150,7 @@ export function Extracto() {
           <TarjetaMes e={e} mes={mes} prevision={prevision} presupuestos={presupuestos} />
           <FilaAtipicos mes={mes} />
           <Pendientes lista={pendientes} />
-          {presupuestos.length > 0 && <SeccionPresupuesto lineas={presupuestos} />}
-          <Categorias e={e} mes={mes} />
+          <Categorias e={e} mes={mes} presupuestos={presupuestos} />
         </div>
       )}
 
@@ -450,7 +450,7 @@ function HojaDetalleMes({ abierta, onCerrar, e, mes, prevision }: { abierta: boo
             {prevision.hasta < hoyIso() ? ` con los datos hasta el ${formatearFecha(prevision.hasta).slice(0, 5)}` : ''}. Faltan{' '}
             {prevision.pendientes.length ? `recibos por ${formatearRedondo(prevision.recibos)}, ` : ''}
             {prevision.previstos.length ? `${plural(prevision.previstos.length, 'gasto previsto', 'gastos previstos')} por ${formatearRedondo(prevision.importePrevistos)} y ` : prevision.pendientes.length ? 'y ' : ''}
-            unos {formatearRedondo(prevision.variable)} de gasto variable en los {prevision.diasRestantes} días que quedan, a tu ritmo habitual.
+            unos {formatearRedondo(prevision.variable)} de gasto variable en los {prevision.diasRestantes} días que quedan: lo que sueles gastar en esos días del mes.
           </p>
           {prevision.pendientes.length > 0 && (
             <ul className="divide-y divide-zinc-200/70 dark:divide-zinc-800">
@@ -515,21 +515,36 @@ function HojaDetalleMes({ abierta, onCerrar, e, mes, prevision }: { abierta: boo
   )
 }
 
-/** Gasto por categoría: las primeras seis y «Ver todas»; la diferencia con la media, solo si es relevante */
-function Categorias({ e, mes }: { e: DatosExtracto; mes: string }) {
+/**
+ * Gasto por categoría, en una sola lista (v0.36.0): las categorías con presupuesto se miden contra él
+ * (barra por estado y cuánto queda); las demás, por su peso en el mes y la diferencia con la media. Las
+ * seis primeras y «Ver todas»; las que se pasan del presupuesto, o van camino, se ven siempre.
+ */
+function Categorias({ e, mes, presupuestos }: { e: DatosExtracto; mes: string; presupuestos: LineaPresupuesto[] }) {
   const navegar = useNavigate()
   const [todas, setTodas] = useState(false)
   if (!e.categorias.length) return null
-  const lista = todas ? e.categorias : e.categorias.slice(0, CATEGORIAS_VISIBLES)
+  const conPresupuesto = new Map(presupuestos.map((l) => [l.categoria.id, l]))
+  const aviso = (id: string | null) => !!id && (conPresupuesto.get(id)?.estado ?? 'dentro') !== 'dentro'
+  const lista = todas ? e.categorias : e.categorias.filter((c, i) => i < CATEGORIAS_VISIBLES || aviso(c.id))
+  const hayMas = e.categorias.length > (todas ? CATEGORIAS_VISIBLES : lista.length)
+  const sinPresupuesto = lista.some((c) => !c.id || !conPresupuesto.has(c.id))
   return (
     <section>
       <div className="mb-1.5 flex items-baseline justify-between px-4">
         <h3 className="text-[13px] font-medium text-zinc-500 uppercase">Gasto por categoría</h3>
-        {e.media && <span className="text-[11px] text-zinc-500">frente a la media</span>}
+        {presupuestos.length > 0 ? (
+          <Link to="/extracto/presupuesto" className="text-[15px] text-marca-700 dark:text-marca-500">
+            Presupuesto
+          </Link>
+        ) : (
+          e.media && <span className="text-[11px] text-zinc-500">frente a la media</span>
+        )}
       </div>
       <ul className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
         {lista.map((c) => {
           const dif = diferenciaRelevante(c)
+          const l = c.id ? conPresupuesto.get(c.id) : undefined
           return (
             <li key={c.id ?? 'sin'}>
               <button className="fila w-full active:bg-zinc-100 dark:active:bg-zinc-800" onClick={() => navegar(`/extracto/categoria/${c.id ?? 'sin'}?mes=${mes}`)}>
@@ -537,24 +552,34 @@ function Categorias({ e, mes }: { e: DatosExtracto; mes: string }) {
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline gap-2">
                     <span className="flex-1 truncate text-[15px]">{c.nombre}</span>
-                    <span className="text-[15px] tabular-nums">{formatearRedondo(c.importe)}</span>
-                  </span>
-                  <span className="mt-1 flex items-center gap-2">
-                    <span className="h-1 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-                      <span className="block h-full rounded-full" style={{ width: `${Math.max(1, c.peso * 100)}%`, backgroundColor: c.color }} />
-                    </span>
-                    <span className="w-10 text-right text-[11px] text-zinc-500 tabular-nums">{porcentaje(c.peso)}</span>
-                    <span className={`w-16 text-right text-[11px] tabular-nums ${dif === null ? '' : dif > 0 ? ROJO : VERDE}`}>
-                      {dif === null ? '' : `${dif > 0 ? '+' : '−'}${formatearRedondo(Math.abs(dif))}`}
+                    <span className="text-[15px] tabular-nums">
+                      {formatearRedondo(c.importe)}
+                      {l && <span className="text-[13px] text-zinc-500"> de {formatearRedondo(l.presupuesto)}</span>}
                     </span>
                   </span>
+                  {l ? (
+                    <span className="mt-1 flex items-center gap-2">
+                      <BarraPresupuesto presupuesto={l.presupuesto} gastado={l.gastado} cierre={l.cierre} estado={l.estado} etiqueta={`Presupuesto de ${c.nombre}`} />
+                      <span className={`shrink-0 text-right text-[11px] whitespace-nowrap tabular-nums ${TONO_ESTADO[l.estado]}`}>{textoEstado(l)}</span>
+                    </span>
+                  ) : (
+                    <span className="mt-1 flex items-center gap-2">
+                      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                        <span className="block h-full rounded-full" style={{ width: `${Math.max(1, c.peso * 100)}%`, backgroundColor: c.color }} />
+                      </span>
+                      <span className="w-10 text-right text-[11px] text-zinc-500 tabular-nums">{porcentaje(c.peso)}</span>
+                      <span className={`w-16 text-right text-[11px] tabular-nums ${dif === null ? '' : dif > 0 ? ROJO : VERDE}`}>
+                        {dif === null ? '' : `${dif > 0 ? '+' : '−'}${formatearRedondo(Math.abs(dif))}`}
+                      </span>
+                    </span>
+                  )}
                 </span>
                 <ChevronRight className="size-4 shrink-0 text-zinc-400" />
               </button>
             </li>
           )
         })}
-        {e.categorias.length > CATEGORIAS_VISIBLES && (
+        {hayMas && (
           <li>
             <button className="fila min-h-11 w-full justify-center text-[15px] text-marca-700 active:bg-zinc-100 dark:text-marca-500 dark:active:bg-zinc-800" onClick={() => setTodas((x) => !x)}>
               {todas ? 'Ver menos' : `Ver todas (${e.categorias.length})`}
@@ -562,45 +587,11 @@ function Categorias({ e, mes }: { e: DatosExtracto; mes: string }) {
           </li>
         )}
       </ul>
-    </section>
-  )
-}
-
-const COLOR_ESTADO = { dentro: 'var(--serie-3)', cerca: '#FF9500', superado: '#FF3B30' } as const
-
-/** Barras de consumo del presupuesto del mes */
-function SeccionPresupuesto({ lineas }: { lineas: LineaPresupuesto[] }) {
-  return (
-    <section>
-      <div className="mb-1.5 flex items-baseline justify-between px-4">
-        <h3 className="text-[13px] font-medium text-zinc-500 uppercase">Presupuesto</h3>
-        <Link to="/extracto/presupuesto" className="text-[15px] text-marca-700 dark:text-marca-500">
-          Editar
-        </Link>
-      </div>
-      <ul className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
-        {lineas.map((l) => {
-          const pct = l.gastado / l.presupuesto
-          const queda = l.presupuesto - l.gastado
-          return (
-            <li key={l.categoria.id} className="px-4 py-2.5">
-              <div className="flex items-baseline gap-2">
-                <span className="min-w-0 flex-1 truncate text-[15px]">{l.categoria.nombre}</span>
-                <span className="text-[15px] tabular-nums">
-                  {formatearRedondo(l.gastado)} <span className="text-zinc-500">de {formatearRedondo(l.presupuesto)}</span>
-                </span>
-              </div>
-              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800" role="progressbar" aria-valuenow={Math.round(pct * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={l.categoria.nombre}>
-                <div className="h-full rounded-full" style={{ width: `${Math.min(100, pct * 100)}%`, background: COLOR_ESTADO[l.estado] }} />
-              </div>
-              <p className={`mt-1 text-[12px] ${l.estado === 'superado' ? ROJO : 'text-zinc-500'}`}>
-                {Math.abs(queda) < 0.5 ? 'Presupuesto agotado' : l.estado === 'superado' ? `Superado en ${formatearRedondo(-queda)}` : `Quedan ${formatearRedondo(queda)} (${Math.round(pct * 100)} % usado)`}
-                {l.proyeccion !== null && l.estado !== 'superado' && l.proyeccion > l.presupuesto ? `. A este ritmo, ${formatearRedondo(l.proyeccion)} a final de mes` : ''}
-              </p>
-            </li>
-          )
-        })}
-      </ul>
+      {presupuestos.length > 0 && (
+        <p className="mt-1.5 px-4 text-[12px] text-zinc-500">
+          Con presupuesto, lo gastado frente a su importe{e.enCurso ? ' y, más claro, cómo cerrará el mes' : ''}.{sinPresupuesto && e.media ? ' El resto, su peso en el mes y la diferencia con tu media.' : ''}
+        </p>
+      )}
     </section>
   )
 }

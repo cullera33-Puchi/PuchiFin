@@ -231,8 +231,8 @@ export function Importar() {
               </span>
               {avisosHecha.map((a) => (
                 <span key={`${a.mes}|${a.categoria.id}`} className="mt-0.5 block text-[13px]">
-                  {a.categoria.nombre} ({nombreMes(`${a.mes}-01`).toLowerCase()}): {a.estado === 'superado' ? 'superado' : `${Math.round((a.gastado / a.presupuesto) * 100)} % usado`}, {formatearImporte(a.gastado)} de{' '}
-                  {formatearImporte(a.presupuesto)}
+                  {a.categoria.nombre} ({nombreMes(`${a.mes}-01`).toLowerCase()}): {a.estado === 'superado' ? 'superado' : `camino de pasarse, cerrará en unos ${formatearImporte(a.cierre ?? a.gastado)}`},{' '}
+                  {formatearImporte(a.gastado)} de {formatearImporte(a.presupuesto)}
                 </span>
               ))}
             </Link>

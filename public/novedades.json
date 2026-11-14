@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.36.0",
+    "fecha": "2026-11-14",
+    "cambios": [
+      "Presupuesto rediseñado: en el Extracto, una sola lista de categorías, cada una frente a su presupuesto.",
+      "Avisa solo de lo que va camino de pasarse: un recibo ya pagado, como la hipoteca, sale en verde.",
+      "La pantalla de Presupuesto enseña cómo vas; toca una categoría para cambiar su importe.",
+      "La previsión de cierre del mes es más fina: usa lo que sueles gastar en los días que quedan."
+    ]
+  },
+  {
     "version": "0.35.1",
     "fecha": "2026-11-14",
     "cambios": [

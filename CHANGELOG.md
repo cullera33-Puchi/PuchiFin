@@ -2,6 +2,16 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.36.0. Presupuesto rediseñado (14 de noviembre de 2026)
+
+Propuesta aprobada por el usuario, que no estaba conforme con cómo se veía el presupuesto.
+
+- Una sola lista en el Extracto: desaparece la sección «Presupuesto» y «Gasto por categoría» mide cada categoría con presupuesto contra su importe (`BarraPresupuesto`: lo gastado, más claro el cierre previsto y una marca en el presupuesto si se pasa) con una línea corta («Quedan 188 €», «Cerrarás en 420 €», «Superado en 20 €»). Las categorías sin presupuesto siguen con su peso y la diferencia con la media. Las superadas o camino de pasarse se ven siempre, aunque no estén entre las seis primeras. Enlace «Presupuesto» en la cabecera de la lista.
+- Estado por cierre previsto (`consumoPresupuestos`): `dentro`, `riesgo` (aún no se ha pasado, pero cerrará por encima en más de un 5 % y de 5 €) y `superado`. Sustituye a «cerca» a partir del 80 % usado, que marcaba como aviso un recibo ya pagado. El cierre de cada categoría suma lo gastado, los recibos y gastos previstos que faltan en ella (`recibosPendientes`, `comprometido`) y lo que se suele gastar en los días que quedan. El umbral de aviso de Ajustes, General deja de usarse y se quita de la pantalla (el dato se conserva en el modelo).
+- Previsión del gasto variable (`preverCierre` y presupuesto): la media de lo gastado después de ese día del mes en hasta tres meses anteriores (`trasElDia`, `mesesDeReferencia`), en lugar de la media diaria del mes entero por los días que quedan. Un cargo grande de primeros de mes que no está detectado como recibo ya no se vuelve a contar.
+- Pantalla Presupuesto para ver: total del mes con su barra y cuántas categorías se pasan (`totalPresupuesto`), cada categoría con su barra y cómo cerrará, y al tocarla, una hoja con el importe mensual, «Usar la media», los meses especiales y «Quitar el presupuesto». Las categorías sin presupuesto, detrás de «Añadir». El año, en un selector «Mes» y «Año», con su total. Estado vacío con «Empezar con mis medias».
+- Aviso al importar y texto para Claude con el cierre previsto. Sin cambio de esquema.
+
 ## v0.35.1. Pantalla en negro al volver atrás (14 de noviembre de 2026)
 
 Fallo informado por el usuario: a veces, al volver atrás, la pantalla se quedaba en negro y había que cerrar la app. Sin errores en el registro.

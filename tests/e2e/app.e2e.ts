@@ -139,7 +139,7 @@ test('deslizar una fila muestra sus acciones y mantenerla pulsada abre el menú'
   expect(e).toEqual([])
 })
 
-test('Informes, gastos fijos, PayPal y presupuesto se abren sin errores', async ({ page }) => {
+test('Informes, gastos fijos y PayPal se abren sin errores', async ({ page }) => {
   const e = errores(page)
   await conDatosDePrueba(page)
   await page.goto('/informes')
@@ -162,11 +162,44 @@ test('Informes, gastos fijos, PayPal y presupuesto se abren sin errores', async 
   await expect(page.getByText(/al mes/).first()).toBeVisible()
   await page.goto('/movimientos/paypal')
   await expect(page.getByText(/agrupados por importe/)).toBeVisible()
+  expect(e).toEqual([])
+})
+
+test('presupuesto: empezar con las medias, ver cómo va, cambiar un importe y verlo en el Extracto', async ({ page }) => {
+  const e = errores(page)
+  await conDatosDePrueba(page)
   await page.goto('/extracto/presupuesto')
-  await page.getByRole('button', { name: /Usar las medias/ }).tap()
-  await expect(page.getByText(/con la media/)).toBeVisible()
+  await expect(page.getByText('Aún no hay presupuesto')).toBeVisible()
+  await page.getByRole('button', { name: /Empezar con mis medias/ }).tap()
+  await expect(page.getByText(/con tu media/)).toBeVisible()
+  // El mes: total con su barra y cada categoría con cómo va
+  const resumen = page.getByRole('region', { name: 'Presupuesto del mes' })
+  await expect(resumen.getByText(/de \d[\d.]*\s€/)).toBeVisible()
+  await expect(resumen.getByText(/Cerrarás en unos|Superado en/)).toBeVisible()
+  await expect(page.getByText(/^(Quedan|Justo|Cerrarás|Superado)/).first()).toBeVisible()
+  // Tocar una categoría abre su importe y sus meses especiales
+  await page.getByRole('button', { name: 'Presupuesto de Restaurantes' }).tap()
+  const hoja = page.getByRole('dialog', { name: 'Restaurantes' })
+  await hoja.getByLabel('Importe mensual de Restaurantes').fill('5000')
+  await hoja.getByRole('button', { name: 'Guardar', exact: true }).tap()
+  await expect(page.getByText(/Restaurantes: 5\.000\s€ al mes/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Presupuesto de Restaurantes' }).getByText(/de 5\.000\s€/)).toBeVisible()
+  // Añadir una categoría que no tenía
+  await page.getByRole('button', { name: 'Añadir un presupuesto' }).tap()
+  await page.getByRole('dialog', { name: 'Añadir presupuesto' }).getByRole('button', { name: /Viajes/ }).tap()
+  const viajes = page.getByRole('dialog', { name: 'Viajes' })
+  await viajes.getByLabel('Importe mensual de Viajes').fill('200')
+  await viajes.getByRole('button', { name: 'Guardar', exact: true }).tap()
+  await expect(page.getByRole('button', { name: 'Presupuesto de Viajes' })).toBeVisible()
+  // El año, en su vista
+  await page.getByRole('radio', { name: /^Año/ }).tap()
+  await expect(page.getByText(/en lo que va de año/)).toBeVisible()
+  // En el Extracto, una sola lista: la categoría con su presupuesto, sin sección aparte
   await page.locator('nav[data-pestanas] a', { hasText: 'Extracto' }).tap()
-  await expect(page.getByText('Presupuesto', { exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Presupuesto', exact: true })).toBeVisible()
+  await expect(page.getByRole('progressbar', { name: 'Presupuesto de Vivienda' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Restaurantes.*de 5\.000\s€/ })).toBeVisible()
+  await expect(page.getByText('Editar', { exact: true })).toHaveCount(0)
   expect(e).toEqual([])
 })
 
