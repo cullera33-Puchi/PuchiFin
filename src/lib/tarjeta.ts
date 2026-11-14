@@ -14,6 +14,7 @@
  * pago de la propia liquidación, si el Excel de la tarjeta lo trae («Rebut mes anterior»).
  * El usuario puede dar por buena una liquidación que no cuadra (cuadre_confirmado).
  */
+import { porVersion } from './cache'
 import { sumarDias } from './fechas'
 import type { BaseDatos, Movimiento } from './tipos'
 
@@ -42,7 +43,7 @@ export function esLiquidacion(m: Movimiento, idRegla: string | undefined, bancar
   return (!!idRegla && m.regla_id === idRegla) || (m.tipo === 'traspaso_interno' && PATRON.test(m.concepto_normalizado))
 }
 
-export function cuadrarLiquidaciones(db: BaseDatos, extra: Movimiento[] = []): CuadreLiquidacion[] {
+function calcularLiquidaciones(db: BaseDatos, extra: Movimiento[]): CuadreLiquidacion[] {
   const movs = [...db.movimientos, ...extra]
   const tarjetas = new Set(db.cuentas.filter((c) => c.tipo === 'tarjeta_credito').map((c) => c.id))
   const bancarias = new Set(db.cuentas.filter((c) => c.tipo === 'cuenta').map((c) => c.id))
@@ -126,4 +127,11 @@ export function pendienteTarjeta(db: BaseDatos, tarjetaId: string, hasta?: strin
   const desde = ultima ? sumarDias(ultima.hasta!, 1) : `${ultimaCompra.slice(0, 7)}-01`
   const importe = movs.filter((m) => m.fecha_operacion >= desde).reduce((s, m) => s + cent(m.importe), 0) / 100
   return { importe, desde, aproximado: !ultima }
+}
+
+// Sin movimientos de más (los de una importación en revisión), una vez por versión de los datos
+const liquidacionesGuardadas = porVersion((db) => calcularLiquidaciones(db, []))
+
+export function cuadrarLiquidaciones(db: BaseDatos, extra: Movimiento[] = []): CuadreLiquidacion[] {
+  return extra.length ? calcularLiquidaciones(db, extra) : liquidacionesGuardadas(db)
 }

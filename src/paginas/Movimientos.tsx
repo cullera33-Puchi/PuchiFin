@@ -1,6 +1,5 @@
-import { ChevronRight, CreditCard, EyeOff, History, Search, SlidersHorizontal, Sparkles, Tag, Upload, X } from 'lucide-react'
-import { Baldosa } from '../componentes/Icono'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { CreditCard, EyeOff, History, Search, SlidersHorizontal, Sparkles, Tag, Upload, X } from 'lucide-react'
+import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Encabezado } from '../componentes/Encabezado'
 import { FilaMovimientoDeslizable } from '../componentes/FilaMovimientoDeslizable'
@@ -30,7 +29,26 @@ interface Filtros {
 }
 
 const SIN_FILTROS: Filtros = { cuenta: null, categoria: undefined, tipo: null, mes: null, min: null, max: null }
-const PAGINA = 120
+/** Filas que se pintan de una vez; el resto llega al acercarse al final (v0.32.0: antes, 120 de golpe) */
+const PAGINA = 40
+const CLAVE_AYUDA = 'puchifin-ayuda-deslizar'
+
+/**
+ * Lo que había en Movimientos al irse a otra pestaña (v0.32.0): al volver, la misma búsqueda, los mismos
+ * filtros y el mismo sitio. Solo en memoria, mientras la app está abierta.
+ */
+const memoria: { busqueda: string; filtros: Filtros; limite: number; scroll: number } = { busqueda: '', filtros: SIN_FILTROS, limite: PAGINA, scroll: 0 }
+
+/** La ayuda de deslizar se enseña las tres primeras veces */
+function leerAyuda(): boolean {
+  try {
+    const n = Number(localStorage.getItem(CLAVE_AYUDA) ?? 0)
+    localStorage.setItem(CLAVE_AYUDA, String(n + 1))
+    return n < 3
+  } catch {
+    return false
+  }
+}
 
 export function Movimientos() {
   const db = useDatos()
@@ -52,16 +70,24 @@ export function Movimientos() {
     }
   }, [])
   const [params, setParams] = useSearchParams()
-  // Se puede llegar con una búsqueda hecha (desde Informes: un comercio y un mes)
-  const [busqueda, setBusqueda] = useState(() => params.get('q') ?? '')
+  // Se puede llegar con una búsqueda hecha (desde Informes: un comercio y un mes); si no, lo que había
+  const conParams = ['q', 'sin', 'mes', 'min', 'max'].some((k) => params.get(k) !== null)
+  const [busqueda, setBusqueda] = useState(() => (conParams ? (params.get('q') ?? '') : memoria.busqueda))
   const numero = (v: string | null) => (v ? Number(v) : null)
-  const [filtros, setFiltros] = useState<Filtros>(() => ({
-    ...SIN_FILTROS,
-    categoria: params.get('sin') ? null : undefined,
-    mes: params.get('mes'),
-    min: numero(params.get('min')),
-    max: numero(params.get('max')),
-  }))
+  const [filtros, setFiltros] = useState<Filtros>(() =>
+    conParams
+      ? {
+          ...SIN_FILTROS,
+          categoria: params.get('sin') ? null : undefined,
+          mes: params.get('mes'),
+          min: numero(params.get('min')),
+          max: numero(params.get('max')),
+        }
+      : memoria.filtros,
+  )
+  // El filtro va un paso por detrás de lo que se escribe: el teclado no se bloquea con muchos movimientos
+  const consulta = useDeferredValue(busqueda)
+  const [ayuda] = useState(leerAyuda)
   const [buscando, setBuscando] = useState(false)
 
   const campo = useRef<HTMLInputElement>(null)
@@ -73,7 +99,7 @@ export function Movimientos() {
   }
   const cuentasFiltro = db.cuentas.filter((c) => c.activa && c.tipo !== 'hipoteca' && db.movimientos.some((m) => m.cuenta_id === c.id))
   const [verFiltros, setVerFiltros] = useState(false)
-  const [limite, setLimite] = useState(PAGINA)
+  const [limite, setLimite] = useState(() => (conParams ? PAGINA : memoria.limite))
   // Si se llega con otra búsqueda estando ya en Movimientos («Ver los del mismo comercio»), se aplica
   const claveParams = ['q', 'mes', 'min', 'max'].map((k) => params.get(k)).join('|')
   const [paramsAplicados, setParamsAplicados] = useState(claveParams)
@@ -103,7 +129,7 @@ export function Movimientos() {
   // Clave de comercio de cada movimiento: los enlaces «del mismo comercio» buscan por ella
   const claves = useMemo(() => new Map(db.movimientos.map((m) => [m.id, claveComercio(m.concepto_limpio)])), [db.movimientos])
   const lista = useMemo(() => {
-    const q = normalizarConcepto(busqueda)
+    const q = normalizarConcepto(consulta)
     return db.movimientos.filter((m) => {
       if (q && !m.concepto_normalizado.includes(q) && !claves.get(m.id)?.includes(q) && !normalizarConcepto(m.nota ?? '').includes(q)) return false
       if (filtros.cuenta && m.cuenta_id !== filtros.cuenta) return false
@@ -115,10 +141,37 @@ export function Movimientos() {
       if (filtros.max !== null && Math.abs(m.importe) > filtros.max) return false
       return true
     })
-  }, [db.movimientos, busqueda, filtros, hijas, claves])
+  }, [db.movimientos, consulta, filtros, hijas, claves])
 
   const grupos = useMemo(() => porDia(lista.slice().sort((a, b) => b.fecha_operacion.localeCompare(a.fecha_operacion)).slice(0, limite)), [lista, limite])
   const total = Math.round(lista.reduce((s, m) => s + (m.tipo === 'normal' ? m.importe : 0), 0) * 100) / 100
+
+  // Al irse, se guarda dónde estaba; al volver (sin una búsqueda nueva), se recupera el sitio
+  const estado = useRef({ busqueda, filtros, limite })
+  useEffect(() => {
+    estado.current = { busqueda, filtros, limite }
+  }, [busqueda, filtros, limite])
+  useLayoutEffect(() => {
+    if (!conParams && memoria.scroll) window.scrollTo(0, memoria.scroll)
+    return () => {
+      memoria.busqueda = estado.current.busqueda
+      memoria.filtros = estado.current.filtros
+      memoria.limite = estado.current.limite
+      memoria.scroll = window.scrollY
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Las filas siguientes se pintan al acercarse al final de la lista
+  const finLista = useRef<HTMLDivElement>(null)
+  const quedan = lista.length > limite
+  useEffect(() => {
+    const el = finLista.current
+    if (!el || !quedan) return
+    const io = new IntersectionObserver((e) => e[0].isIntersecting && setLimite((l) => l + PAGINA), { rootMargin: '800px 0px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [quedan, limite])
+  const filtrado = !!consulta || hayFiltros(filtros)
 
   const chips: { texto: string; quitar: () => void }[] = []
   if (filtros.categoria) chips.push({ texto: nombreCategoria(db, filtros.categoria), quitar: () => setFiltros({ ...filtros, categoria: undefined }) })
@@ -216,6 +269,16 @@ export function Movimientos() {
           )}
         </div>
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none]">
+          {(sinCategoria > 0 || mejoras > 0) && (
+            <Link to="/movimientos/categorizar" className="flex shrink-0 items-center gap-1 rounded-full bg-[#FF9500]/15 px-3 py-1 text-[13px] font-medium text-[#C93400] dark:text-[#FF9F0A]">
+              <Sparkles className="size-3.5" strokeWidth={2} /> Categorizar
+            </Link>
+          )}
+          {paypal > 0 && (
+            <Link to="/movimientos/paypal" className="flex shrink-0 items-center gap-1 rounded-full bg-[#007AFF]/12 px-3 py-1 text-[13px] font-medium text-[#0062CC] dark:text-[#0A84FF]">
+              <CreditCard className="size-3.5" strokeWidth={2} /> PayPal {paypal}
+            </Link>
+          )}
           <button
             onClick={alternarSin}
             className={`shrink-0 rounded-full px-3 py-1 text-[13px] font-medium ${filtros.categoria === null ? 'bg-[#FF9500] text-white' : 'bg-white text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200'}`}
@@ -245,28 +308,6 @@ export function Movimientos() {
               </button>
             ))}
         </div>
-        {(sinCategoria > 0 || mejoras > 0) && (
-          <Link to="/movimientos/categorizar" className="lista fila">
-            <Baldosa glifo={Sparkles} color="#FF9500" tamano="sm" />
-            <span className="min-w-0 flex-1">
-              <span className="block text-[15px]">Categorizar por comercio</span>
-              <span className="block text-xs text-zinc-500">
-                {[sinCategoria > 0 && `${plural(sinCategoria, 'pendiente', 'pendientes')}, agrupados y con sugerencias`, mejoras > 0 && plural(mejoras, 'mejora para revisar', 'mejoras para revisar')].filter(Boolean).join('. ')}
-              </span>
-            </span>
-            <ChevronRight className="size-4 text-zinc-400" />
-          </Link>
-        )}
-        {paypal > 0 && (
-          <Link to="/movimientos/paypal" className="lista fila">
-            <Baldosa glifo={CreditCard} color="#007AFF" tamano="sm" />
-            <span className="min-w-0 flex-1">
-              <span className="block text-[15px]">Repartir PayPal</span>
-              <span className="block text-xs text-zinc-500">{plural(paypal, 'cargo por revisar', 'cargos por revisar')}, agrupados por importe</span>
-            </span>
-            <ChevronRight className="size-4 text-zinc-400" />
-          </Link>
-        )}
         {filtros.categoria === null && sinCategoria > 0 && (
           <button
             className="boton-texto px-1"
@@ -281,7 +322,8 @@ export function Movimientos() {
           </button>
         )}
         <p className="px-1 text-xs text-zinc-500">
-          {plural(lista.length, 'movimiento', 'movimientos')}. Suma de los de tipo Normal: {formatearImporte(total)}
+          {plural(lista.length, 'movimiento', 'movimientos')}
+          {filtrado ? `. Suma de los de tipo Normal: ${formatearImporte(total)}` : ''}
           {!seleccion && lista.length > 0 && (
             <button className="ml-2 font-medium text-marca-700 dark:text-marca-500" onClick={exportar}>
               Exportar a Excel
@@ -302,7 +344,7 @@ export function Movimientos() {
         <p className="tarjeta text-center text-sm text-zinc-500">Ningún movimiento con estos filtros.</p>
       ) : (
         <div className="space-y-4">
-          {!seleccion && <p className="px-4 text-xs text-zinc-500">Desliza hacia la derecha para que un movimiento no cuente (gasto de empleado o reembolso); hacia la izquierda, para cambiar la categoría.</p>}
+          {!seleccion && ayuda && <p className="px-4 text-xs text-zinc-500">Desliza hacia la derecha para que un movimiento no cuente (gasto de empleado o reembolso); hacia la izquierda, para cambiar la categoría.</p>}
           {grupos.map(([dia, movs]) => (
             <section key={dia}>
               <h3 className="cabecera-grupo">
@@ -324,10 +366,12 @@ export function Movimientos() {
               </ul>
             </section>
           ))}
-          {lista.length > limite && (
-            <button className="boton-secundario w-full" onClick={() => setLimite((l) => l + PAGINA)}>
-              Mostrar más ({lista.length - limite})
-            </button>
+          {quedan && (
+            <div ref={finLista}>
+              <button className="boton-secundario w-full" onClick={() => setLimite((l) => l + PAGINA)}>
+                Mostrar más ({lista.length - limite})
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -491,4 +535,9 @@ function HojaFiltros({ abierta, filtros, onCerrar, onAplicar }: { abierta: boole
       />
     </>
   )
+}
+
+/** Hay algún filtro aplicado (sin contar la búsqueda) */
+function hayFiltros(f: Filtros): boolean {
+  return f.cuenta !== null || f.categoria !== undefined || f.tipo !== null || f.mes !== null || f.min !== null || f.max !== null
 }

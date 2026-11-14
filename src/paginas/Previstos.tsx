@@ -8,7 +8,7 @@ import { SelectorCategoria } from '../componentes/movimientos'
 import { borrarEvento, guardarEvento } from '../datos/operaciones'
 import { useDatos } from '../datos/ProveedorDatos'
 import { hoyIso, mismoDiaEn } from '../lib/fechas'
-import { formatearFecha, formatearImporte, leerImporteUsuario, plural } from '../lib/formato'
+import { formatearFecha, formatearImporte, formatearRedondo, leerImporteUsuario, plural } from '../lib/formato'
 import { estadoEventos, type EstadoEvento, type EventoConEstado } from '../lib/previstos'
 import type { EventoPrevisto } from '../lib/tipos'
 import { nombreCategoria } from '../lib/vista'
@@ -103,7 +103,7 @@ export function Previstos() {
             <section>
               <h3 className="cabecera-grupo">Pendientes</h3>
               <ul className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">{pendientes.map((x) => fila(x, false))}</ul>
-              <p className="mt-1 px-4 text-[12px] text-zinc-500 tabular-nums">Total pendiente: {formatearImporte(totalPendiente)}</p>
+              <p className="mt-1 px-4 text-[12px] text-zinc-500 tabular-nums">Total pendiente: {formatearRedondo(totalPendiente)}</p>
             </section>
           )}
           {pasados.length > 0 && (

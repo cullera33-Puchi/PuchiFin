@@ -2,6 +2,7 @@
  * Cierre de mes guiado: lo que hay que hacer para dar un mes por bueno. Cada paso dice si está hecho,
  * por qué y dónde se resuelve. Todo se calcula con los datos; no se guarda nada.
  */
+import { porVersionYClave } from './cache'
 import { esPendiente } from '../importacion/pendientes'
 import { gruposPasarela, propuestasRecategorizacion, type GrupoPasarela } from '../datos/categorizar'
 import { sumarDias, sumarMeses } from './fechas'
@@ -31,7 +32,7 @@ export interface PrevioCierre {
   pasarela?: GrupoPasarela[]
 }
 
-export function pasosCierre(db: BaseDatos, mes: string, ultimaExportacion: string | null = null, previo: PrevioCierre = {}): PasoCierre[] {
+function calcularPasos(db: BaseDatos, mes: string, ultimaExportacion: string | null, previo: PrevioCierre): PasoCierre[] {
   const fin = finDelMes(mes)
   const pasos: PasoCierre[] = []
 
@@ -122,4 +123,14 @@ export function pasosCierre(db: BaseDatos, mes: string, ultimaExportacion: strin
 /** Mes que conviene cerrar: el anterior durante los primeros 10 días del mes */
 export function mesPorCerrar(hoy: string): string | null {
   return Number(hoy.slice(8, 10)) <= 10 ? sumarMeses(`${hoy.slice(0, 7)}-01`, -1).slice(0, 7) : null
+}
+
+// Una vez por versión de los datos, mes y fecha de la última exportación (v0.32.0)
+const pasosGuardados = porVersionYClave((db, clave) => {
+  const [mes, exportacion] = clave.split('|')
+  return calcularPasos(db, mes, exportacion || null, {})
+})
+
+export function pasosCierre(db: BaseDatos, mes: string, ultimaExportacion: string | null = null, previo: PrevioCierre = {}): PasoCierre[] {
+  return Object.keys(previo).length ? calcularPasos(db, mes, ultimaExportacion, previo) : pasosGuardados(db, `${mes}|${ultimaExportacion ?? ''}`)
 }

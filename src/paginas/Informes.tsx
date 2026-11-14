@@ -9,7 +9,7 @@ import { Hoja, Segmentado, useInterfaz } from '../componentes/Interfaz'
 import { DetalleMovimiento } from '../componentes/movimientos'
 import { useDatos } from '../datos/ProveedorDatos'
 import { diaLargo, hoyIso, MESES, mesLargo } from '../lib/fechas'
-import { formatearImporte, formatearRedondo, plural } from '../lib/formato'
+import { formatearRedondo, plural } from '../lib/formato'
 import { calcularInforme, moverPeriodo, periodoDeFecha, porcionesGrafico, type Escala, type Informe, type PeriodoInforme, type Vista } from '../lib/informes'
 import { calcularTotales, porcentaje } from '../lib/resumen'
 import { calcularPosicion } from '../lib/posicion'
@@ -30,6 +30,8 @@ import { Baldosa } from '../componentes/Icono'
  * Colores: paleta categórica validada (claro y oscuro), por posición en el gráfico; la leyenda de
  * debajo lleva el nombre, así que la identidad nunca depende solo del color.
  */
+const VERDE = 'text-[#248A3D] dark:text-[#30D158]'
+const ROJO = 'text-[#D70015] dark:text-[#FF6961]'
 const SERIES = Array.from({ length: 8 }, (_, i) => `var(--serie-${i + 1})`)
 const color = (i: number, otras?: boolean) => (otras ? 'var(--serie-otras)' : SERIES[i % SERIES.length])
 const euroCorto = (v: number) => (Math.abs(v) >= 1000 ? `${(v / 1000).toLocaleString('es-ES', { maximumFractionDigits: 1 })} k€` : `${Math.round(v)} €`)
@@ -124,34 +126,31 @@ export function Informes() {
   )
 }
 
-/** Ingresos, gastos y ahorro del periodo; Ingresos y Gastos cambian el gráfico */
+/**
+ * Ingresos, gastos y ahorro del periodo; Ingresos y Gastos cambian el gráfico. Importes redondos y solo
+ * las diferencias que dicen algo (v0.32.0): sin «+0,00 €» ni «Hace un año» vacío.
+ */
 function Totales({ informe, onVista }: { informe: Informe; onVista: (v: Vista) => void }) {
   const t = informe.totales
   const a = informe.totalesAnteriores
-  const h = informe.haceUnAno?.totales
-  const casillas: { clave: Vista; texto: string; valor: number; antes: number; anio: number | null }[] = [
-    { clave: 'ingreso', texto: 'Ingresos', valor: t.ingresos, antes: a.ingresos, anio: h ? h.ingresos : null },
-    { clave: 'gasto', texto: 'Gastos', valor: t.gastos, antes: a.gastos, anio: h ? h.gastos : null },
-  ]
+  const h = informe.haceUnAno && informe.haceUnAno.totales.movimientos > 0 ? informe.haceUnAno.totales : null
   const conAnterior = a.movimientos > 0
-  const difAhorro = Math.round((t.ahorro - a.ahorro) * 100) / 100
+  const nombreAnterior = informe.periodo.escala === 'mes' ? mesLargo(`${informe.anterior.clave}-01`).split(' de ')[0].toLowerCase() : informe.anterior.clave
+  const casillas: { clave: Vista; texto: string; valor: number; antes: number; anio: number | null; subirEsBueno: boolean }[] = [
+    { clave: 'ingreso', texto: 'Ingresos', valor: t.ingresos, antes: a.ingresos, anio: h ? h.ingresos : null, subirEsBueno: true },
+    { clave: 'gasto', texto: 'Gastos', valor: t.gastos, antes: a.gastos, anio: h ? h.gastos : null, subirEsBueno: false },
+  ]
+  const diferencia = (n: number, subirEsBueno: boolean) => {
+    if (!conAnterior || Math.abs(n) < 1) return null
+    const bueno = n > 0 === subirEsBueno
+    return <span className={bueno ? VERDE : ROJO}>{`${n > 0 ? '+' : '−'}${formatearRedondo(Math.abs(n))}`}</span>
+  }
+  const difAhorro = t.ahorro - a.ahorro
   return (
     <div className="grid grid-cols-2 gap-2">
       {casillas.map((c) => {
         const activa = c.clave === informe.vista
-        const contenido = (
-          <>
-            <span className="block text-[11px] text-zinc-500">{c.texto}</span>
-            <span className="block truncate text-[17px] font-semibold tabular-nums">{formatearImporte(c.valor)}</span>
-            {conAnterior && (
-              <span className="block truncate text-[11px] text-zinc-500 tabular-nums">
-                {c.valor - c.antes >= 0 ? '+' : ''}
-                {formatearImporte(Math.round((c.valor - c.antes) * 100) / 100)}
-              </span>
-            )}
-            {c.anio !== null && <span className="block truncate text-[11px] text-zinc-500 tabular-nums">Hace un año: {formatearImporte(c.anio)}</span>}
-          </>
-        )
+        const dif = diferencia(c.valor - c.antes, c.subirEsBueno)
         return (
           <button
             key={c.clave}
@@ -159,15 +158,28 @@ function Totales({ informe, onVista }: { informe: Informe; onVista: (v: Vista) =
             onClick={() => onVista(c.clave)}
             className={`tarjeta px-3 py-2.5 text-left ring-2 transition ${activa ? 'ring-marca-600 dark:ring-marca-500' : 'ring-transparent'}`}
           >
-            {contenido}
+            <span className="block text-[12px] text-zinc-500">{c.texto}</span>
+            <span className="block truncate text-[20px] font-semibold tabular-nums">{formatearRedondo(c.valor)}</span>
+            {dif && (
+              <span className="block truncate text-[12px] tabular-nums">
+                {dif} <span className="text-zinc-500">frente a {nombreAnterior}</span>
+              </span>
+            )}
+            {c.anio !== null && <span className="block truncate text-[12px] text-zinc-500 tabular-nums">Hace un año: {formatearRedondo(c.anio)}</span>}
           </button>
         )
       })}
-      <p className="col-span-2 px-1 text-[13px] text-zinc-500">
-        Ahorro: <span className="font-semibold text-zinc-900 tabular-nums dark:text-zinc-100">{formatearImporte(t.ahorro)}</span>
-        {t.tasaAhorro !== null && t.tasaAhorro >= -1 && ` (${porcentaje(t.tasaAhorro)})`}
-        {conAnterior && `. Diferencias frente a ${informe.periodo.escala === 'mes' ? mesLargo(`${informe.anterior.clave}-01`).toLowerCase() : informe.anterior.clave}${informe.enCurso ? ' con los mismos días' : ''}: ahorro ${difAhorro >= 0 ? '+' : ''}${formatearImporte(difAhorro)}.`}
-      </p>
+      <div className="tarjeta col-span-2 flex flex-wrap items-baseline gap-x-2 px-3 py-2.5">
+        <span className="text-[12px] text-zinc-500">Ahorro</span>
+        <span className="text-[17px] font-semibold tabular-nums">{formatearRedondo(t.ahorro)}</span>
+        {t.tasaAhorro !== null && t.tasaAhorro >= -1 && <span className="text-[13px] whitespace-nowrap text-zinc-500 tabular-nums">{porcentaje(t.tasaAhorro)}</span>}
+        {diferencia(difAhorro, true) && (
+          <span className="ml-auto text-[12px] whitespace-nowrap tabular-nums">
+            {diferencia(difAhorro, true)} <span className="text-zinc-500">frente a {nombreAnterior}</span>
+          </span>
+        )}
+      </div>
+      {conAnterior && informe.enCurso && <p className="col-span-2 px-1 text-[12px] text-zinc-500">Periodo en curso: se compara con los mismos días de {nombreAnterior}.</p>}
     </div>
   )
 }
@@ -194,6 +206,11 @@ function PanelQuesito({
     return <p className="tarjeta text-center text-[15px] text-zinc-500">Sin {nombre.toLowerCase()} en este periodo.</p>
   }
   const sel = marcada !== null ? grafico[marcada] : null
+  // El color de cada categoría, el mismo que en el Extracto (v0.32.0); si se repiten (las subcategorías
+  // heredan el de su categoría), la paleta del gráfico para distinguirlas
+  const propios = grafico.filter((p) => !p.otras)
+  const usarPropios = new Set(propios.map((p) => p.color)).size === propios.length
+  const colorDe = (i: number) => (grafico[i]?.otras ? 'var(--serie-otras)' : usarPropios ? grafico[i].color : color(i))
   // La leyenda lista todas las categorías; las agrupadas en «Otras» comparten su color
   const indice = new Map(grafico.map((p, i) => [p.id, i]))
   const iOtras = grafico.findIndex((p) => p.otras)
@@ -217,14 +234,14 @@ function PanelQuesito({
               onClick={(_, i) => setMarcada((m) => (m === i ? null : i))}
             >
               {grafico.map((p, i) => (
-                <Cell key={p.id ?? 'sin'} fill={color(i, p.otras)} opacity={marcada === null || marcada === i ? 1 : 0.35} className="cursor-pointer outline-none" />
+                <Cell key={p.id ?? 'sin'} fill={colorDe(i)} opacity={marcada === null || marcada === i ? 1 : 0.35} className="cursor-pointer outline-none" />
               ))}
             </Pie>
           </PieChart>
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-[22%] flex flex-col items-center justify-center text-center" aria-live="polite">
           <span className="max-w-full truncate text-[13px] text-zinc-500">{sel ? sel.nombre : nombre}</span>
-          <span className="text-[22px] leading-tight font-bold tabular-nums">{formatearImporte(sel ? sel.importe : informe.total)}</span>
+          <span className="text-[22px] leading-tight font-bold tabular-nums">{formatearRedondo(sel ? sel.importe : informe.total)}</span>
           <span className="text-[13px] text-zinc-500 tabular-nums">{sel ? porcentaje(sel.peso) : `${informe.movimientos.length} movimientos`}</span>
         </div>
       </div>
@@ -232,18 +249,21 @@ function PanelQuesito({
       <ul className="mt-3 divide-y divide-zinc-200/70 dark:divide-zinc-800">
         {informe.porciones.map((p) => {
           const i = indice.get(p.id) ?? iOtras
-          const dif = Math.round((p.importe - p.anterior) * 100) / 100
+          // Diferencia con el periodo anterior, solo si es relevante: al menos 20 € y un 15 %
+          const dif = Math.round(p.importe - p.anterior)
+          const relevante = informe.totalesAnteriores.movimientos > 0 && Math.abs(dif) >= 20 && (p.anterior === 0 || Math.abs(dif) / p.anterior >= 0.15)
+          const malo = informe.vista === 'gasto' ? dif > 0 : dif < 0
           const fila = (
             <>
-              <span className="size-3 shrink-0 rounded-[3px]" style={{ background: i >= 0 ? color(i, grafico[i]?.otras) : 'var(--serie-otras)' }} aria-hidden />
+              <span className="size-3 shrink-0 rounded-[3px]" style={{ background: i >= 0 ? colorDe(i) : 'var(--serie-otras)' }} aria-hidden />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[15px]">{p.nombre}</span>
-                <span className="block text-[11px] text-zinc-500 tabular-nums">
+                <span className="block text-[12px] text-zinc-500 tabular-nums">
                   {porcentaje(p.peso)}
-                  {informe.totalesAnteriores.movimientos > 0 && `, ${dif >= 0 ? '+' : ''}${formatearImporte(dif)}`}
+                  {relevante && <span className={malo ? ROJO : VERDE}>{`, ${dif > 0 ? '+' : '−'}${formatearRedondo(Math.abs(dif))}`}</span>}
                 </span>
               </span>
-              <span className="text-[15px] tabular-nums">{formatearImporte(p.importe)}</span>
+              <span className="text-[15px] tabular-nums">{formatearRedondo(p.importe)}</span>
               {onElegir ? (
                 <Check className={`size-5 shrink-0 text-[#007AFF] dark:text-[#0A84FF] ${elegida === p.id ? '' : 'invisible'}`} strokeWidth={2.5} />
               ) : (
@@ -281,7 +301,7 @@ function TarjetaFijos() {
     <Link to="/informes/fijos" className="tarjeta flex items-center gap-3 active:opacity-70">
       <Baldosa glifo={Repeat} color="#5856D6" />
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-semibold">Gastos fijos: {formatearImporte(datos.r.alMes)} al mes</span>
+        <span className="block text-[15px] font-semibold">Gastos fijos: {formatearRedondo(datos.r.alMes)} al mes</span>
         <span className="block text-[12px] text-zinc-500">
           {plural(datos.r.activos.length, 'cargo recurrente', 'cargos recurrentes')}
           {datos.r.proximos.length ? `, ${datos.r.proximos.length} en los próximos 30 días` : ''}
@@ -320,7 +340,7 @@ function SeccionComercios({ informe, movimientos }: { informe: Informe; movimien
                 <span className="block truncate text-[15px]">{l.nombre}</span>
                 <span className="block text-[11px] text-zinc-500">{l.veces === 1 ? '1 vez' : `${l.veces} veces`}</span>
               </span>
-              <span className="text-[15px] tabular-nums">{formatearImporte(l.importe)}</span>
+              <span className="text-[15px] tabular-nums">{formatearRedondo(l.importe)}</span>
               <ChevronRight className="size-4 shrink-0 text-zinc-400" strokeWidth={2} />
             </button>
           </li>
@@ -354,7 +374,7 @@ function HojaComercio({ comercio, movimientos, periodo, onCerrar }: { comercio: 
         {comercio && (
           <div className="space-y-3">
             <p className="text-center text-[13px] text-zinc-500 tabular-nums">
-              {plural(comercio.veces, 'vez', 'veces')}, {formatearImporte(comercio.importe)} en {periodo.escala === 'mes' ? mesLargo(`${periodo.clave}-01`).toLowerCase() : periodo.clave}
+              {plural(comercio.veces, 'vez', 'veces')}, {formatearRedondo(comercio.importe)} en {periodo.escala === 'mes' ? mesLargo(`${periodo.clave}-01`).toLowerCase() : periodo.clave}
             </p>
             <ul className="lista divide-y divide-zinc-200/70 bg-zinc-100/70 dark:divide-zinc-800 dark:bg-zinc-800/50">
               {lista.map((m) => (
@@ -401,7 +421,7 @@ function SeccionHormiga({ informe, hoy }: { informe: Informe; hoy: string }) {
   return (
     <section className="tarjeta">
       <h3 className="text-[13px] font-medium text-zinc-500 uppercase">Gastos hormiga</h3>
-      <p className="mt-1 text-[22px] leading-tight font-bold tabular-nums">{formatearImporte(h.total)}</p>
+      <p className="mt-1 text-[22px] leading-tight font-bold tabular-nums">{formatearRedondo(h.total)}</p>
       <p className="text-[13px] text-zinc-500">
         {h.compras} compras de hasta {IMPORTE_HORMIGA} € en sitios donde repites. A este ritmo, unos <span className="font-semibold text-zinc-900 dark:text-zinc-100">{formatearRedondo(h.alAno)}</span> al año.
       </p>
@@ -413,7 +433,7 @@ function SeccionHormiga({ informe, hoy }: { informe: Informe; hoy: string }) {
                 <span className="block truncate text-[15px]">{c.nombre}</span>
                 <span className="block text-[11px] text-zinc-500">{c.veces} veces</span>
               </span>
-              <span className="text-[15px] tabular-nums">{formatearImporte(c.importe)}</span>
+              <span className="text-[15px] tabular-nums">{formatearRedondo(c.importe)}</span>
               <ChevronRight className="size-4 shrink-0 text-zinc-400" strokeWidth={2} />
             </button>
           </li>
@@ -448,7 +468,7 @@ function SeccionCapital({ db }: { db: ReturnType<typeof useDatos> }) {
   return (
     <section className="tarjeta">
       <h3 className="text-[13px] font-medium text-zinc-500 uppercase">Tu capital, mes a mes</h3>
-      <p className="mt-1 text-[22px] leading-tight font-bold tabular-nums">{formatearImporte(ultimo.capital)}</p>
+      <p className="mt-1 text-[22px] leading-tight font-bold tabular-nums">{formatearRedondo(ultimo.capital)}</p>
       <p className="text-[12px] text-zinc-500">Hoy. Cuentas según el banco menos lo pendiente de la tarjeta, a final de cada mes.</p>
       <div className="mt-2 h-32">
         <ResponsiveContainer width="100%" height="100%">
@@ -456,7 +476,7 @@ function SeccionCapital({ db }: { db: ReturnType<typeof useDatos> }) {
             <XAxis dataKey="nombre" stroke="var(--graf-texto)" fontSize={11} tickLine={false} axisLine={false} interval="preserveStartEnd" />
             <YAxis hide domain={['dataMin', 'dataMax']} />
             <Tooltip
-              formatter={(v) => [formatearImporte(Number(v)), 'Capital']}
+              formatter={(v) => [formatearRedondo(Number(v)), 'Capital']}
               contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.15)', fontSize: 13 }}
             />
             <Line type="monotone" dataKey="capital" stroke="var(--serie-1)" strokeWidth={2} dot={{ r: 3, strokeWidth: 0, fill: 'var(--serie-1)' }} activeDot={{ r: 5 }} isAnimationActive={false} />
@@ -520,7 +540,7 @@ function Evolucion({ db, informe, onPeriodo, categoria }: { db: ReturnType<typeo
           <BarChart data={meses} margin={{ top: 18, right: 0, bottom: 0, left: 0 }}>
             <XAxis dataKey="nombre" stroke="var(--graf-texto)" fontSize={11} tickLine={false} axisLine={false} interval={0} />
             <Tooltip
-              formatter={(v) => [formatearImporte(Number(v)), vista === 'gasto' ? 'Gastos' : 'Ingresos']}
+              formatter={(v) => [formatearRedondo(Number(v)), vista === 'gasto' ? 'Gastos' : 'Ingresos']}
               contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.15)', fontSize: 13 }}
               cursor={{ fill: 'var(--graf-rejilla)', opacity: 0.5 }}
             />
@@ -581,7 +601,7 @@ export function InformeCategoria() {
       <BarraNavegacion
         titulo={sub !== undefined ? (nombreSub ?? 'Subcategoría') : (categoria?.nombre ?? 'Sin categoría')}
         atras={sub !== undefined ? (categoria?.nombre ?? 'Atrás') : 'Informes'}
-        subtitulo={`${nombrePeriodo(periodo)}. ${formatearImporte(sub !== undefined ? totalVisto : informe.total)} en ${plural(movimientos.length, 'movimiento', 'movimientos')}`}
+        subtitulo={`${nombrePeriodo(periodo)}. ${formatearRedondo(sub !== undefined ? totalVisto : informe.total)} en ${plural(movimientos.length, 'movimiento', 'movimientos')}`}
         accion={
           <button className="boton-icono" aria-label="Exportar a Excel" title="Exportar a Excel" onClick={exportar}>
             <Sheet className="size-[22px]" strokeWidth={1.75} />
@@ -604,7 +624,7 @@ export function InformeCategoria() {
                   <>Todos los movimientos. Toca una subcategoría para ver solo los suyos.</>
                 ) : (
                   <>
-                    <span className="font-semibold text-zinc-900 dark:text-zinc-100">{nombreSub ?? 'Subcategoría'}</span>: {formatearImporte(totalVisto)} en {plural(movimientos.length, 'movimiento', 'movimientos')}
+                    <span className="font-semibold text-zinc-900 dark:text-zinc-100">{nombreSub ?? 'Subcategoría'}</span>: {formatearRedondo(totalVisto)} en {plural(movimientos.length, 'movimiento', 'movimientos')}
                   </>
                 )}
               </p>

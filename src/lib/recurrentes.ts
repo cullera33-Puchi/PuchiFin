@@ -5,6 +5,7 @@
  * Sirven para separar el gasto fijo del variable, anticipar los próximos cargos, detectar subidas de
  * precio y avisar de un cargo que no llega.
  */
+import { porVersion } from './cache'
 import { claveComercio, claveConImporte, esPasarela, nombrePasarela } from './conceptos'
 import { sumarDias } from './fechas'
 import { formatearImporte } from './formato'
@@ -99,7 +100,7 @@ function gruposCargos(db: BaseDatos): Map<string, Movimiento[]> {
   return grupos
 }
 
-export function detectarRecurrentes(db: BaseDatos): Recurrente[] {
+function calcularRecurrentes(db: BaseDatos): Recurrente[] {
   const grupos = gruposCargos(db)
   const referencia = ultimasFechas(db)
   const res: Recurrente[] = []
@@ -250,3 +251,6 @@ export function avisosRecurrentes(db: BaseDatos, recurrentes = detectarRecurrent
   }
   return avisos.sort((a, b) => b.fecha.localeCompare(a.fecha))
 }
+
+/** Una vez por versión de los datos: el Extracto, Informes, Gastos fijos y la previsión lo comparten */
+export const detectarRecurrentes = porVersion(calcularRecurrentes)

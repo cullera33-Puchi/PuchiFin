@@ -23,7 +23,7 @@ import { Baldosa } from '../componentes/Icono'
 import { Hoja, useInterfaz } from '../componentes/Interfaz'
 import { FilasPatrimonio } from '../componentes/Patrimonio'
 import { opcionesMeses, TiraPeriodos } from '../componentes/TiraPeriodos'
-import { gruposPasarela, propuestasRecategorizacion } from '../datos/categorizar'
+import { propuestasRecategorizacion } from '../datos/categorizar'
 import { contarDatosPrueba } from '../datos/operaciones'
 import { useDatos } from '../datos/ProveedorDatos'
 import { textoExtracto } from '../lib/analizar'
@@ -195,7 +195,6 @@ function usePendientes(mes: string, sinCategoria: number, recurrentes: ReturnTyp
   const db = useDatos()
   const movsMejora = useMemo(() => propuestasRecategorizacion(db).flatMap((p) => p.movimientos), [db])
   const liquidaciones = useMemo(() => cuadrarLiquidaciones(db), [db])
-  const pasarela = useMemo(() => gruposPasarela(db), [db])
   const descuadradas = useMemo(
     () =>
       db.cuentas.filter((c) => c.activa && c.tipo === 'cuenta' && !cuadrarCuenta(db.movimientos.filter((x) => x.cuenta_id === c.id)).cuadra).length +
@@ -208,8 +207,8 @@ function usePendientes(mes: string, sinCategoria: number, recurrentes: ReturnTyp
   const actual = mesDe(hoyIso())
   const mesCierre = mes < actual ? mes : mesPorCerrar(hoyIso())
   const cierre = useMemo(
-    () => (mesCierre && db.movimientos.length ? pasosCierre(db, mesCierre, ultimaExportacion(), { liquidaciones, mejoras: movsMejora, pasarela }) : null),
-    [db, mesCierre, liquidaciones, movsMejora, pasarela],
+    () => (mesCierre && db.movimientos.length ? pasosCierre(db, mesCierre, ultimaExportacion()) : null),
+    [db, mesCierre],
   )
   const prueba = contarDatosPrueba(db)
   const exportacion = avisoExportacion(db)
@@ -317,9 +316,11 @@ function TarjetaMes({ e, mes, prevision, presupuestos }: { e: DatosExtracto; mes
   const m = e.media
   const v = m && m.gastos > 0 ? (t.gastos - m.gastos) / m.gastos : null
   const presupuesto = presupuestos.reduce((s, l) => s + l.presupuesto, 0)
-  // Referencia del mes entero: el presupuesto, si lo hay; si no, la media de los meses completos
+  // Referencia del mes entero: el presupuesto si cubre la mayor parte del gasto habitual (un presupuesto
+  // solo de Alimentación no sirve para comparar todo el mes); si no, la media de los meses completos
   const media = e.enCurso ? (prevision?.media ?? null) : (m?.gastos ?? null)
-  const ref = presupuesto > 0 ? { importe: presupuesto, nombre: 'Presupuesto' } : media ? { importe: media, nombre: 'Media' } : null
+  const cubre = presupuesto > 0 && (!media || presupuesto >= media * 0.8)
+  const ref = cubre ? { importe: presupuesto, nombre: 'Presupuesto' } : media ? { importe: media, nombre: 'Media' } : null
   const previsto = e.enCurso && prevision && prevision.diasRestantes > 0 ? prevision.total : null
   const escala = Math.max(ref?.importe ?? 0, t.gastos, previsto ?? 0) || 1
   const pasa = ref ? (previsto ?? t.gastos) > ref.importe : false
@@ -365,6 +366,8 @@ function TarjetaMes({ e, mes, prevision, presupuestos }: { e: DatosExtracto; mes
         </div>
       )}
 
+      {ref && previsto !== null && prevision && <Quedan referencia={ref} prevision={prevision} />}
+
       {sube && (
         <button className="mt-2 flex w-full items-center gap-1 text-left text-[13px] active:opacity-60" onClick={() => navegar(`/extracto/categoria/${sube.id}?mes=${mes}`)}>
           <span className="text-zinc-500">Lo que más sube:</span>
@@ -383,6 +386,30 @@ function TarjetaMes({ e, mes, prevision, presupuestos }: { e: DatosExtracto; mes
 
       <HojaDetalleMes abierta={detalle} onCerrar={() => setDetalle(false)} e={e} mes={mes} prevision={previsto !== null ? prevision : null} />
     </section>
+  )
+}
+
+/**
+ * Cuánto queda para gastar hasta fin de mes (v0.32.0): la referencia (presupuesto o media) menos lo
+ * gastado, los recibos que faltan y los gastos previstos; y cuánto es al día.
+ */
+function Quedan({ referencia, prevision }: { referencia: { importe: number; nombre: string }; prevision: Prevision }) {
+  const comprometido = prevision.recibos + prevision.importePrevistos
+  const quedan = referencia.importe - prevision.gastado - comprometido
+  const nombre = referencia.nombre === 'Presupuesto' ? 'tu presupuesto' : 'tu media'
+  if (quedan <= 0)
+    return (
+      <p className={`mt-2 text-[13px] ${ROJO}`}>
+        {comprometido > 0 ? `Con los recibos que faltan, ya pasas de ${nombre}` : `Ya has pasado de ${nombre}`} en {formatearRedondo(-quedan)}.
+      </p>
+    )
+  const diario = quedan / Math.max(1, prevision.diasRestantes)
+  return (
+    <p className="mt-2 text-[13px]">
+      Te quedan <span className="font-semibold tabular-nums">{formatearRedondo(quedan)}</span> hasta fin de mes para llegar a {nombre}, unos{' '}
+      <span className="font-semibold tabular-nums">{formatearRedondo(diario)}</span> al día
+      {comprometido > 0 ? <span className="text-zinc-500">{`, ya descontados ${formatearRedondo(comprometido)} de recibos y previstos`}</span> : ''}.
+    </p>
   )
 }
 

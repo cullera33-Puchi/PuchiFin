@@ -3,6 +3,7 @@
  * categoría): los pendientes se agrupan por comercio y cada grupo trae una categoría sugerida por
  * parecido con lo ya categorizado. Nada se aplica sin que el usuario lo confirme.
  */
+import { porVersion } from '../lib/cache'
 import { esPendiente } from '../importacion/pendientes'
 import { categoriasAprendidas, clasificar } from '../importacion/reglas'
 import { claveComercio, claveConImporte, esPasarela, nombrePasarela, normalizarConcepto, primeraPalabra } from '../lib/conceptos'
@@ -179,7 +180,7 @@ export interface PropuestaCambio {
  * de ahora (o lo que el usuario ha corregido después en el mismo comercio) llevarían a otra categoría.
  * Lo categorizado a mano nunca se propone. Se agrupan por comercio y cambio.
  */
-export function propuestasRecategorizacion(db: BaseDatos): PropuestaCambio[] {
+function calcularPropuestas(db: BaseDatos): PropuestaCambio[] {
   const aprendidas = categoriasAprendidas(db)
   const grupos = new Map<string, PropuestaCambio>()
   for (const m of db.movimientos) {
@@ -215,7 +216,7 @@ export interface GrupoPasarela {
 }
 
 /** Cargos de PayPal (y otras pasarelas) agrupados por importe: primero lo que hay que revisar */
-export function gruposPasarela(db: BaseDatos): GrupoPasarela[] {
+function calcularGruposPasarela(db: BaseDatos): GrupoPasarela[] {
   const grupos = new Map<string, Movimiento[]>()
   for (const m of db.movimientos) {
     if (m.tipo !== 'normal' || !esPasarela(claveBase(m))) continue
@@ -260,3 +261,9 @@ export function categoriasPasarela(db: BaseDatos, recientes: string[] = [], max 
   const activa = (id: string) => db.categorias.some((c) => c.id === id && c.activa && c.naturaleza === 'gasto')
   return [...new Set([...recientes, ...[...usos].sort((a, b) => b[1] - a[1]).map(([id]) => id), ...tipicas])].filter(activa).slice(0, max)
 }
+
+/** Una vez por versión de los datos: el Extracto, Movimientos y Categorizar la piden a la vez */
+export const propuestasRecategorizacion = porVersion(calcularPropuestas)
+
+/** Una vez por versión de los datos */
+export const gruposPasarela = porVersion(calcularGruposPasarela)

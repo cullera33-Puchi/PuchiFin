@@ -56,7 +56,7 @@ export function generarPdfResumen(r: Resumen, opciones: OpcionesPdf): jsPDF {
     const c = porId.get(id)
     if (!c) return '?'
     const p = c.padre_id ? porId.get(c.padre_id) : undefined
-    return p ? `${p.nombre}, ${c.nombre}` : c.nombre
+    return p && p.nombre.toLowerCase() !== c.nombre.toLowerCase() ? `${p.nombre}, ${c.nombre}` : c.nombre
   }
 
   // Cabecera

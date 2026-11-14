@@ -107,6 +107,11 @@ test('deslizar una fila muestra sus acciones y mantenerla pulsada abre el menú'
   await page.getByRole('button', { name: 'Ver los del mismo comercio' }).click()
   await expect(page.getByPlaceholder('Buscar concepto o nota')).not.toHaveValue('')
   await expect(page.getByText(/^[1-9]\d* movimientos?\./)).toBeVisible()
+  // Al volver a la pestaña, Movimientos conserva la búsqueda
+  const busqueda = await page.getByPlaceholder('Buscar concepto o nota').inputValue()
+  await page.locator('nav[data-pestanas] a', { hasText: 'Informes' }).tap()
+  await page.locator('nav[data-pestanas] a', { hasText: 'Movimientos' }).tap()
+  await expect(page.getByPlaceholder('Buscar concepto o nota')).toHaveValue(busqueda)
   expect(e).toEqual([])
 })
 
@@ -227,7 +232,7 @@ for (const esquema of [3, 5, 7, 8, 9, 10, 11]) {
     await page.getByRole('button', { name: 'Importar', exact: true }).last().click()
     await expect(page.getByText('Datos importados')).toBeVisible()
     await page.goto('/movimientos')
-    await expect(page.getByText(/^\d{3} movimientos\./)).toBeVisible()
+    await expect(page.getByText(/^\d{3} movimientos/).first()).toBeVisible()
     await page.goto('/')
     await expect(page.getByRole('link', { name: /Capital/ })).toBeVisible()
     expect(e).toEqual([])

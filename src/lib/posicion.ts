@@ -3,6 +3,7 @@
  * Disponible del último movimiento importado) menos lo gastado con la tarjeta que aún no se ha
  * cargado en la cuenta. Con la evolución del saldo bancario a final de cada mes.
  */
+import { porVersion } from './cache'
 import { sumarDias, sumarMeses } from './fechas'
 import { cuadrarCuenta } from './saldos'
 import { cuadrarLiquidaciones, pendienteTarjeta, type PendienteTarjeta } from './tarjeta'
@@ -41,7 +42,7 @@ function saldoA(movs: Movimiento[], dia: string): number | null {
 const finDeMes = (mes: string) => sumarDias(sumarMeses(`${mes}-01`, 1), -1)
 const mesAnterior = (mes: string) => sumarMeses(`${mes}-01`, -1).slice(0, 7)
 
-export function calcularPosicion(db: BaseDatos, meses = 12): Posicion | null {
+function calcularPosicionCon(db: BaseDatos, meses: number): Posicion | null {
   const bancarias = db.cuentas.filter((c) => c.activa && c.tipo === 'cuenta')
   // Los movimientos de cada cuenta, separados una sola vez
   const porCuenta = new Map<string, Movimiento[]>()
@@ -92,4 +93,11 @@ export function calcularPosicion(db: BaseDatos, meses = 12): Posicion | null {
     evolucion: [...cierres, { mes: actual, saldo: bancos, capital }],
     variacionMes: anterior ? redondear(bancos - anterior.saldo) : null,
   }
+}
+
+// La de 12 meses, una vez por versión de los datos: el Extracto, Informes, el plan y Tu posición la comparten
+const posicionDoceMeses = porVersion((db) => calcularPosicionCon(db, 12))
+
+export function calcularPosicion(db: BaseDatos, meses = 12): Posicion | null {
+  return meses === 12 ? posicionDoceMeses(db) : calcularPosicionCon(db, meses)
 }

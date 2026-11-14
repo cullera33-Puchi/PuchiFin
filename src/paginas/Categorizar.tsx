@@ -20,7 +20,7 @@ const claveGrupo = (g: GrupoPendiente) => `${g.signo}|${g.clave}`
 function categoriaDe(db: BaseDatos, id: string) {
   const c = db.categorias.find((x) => x.id === id)
   const padre = c?.padre_id ? db.categorias.find((x) => x.id === c.padre_id) : undefined
-  return { nombre: padre ? `${padre.nombre}, ${c!.nombre}` : (c?.nombre ?? ''), icono: padre?.icono ?? c?.icono ?? null, color: c?.color ?? '#8E8E93' }
+  return { nombre: padre && padre.nombre.toLowerCase() !== c!.nombre.toLowerCase() ? `${padre.nombre}, ${c!.nombre}` : (c?.nombre ?? ''), icono: padre?.icono ?? c?.icono ?? null, color: c?.color ?? '#8E8E93' }
 }
 
 /**

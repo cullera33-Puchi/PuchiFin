@@ -7,7 +7,7 @@ import { HojaClaude } from '../componentes/HojaClaude'
 import { useDatos } from '../datos/ProveedorDatos'
 import { esPasarela } from '../lib/conceptos'
 import { hoyIso } from '../lib/fechas'
-import { formatearFecha, formatearImporte, plural } from '../lib/formato'
+import { formatearFecha, formatearImporte, formatearRedondo, plural } from '../lib/formato'
 import { mesEfectivo } from '../lib/imputacion'
 import { textoOptimizar } from '../lib/optimizar'
 import { avisosRecurrentes, detectarRecurrentes, fijoYVariable, NOMBRE_PERIODICIDAD, resumenFijos, type Recurrente, type TipoAviso } from '../lib/recurrentes'
@@ -54,16 +54,16 @@ export function Fijos() {
         <div className="space-y-4">
           <section className="tarjeta">
             <p className="text-[13px] text-zinc-500">Lo que se cobra solo</p>
-            <p className="text-[28px] leading-tight font-bold tabular-nums">{formatearImporte(r.alMes)} al mes</p>
-            <p className="text-[13px] text-zinc-500 tabular-nums">{formatearImporte(r.alAno)} al año</p>
+            <p className="text-[28px] leading-tight font-bold tabular-nums">{formatearRedondo(r.alMes)} al mes</p>
+            <p className="text-[13px] text-zinc-500 tabular-nums">{formatearRedondo(r.alAno)} al año</p>
             <div className="mt-3 grid grid-cols-2 gap-2 text-[13px]">
               <div className="rounded-xl bg-zinc-100 px-3 py-2 dark:bg-zinc-800">
                 <span className="block text-zinc-500">Fijo este mes</span>
-                <span className="text-[17px] font-semibold tabular-nums">{formatearImporte(reparto.fijo)}</span>
+                <span className="text-[17px] font-semibold tabular-nums">{formatearRedondo(reparto.fijo)}</span>
               </div>
               <div className="rounded-xl bg-zinc-100 px-3 py-2 dark:bg-zinc-800">
                 <span className="block text-zinc-500">Variable este mes</span>
-                <span className="text-[17px] font-semibold tabular-nums">{formatearImporte(reparto.variable)}</span>
+                <span className="text-[17px] font-semibold tabular-nums">{formatearRedondo(reparto.variable)}</span>
               </div>
             </div>
             <button className="boton-primario mt-3 w-full" onClick={() => setOptimizar(true)}>
@@ -107,7 +107,7 @@ export function Fijos() {
                 ))}
               </ul>
               <p className="mt-1 px-4 text-[12px] text-zinc-500">
-                Total previsto: {formatearImporte(r.proximos.reduce((s, x) => s + x.importe, 0))}. Fecha estimada con los cargos anteriores.
+                Total previsto: {formatearRedondo(r.proximos.reduce((s, x) => s + x.importe, 0))}. Fecha estimada con los cargos anteriores.
               </p>
             </section>
           )}
@@ -132,7 +132,7 @@ export function Fijos() {
                     </span>
                     <span className="shrink-0 text-right">
                       <span className="block text-[15px] tabular-nums">{formatearImporte(x.importe)}</span>
-                      <span className="block text-[11px] text-zinc-500 tabular-nums">{formatearImporte(x.alAno)} al año</span>
+                      <span className="block text-[11px] text-zinc-500 tabular-nums">{formatearRedondo(x.alAno)} al año</span>
                     </span>
                     <ChevronRight className="size-4 shrink-0 text-zinc-400" />
                   </button>

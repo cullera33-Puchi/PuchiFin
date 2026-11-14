@@ -14,7 +14,8 @@ export function nombreCategoria(db: BaseDatos, id: string | null): string {
   const c = db.categorias.find((x) => x.id === id)
   if (!c) return '?'
   const p = c.padre_id ? db.categorias.find((x) => x.id === c.padre_id) : undefined
-  return p ? `${p.nombre}, ${c.nombre}` : c.nombre
+  // «Restaurantes, Restaurantes»: si la subcategoría se llama como su categoría, una sola vez
+  return p && p.nombre.toLowerCase() !== c.nombre.toLowerCase() ? `${p.nombre}, ${c.nombre}` : c.nombre
 }
 
 /** Agrupa movimientos por día, del más reciente al más antiguo */

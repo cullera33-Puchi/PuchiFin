@@ -13,7 +13,7 @@ import { guardarCompromiso } from '../datos/operaciones'
 import { useDatos } from '../datos/ProveedorDatos'
 import { textoPlan } from '../lib/analizar'
 import { hoyIso, MESES } from '../lib/fechas'
-import { formatearFecha, formatearImporte, formatearRedondo, leerImporteUsuario } from '../lib/formato'
+import { formatearFecha, formatearRedondo, leerImporteUsuario } from '../lib/formato'
 import { useSimulacion } from '../componentes/simulacion'
 import { calcularPlan, efectoMesCerrado, haySimulacion, SIN_SIMULACION, type Plan as DatosPlan, type ResultadoPlan, type Simulacion } from '../lib/plan'
 import type { BaseDatos, Compromiso } from '../lib/tipos'
@@ -126,8 +126,8 @@ function ContenidoPlan({
     <div className="space-y-4">
       <section className="tarjeta">
         <p className="text-[13px] text-zinc-500">Deuda pendiente</p>
-        <p className="text-[30px] leading-tight font-bold tracking-tight tabular-nums">{formatearImporte(plan.deudaPendiente)}</p>
-        {plan.pagado > 0 && <p className="text-[13px] text-zinc-500 tabular-nums">Ya pagado: {formatearImporte(plan.pagado)}</p>}
+        <p className="text-[30px] leading-tight font-bold tracking-tight tabular-nums">{formatearRedondo(plan.deudaPendiente)}</p>
+        {plan.pagado > 0 && <p className="text-[13px] text-zinc-500 tabular-nums">Ya pagado: {formatearRedondo(plan.pagado)}</p>}
         {proximo && (
           <div className="mt-3 rounded-xl bg-zinc-100 px-3 py-2 dark:bg-zinc-800">
             <span className="block text-[13px] text-zinc-500">
@@ -138,7 +138,7 @@ function ContenidoPlan({
         )}
         <p className="mt-2 text-[15px] font-medium">{textoSaldada(plan)}</p>
         <p className="mt-1 text-[12px] text-zinc-500">
-          {plan.cuenta.alias}: {formatearImporte(plan.saldo)} al {formatearFecha(plan.fechaSaldo)}. Ahorro previsto: unos {formatearRedondo(plan.ahorroMensual)} al mes.
+          {plan.cuenta.alias}: {formatearRedondo(plan.saldo)} al {formatearFecha(plan.fechaSaldo)}. Ahorro previsto: unos {formatearRedondo(plan.ahorroMensual)} al mes.
         </p>
         {efecto && (
           <p className={`mt-1 text-[12px] ${efecto.diferencia >= 0 ? 'text-[#248A3D] dark:text-[#30D158]' : 'text-[#D70015] dark:text-[#FF6961]'}`}>
@@ -166,7 +166,7 @@ function ContenidoPlan({
                 <span className="block text-[15px]">{p.anio}</span>
                 <span className="block text-[12px] text-zinc-500">Pagado</span>
               </span>
-              <span className="text-[15px] tabular-nums">{formatearImporte(p.importe)}</span>
+              <span className="text-[15px] tabular-nums">{formatearRedondo(p.importe)}</span>
             </li>
           ))}
           {plan.pagos.map((p) => (

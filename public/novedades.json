@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.32.0",
+    "fecha": "2026-11-14",
+    "cambios": [
+      "Extracto: «Te quedan X € hasta fin de mes, unos Y € al día», ya descontados los recibos que faltan.",
+      "Movimientos abre más rápido, recuerda tu búsqueda y el sitio al volver de otra pestaña, y lleva Categorizar y PayPal como accesos pequeños arriba.",
+      "Informes: importes redondos, los mismos colores de categoría que el Extracto y solo las diferencias que importan.",
+      "Ya no sale «Restaurantes, Restaurantes»: si la subcategoría se llama igual, una sola vez."
+    ]
+  },
+  {
     "version": "0.31.0",
     "fecha": "2026-11-14",
     "cambios": [

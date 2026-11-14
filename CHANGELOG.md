@@ -2,6 +2,22 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.32.0. Primer lote de mejoras del análisis: usabilidad, visual, reporting y rendimiento (14 de noviembre de 2026)
+
+Análisis de la app con unos 1.670 movimientos; el usuario aprueba el primer lote (U1 a U3, V1, V3, V4, R1, P1, P3 y P4).
+
+- U1, Movimientos más ligero: «Categorizar» y «PayPal» pasan a chips junto a «Sin categoría» y las cuentas; la ayuda de deslizar sale las tres primeras veces; la suma de los de tipo Normal, solo con búsqueda o filtros.
+- U2, Movimientos recuerda la búsqueda, los filtros, las filas cargadas y el sitio al volver de otra pestaña (en memoria mientras la app está abierta; un enlace con búsqueda manda sobre lo recordado).
+- U3, sin «Restaurantes, Restaurantes»: si la subcategoría se llama como su categoría, el nombre sale una vez (`nombreCategoria`, PDF y Categorizar).
+- V1, Informes con el estilo del Extracto: importes redondos, diferencias frente al periodo anterior con color y solo si son relevantes (al menos 20 € y un 15 % en las categorías), sin «Hace un año» vacío, y el ahorro en su propia tarjeta en lugar de la frase.
+- V3, el mismo color por categoría en el quesito y la leyenda de Informes que en el Extracto; si se repiten (subcategorías), la paleta del gráfico.
+- V4, importes redondos en los totales del Plan de pagos, Gastos fijos, Presupuesto y Gastos previstos; los cargos sueltos conservan los céntimos.
+- R1, «Te quedan X € hasta fin de mes, unos Y € al día» en la tarjeta del mes en curso: la referencia (presupuesto o media) menos lo gastado, los recibos que faltan y los previstos. Corrección: el presupuesto solo es la referencia de la tarjeta si cubre al menos el 80 % del gasto medio.
+- P1, Movimientos pinta 40 filas y carga las siguientes al acercarse al final (`IntersectionObserver`); antes, 120 de golpe.
+- P3, la búsqueda filtra con `useDeferredValue`: el teclado no se bloquea.
+- P4 y parte de P2: cálculos guardados por versión de los datos (`src/lib/cache.ts`, `porVersion` y `porVersionYClave`) para las propuestas de recategorización, los grupos de PayPal, los recurrentes, la posición de 12 meses, las liquidaciones de la tarjeta y los pasos del cierre de mes.
+- Medido con la CPU cuatro veces más lenta: arranque del Extracto de 1,1 s a 0,74 s, pestaña Movimientos de 1,04 s a 0,44 s, vuelta al Extracto de 0,62 s a 0,40 s.
+
 ## v0.31.0. Extracto rediseñado, menos recargado (14 de noviembre de 2026)
 
 Propuesta de diseño aprobada por el usuario («aplica todo»). La pantalla pasa de unas 2,5 a 1,4 alturas de iPhone con un año de datos.

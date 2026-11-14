@@ -8,7 +8,7 @@ import { Baldosa } from '../componentes/Icono'
 import { guardarExcepcionPresupuesto, guardarPresupuesto } from '../datos/operaciones'
 import { intentar, useDatos } from '../datos/ProveedorDatos'
 import { hoyIso, mesLargo, sumarMeses } from '../lib/fechas'
-import { formatearImporte, formatearRedondo, leerImporteUsuario, plural } from '../lib/formato'
+import { formatearRedondo, leerImporteUsuario, plural } from '../lib/formato'
 import { presupuestoAnual, sugerirPresupuestos } from '../lib/presupuesto'
 import type { BaseDatos } from '../lib/tipos'
 
@@ -62,7 +62,7 @@ export function Presupuesto() {
 
   return (
     <>
-      <BarraNavegacion titulo="Presupuesto" atras="Extracto" subtitulo={total ? `${formatearImporte(total)} al mes en ${plural(actual.size, 'categoría', 'categorías')}` : undefined} />
+      <BarraNavegacion titulo="Presupuesto" atras="Extracto" subtitulo={total ? `${formatearRedondo(total)} al mes en ${plural(actual.size, 'categoría', 'categorías')}` : undefined} />
       <p className="mb-3 px-1 text-[13px] text-zinc-500">
         Un importe al mes por categoría. El Extracto muestra cuánto llevas y cómo cerrará el mes. Los gastos de empleado y los traspasos no cuentan. Deja el campo vacío para
         quitarlo.
@@ -85,7 +85,7 @@ export function Presupuesto() {
                   {c.nombre}
                 </label>
                 <span className="block text-[12px] text-zinc-500">
-                  {media ? `Media: ${formatearImporte(media)}` : 'Sin gasto reciente'}
+                  {media ? `Media: ${formatearRedondo(media)}` : 'Sin gasto reciente'}
                   {'. '}
                   <button type="button" className="text-marca-700 dark:text-marca-500" onClick={() => setAbierta((a) => (a === c.id ? null : c.id))}>
                     {excepciones(c.id).length ? plural(excepciones(c.id).length, 'mes especial', 'meses especiales') : 'Meses especiales'}
@@ -186,7 +186,7 @@ function MesesEspeciales({ categoria }: { categoria: string }) {
           {lista.map(([m, v]) => (
             <li key={m} className="flex items-center gap-2 text-[15px]">
               <span className="flex-1">{mesLargo(`${m}-01`)}</span>
-              <span className="tabular-nums">{formatearImporte(v)}</span>
+              <span className="tabular-nums">{formatearRedondo(v)}</span>
               <button
                 type="button"
                 className="boton-texto px-1 text-red-600 dark:text-red-500"
