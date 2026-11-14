@@ -178,9 +178,11 @@ export interface Nomina {
   hasta: string | null
   /** Cuenta en la previsión; si no, solo se usa al simularla */
   incluida: boolean
+  /** Bonus anual neto, aparte de las pagas extra (esquema 12) */
+  bonus: PagaExtra | null
 }
 
-export const VERSION_ESQUEMA = 11
+export const VERSION_ESQUEMA = 12
 
 export interface BaseDatos {
   esquema: number

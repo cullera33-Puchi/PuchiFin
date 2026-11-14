@@ -2,6 +2,13 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.25.0. Bonus anual en la nómina (14 de noviembre de 2026)
+
+- Esquema 12: `bonus` en cada nómina (mes e importe neto, aparte de las pagas extra; la migración lo deja en null). Comprobaciones en `guardarNomina`.
+- Previsión: `bonusNomina` suma el bonus en su mes, dentro de las fechas de la nómina. `Simulacion.bonus` lo quita solo en la simulación; `simulaNominas` detecta cualquier cambio de nóminas o bonus. El desglose de cada mes separa el bonus.
+- Pantalla Ingresos previstos: bloque Bonus en la hoja de la nómina (julio por defecto) e interruptor «Bonus de julio» en la simulación, también en el plan de pagos. El texto para Claude incluye el bonus y su simulación.
+- Archivo de prueba del esquema 11; el recorrido de navegador da de alta un bonus y comprueba que sin él baja el pago de julio.
+
 ## v0.24.0. Previsión de ingresos con nóminas y simulación de una segunda (14 de noviembre de 2026)
 
 - Esquema 11: `nominas` en los ajustes (`Nomina`: nombre, neto mensual, pagas extra por mes, desde y hasta, incluida). `guardarNomina` y `borrarNomina` con sus comprobaciones (nombre único y sin datos identificativos, neto y pagas mayores que cero, una paga por mes, desde antes que hasta). La pantalla General ya no pisa las nóminas ni la versión de la lógica al guardar sus ajustes.

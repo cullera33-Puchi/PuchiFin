@@ -31,14 +31,31 @@ export interface Simulacion {
   recorte: { categoria_id: string; porcentaje: number } | null
   /** Nóminas que se suman o se quitan solo en la simulación (por id); sin dato, lo guardado */
   nominas?: Record<string, boolean>
+  /** Bonus que se quitan (false) en la simulación, por id de nómina; sin dato, cuenta */
+  bonus?: Record<string, boolean>
 }
 
 export const SIN_SIMULACION: Simulacion = { ahorroExtra: 0, recorte: null }
 
-/** Neto de una nómina en un mes (AAAA-MM): el mensual más la paga extra de ese mes, dentro de sus fechas */
-export function importeNomina(n: Nomina, mes: string): number {
+/** Bonus de una nómina en un mes, dentro de sus fechas */
+export function bonusNomina(n: Nomina, mes: string): number {
+  if (!n.bonus || n.bonus.mes !== numMes(mes) || (n.desde && mes < n.desde) || (n.hasta && mes > n.hasta)) return 0
+  return n.bonus.importe
+}
+
+/** Neto de una nómina en un mes (AAAA-MM): el mensual más la paga extra de ese mes (y el bonus, si se pide), dentro de sus fechas */
+export function importeNomina(n: Nomina, mes: string, conBonus = false): number {
   if ((n.desde && mes < n.desde) || (n.hasta && mes > n.hasta)) return 0
-  return n.neto_mensual + n.pagas.filter((p) => p.mes === numMes(mes)).reduce((s, p) => s + p.importe, 0)
+  return n.neto_mensual + n.pagas.filter((p) => p.mes === numMes(mes)).reduce((s, p) => s + p.importe, 0) + (conBonus ? bonusNomina(n, mes) : 0)
+}
+
+/** La simulación cambia alguna nómina o quita algún bonus respecto a lo guardado */
+export function simulaNominas(db: BaseDatos, sim: Simulacion): boolean {
+  const lista = db.ajustes.nominas ?? []
+  return (
+    Object.entries(sim.nominas ?? {}).some(([id, v]) => lista.find((n) => n.id === id)?.incluida !== v) ||
+    Object.entries(sim.bonus ?? {}).some(([id, v]) => v === false && !!lista.find((n) => n.id === id)?.bonus)
+  )
 }
 
 /** Nóminas que cuentan: las incluidas, con lo que cambie la simulación */
@@ -113,7 +130,10 @@ function estadisticas(db: BaseDatos): Map<string, Estadistica> {
 export interface IngresoNomina {
   id: string
   nombre: string
+  /** Total del mes, con el bonus */
   importe: number
+  /** De ese total, el bonus */
+  bonus: number
 }
 
 /**
@@ -143,7 +163,12 @@ function modelo(db: BaseDatos, stats: Map<string, Estadistica>, base: string, si
     return reemplaza ? total - (st ? st.nomina : mediaNomina) : total
   }
   const desglose = (mes: string) => {
-    const nominas: IngresoNomina[] = activas.map((x) => ({ id: x.id, nombre: x.nombre, importe: importeNomina(x, mes) })).filter((x) => x.importe > 0)
+    const nominas: IngresoNomina[] = activas
+      .map((x) => {
+        const bonus = sim.bonus?.[x.id] === false ? 0 : bonusNomina(x, mes)
+        return { id: x.id, nombre: x.nombre, importe: importeNomina(x, mes) + bonus, bonus }
+      })
+      .filter((x) => x.importe > 0)
     return { nominas, otros: historico(mes) }
   }
   const ingresos = (mes: string) => {

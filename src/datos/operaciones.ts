@@ -380,6 +380,7 @@ export interface DatosNomina {
   desde: string | null
   hasta: string | null
   incluida: boolean
+  bonus: PagaExtra | null
 }
 
 const MES_ISO = /^\d{4}-(0[1-9]|1[0-2])$/
@@ -401,6 +402,8 @@ export function guardarNomina(db: BaseDatos, datos: DatosNomina, id?: string): B
     if (!importe(p.importe) || p.importe === 0) throw new ErrorDatos('Escribe el importe de cada paga extra')
     meses.add(p.mes)
   }
+  if (datos.bonus && (!Number.isInteger(datos.bonus.mes) || datos.bonus.mes < 1 || datos.bonus.mes > 12)) throw new ErrorDatos('Mes del bonus no válido')
+  if (datos.bonus && (!importe(datos.bonus.importe) || datos.bonus.importe === 0)) throw new ErrorDatos('Escribe el importe neto del bonus')
   if ((datos.desde && !MES_ISO.test(datos.desde)) || (datos.hasta && !MES_ISO.test(datos.hasta))) throw new ErrorDatos('Mes no válido')
   if (datos.desde && datos.hasta && datos.desde > datos.hasta) throw new ErrorDatos('La nómina termina antes de empezar')
   const r = (n: number) => Math.round(n * 100) / 100
@@ -411,6 +414,7 @@ export function guardarNomina(db: BaseDatos, datos: DatosNomina, id?: string): B
     desde: datos.desde,
     hasta: datos.hasta,
     incluida: datos.incluida,
+    bonus: datos.bonus ? { mes: datos.bonus.mes, importe: r(datos.bonus.importe) } : null,
   }
   if (id) {
     if (!lista.some((n) => n.id === id)) throw new ErrorDatos('Nómina no encontrada')

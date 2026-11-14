@@ -145,8 +145,15 @@ test('ingresos previstos: mi nómina con pagas extra y una segunda nómina simul
   await page.getByPlaceholder('0,00 €').first().fill('2800')
   await page.getByRole('button', { name: 'Añadir paga extra' }).tap()
   await page.getByRole('button', { name: 'Añadir paga extra' }).tap()
+  // Bonus de julio, aparte
+  await page.getByRole('switch', { name: 'Bonus anual' }).tap()
+  await page.getByLabel('Importe neto del bonus').fill('9000')
   await page.getByRole('button', { name: 'Guardar', exact: true }).tap()
-  await expect(page.getByText(/2\.800\s€ al mes, pagas en junio y diciembre/).first()).toBeVisible()
+  await expect(page.getByText(/2\.800\s€ al mes, pagas en junio y diciembre, bonus de 9\.000\s€ en julio/).first()).toBeVisible()
+  // Sin el bonus, el pago de julio baja
+  await page.getByRole('switch', { name: 'Simular con el bonus de Mi nómina' }).tap()
+  await expect(page.getByText(/Pago de julio de 2027: .*\(-/)).toBeVisible()
+  await page.getByRole('switch', { name: 'Simular con el bonus de Mi nómina' }).tap()
   // Segunda nómina, fuera de la previsión
   await page.getByRole('button', { name: 'Añadir una nómina' }).tap()
   await page.getByPlaceholder('0,00 €').first().fill('1200')
@@ -163,7 +170,7 @@ test('ingresos previstos: mi nómina con pagas extra y una segunda nómina simul
   expect(e).toEqual([])
 })
 
-for (const esquema of [3, 5, 7, 8, 9, 10]) {
+for (const esquema of [3, 5, 7, 8, 9, 10, 11]) {
   test(`importa un archivo del esquema ${esquema} y lo enseña igual`, async ({ page }) => {
     const e = errores(page)
     await page.goto('/ajustes/herramientas')

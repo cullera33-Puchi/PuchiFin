@@ -137,6 +137,7 @@ Ordenada por esfuerzo, de menos a más, con prioridad para la usabilidad y el re
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.25.0 (14/11/2026): bonus anual en cada nómina, aparte de las pagas extra (esquema 12, `bonus`): mes e importe neto, cuenta en la previsión y se puede quitar en la simulación (`Simulacion.bonus`).
 - v0.24.0 (14/11/2026): previsión de ingresos pedida por el usuario. Nóminas netas con pagas extra y fechas (esquema 11, `ajustes.nominas`, `guardarNomina`); con una incluida, sustituyen al historial de nómina en la previsión. Una nómina no incluida sirve para simular (por ejemplo, la de la pareja): efecto en el ahorro, el capital dentro de un año, el pago de julio y el año de liquidación. Pantalla `/extracto/ingresos` y gráfico de capital previsto en el plan de pagos (`serie`, `GraficoCapital`). Pendiente de validar con datos reales.
 - v0.23.0 (14/11/2026): fase 4 (puntos 1 a 6 confirmados por el usuario). Pendiente de validar con datos reales.
   - Presupuesto: aviso al importar si una categoría pasa del 80 % o del 100 %, meses especiales con otro importe (`guardarExcepcionPresupuesto`) y resumen del año (`presupuestoAnual`).
@@ -472,7 +473,7 @@ Supuesto (14/11/2026): el ahorro de cada mes acaba en la Cuenta 2 con los traspa
 
 1. Saldo de partida: saldo de la Cuenta 2 según el banco.
 2. Más los gastos de empleado pendientes de reembolso, si el usuario los indica (la app ya no los calcula).
-3. Más los ingresos previstos de cada mes: las nóminas netas que da de alta el usuario, con sus pagas extra en su mes (v0.24.0), y el resto de ingresos según el historial. Sin nóminas dadas de alta, todo sale del historial (el mismo mes del año anterior o la media). Una nómina que no cuenta sirve para simular una segunda.
+3. Más los ingresos previstos de cada mes: las nóminas netas que da de alta el usuario, con sus pagas extra y su bonus en su mes (v0.24.0 y v0.25.0), y el resto de ingresos según el historial. Sin nóminas dadas de alta, todo sale del historial (el mismo mes del año anterior o la media). Una nómina que no cuenta sirve para simular una segunda.
 4. Menos los gastos previstos: presupuesto por categoría o, si no lo hay, la media de la categoría.
 5. Menos los gastos puntuales conocidos, registrados como eventos previstos (IBI, seguros anuales, vacaciones, colegio).
 6. Resultado en el mes de pago: saldo proyectado de la Cuenta 2 menos el colchón, igual al pago previsto (nunca negativo ni mayor que la deuda pendiente).
@@ -481,7 +482,7 @@ Supuesto (14/11/2026): el ahorro de cada mes acaba en la Cuenta 2 con los traspa
 
 - **Tarjeta en el extracto mensual:** deuda pendiente, pago previsto del próximo verano y cuánto ha sumado o restado el mes cerrado a ese pago, comparando el ahorro real con el previsto.
 - **Calendario de pagos:** un año por fila con el pago previsto, la deuda pendiente tras el pago y el año en que queda saldada.
-- **Simulación:** efecto en el pago, en el año de liquidación y en el capital previsto de ahorrar una cantidad distinta cada mes, recortar una categoría concreta o sumar o quitar una nómina.
+- **Simulación:** efecto en el pago, en el año de liquidación y en el capital previsto de ahorrar una cantidad distinta cada mes, recortar una categoría concreta o sumar o quitar una nómina o el bonus.
 - **Seguimiento anual:** después de cada pago, la app compara lo previsto con lo transferido y recalcula el calendario.
 
 **Datos que necesita:** el saldo de las cuentas en cada importación (columna de saldo del Excel de BBVA, a confirmar) y los eventos previstos del año.

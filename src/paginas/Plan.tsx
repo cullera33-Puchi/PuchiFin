@@ -14,7 +14,7 @@ import { useDatos } from '../datos/ProveedorDatos'
 import { textoPlan } from '../lib/analizar'
 import { hoyIso, MESES } from '../lib/fechas'
 import { formatearFecha, formatearImporte, formatearRedondo, leerImporteUsuario } from '../lib/formato'
-import { calcularPlan, efectoMesCerrado, SIN_SIMULACION, type Plan as DatosPlan, type ResultadoPlan, type Simulacion } from '../lib/plan'
+import { calcularPlan, efectoMesCerrado, simulaNominas, SIN_SIMULACION, type Plan as DatosPlan, type ResultadoPlan, type Simulacion } from '../lib/plan'
 import type { BaseDatos, Compromiso } from '../lib/tipos'
 import { nombreCategoria } from '../lib/vista'
 
@@ -43,7 +43,7 @@ export function Plan() {
   const hoy = hoyIso()
   const r = useMemo(() => calcularPlan(db, hoy), [db, hoy])
   const [sim, setSim] = useState<Simulacion>(SIN_SIMULACION)
-  const simulando = sim.ahorroExtra !== 0 || sim.recorte !== null || Object.entries(sim.nominas ?? {}).some(([id, v]) => (db.ajustes.nominas ?? []).find((n) => n.id === id)?.incluida !== v)
+  const simulando = sim.ahorroExtra !== 0 || sim.recorte !== null || simulaNominas(db, sim)
   const simulado = useMemo(() => (simulando ? calcularPlan(db, hoy, sim).plan : null), [db, hoy, sim, simulando])
   const efecto = useMemo(() => efectoMesCerrado(db, hoy), [db, hoy])
   const [ajustes, setAjustes] = useState(false)

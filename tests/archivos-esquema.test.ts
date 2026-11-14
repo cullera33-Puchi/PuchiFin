@@ -1,5 +1,5 @@
 /**
- * Archivos exportados como los guardaban las versiones anteriores (esquemas 3, 5, 7, 8, 9 y 10), con datos
+ * Archivos exportados como los guardaban las versiones anteriores (esquemas 3, 5, 7, 8, 9, 10 y 11), con datos
  * inventados. Las pruebas de navegador (tests/e2e) los importan en la app para comprobar que se siguen
  * leyendo. npm run archivos:prueba los regenera; npm test solo comprueba que se leen.
  */
@@ -18,8 +18,9 @@ function archivo(esquema: number): string {
   const importaciones = p.importaciones.map((i) => ({ ...i, origen: i.cuenta_id === db.cuentas[2].id ? 'bbva_tarjeta' : 'bbva_cuenta' }))
   const a = JSON.parse(JSON.stringify(crearArchivo({ ...db, ...p, importaciones } as typeof db)))
   a.datos.esquema = esquema
-  a.version_app = { 3: '0.6.0', 5: '0.8.0', 7: '0.13.0', 8: '0.14.0', 9: '0.22.0', 10: '0.23.0' }[esquema]
+  a.version_app = { 3: '0.6.0', 5: '0.8.0', 7: '0.13.0', 8: '0.14.0', 9: '0.22.0', 10: '0.23.0', 11: '0.24.0' }[esquema]
   // Quita lo que llegó después de ese esquema
+  if (esquema === 11) a.datos.ajustes.nominas = [{ id: 'n1', nombre: 'Mi nómina', neto_mensual: 2500, pagas: [{ mes: 6, importe: 2500 }], desde: null, hasta: null, incluida: true }]
   if (esquema < 11) delete a.datos.ajustes.nominas
   if (esquema < 10)
     for (const c of a.datos.compromisos) {
@@ -34,12 +35,13 @@ function archivo(esquema: number): string {
 }
 
 describe('archivos de esquemas anteriores', () => {
-  it.each([3, 5, 7, 8, 9, 10])('el del esquema %i se lee y se adapta al actual', (esquema) => {
+  it.each([3, 5, 7, 8, 9, 10, 11])('el del esquema %i se lee y se adapta al actual', (esquema) => {
     const texto = archivo(esquema)
     const a = leerArchivo(texto)
     expect(a.datos.esquema).toBe(VERSION_ESQUEMA)
     expect(a.datos.movimientos.length).toBeGreaterThan(100)
-    expect(a.datos.ajustes.nominas).toEqual([])
+    // Esquema 12: bonus en cada nómina, sin dato si no lo había
+    expect(a.datos.ajustes.nominas.every((n) => n.bonus === null)).toBe(true)
     // Esquema 10: el colchón de la deuda, sobre la Cuenta 2
     expect(a.datos.compromisos[0]).toMatchObject({ base_colchon: 'cuenta', cuenta_colchon_id: a.datos.cuentas.find((c) => c.alias === 'Cuenta 2')!.id })
     if (process.env.GENERAR_ARCHIVOS) {

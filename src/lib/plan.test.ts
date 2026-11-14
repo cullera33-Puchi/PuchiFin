@@ -91,7 +91,7 @@ describe('plan de pagos de la deuda', () => {
 
 describe('nóminas previstas', () => {
   const nomina = (db: BaseDatos, nombre: string, neto: number, extra: Partial<Parameters<typeof guardarNomina>[1]> = {}) =>
-    guardarNomina(db, { nombre, neto_mensual: neto, pagas: [], desde: null, hasta: null, incluida: true, ...extra })
+    guardarNomina(db, { nombre, neto_mensual: neto, pagas: [], desde: null, hasta: null, incluida: true, bonus: null, ...extra } as Parameters<typeof guardarNomina>[1])
 
   it('la nómina guardada sustituye al historial de nómina, con sus pagas extra', () => {
     expect(calcularPlan(nomina(crear(20000), 'Mi nómina', 3000), HOY).plan!.pagos[0].pago).toBe(10500)
@@ -116,10 +116,22 @@ describe('nóminas previstas', () => {
   })
 
   it('importe de un mes: mensual más paga extra, dentro de sus fechas', () => {
-    const n = { id: 'n', nombre: 'X', neto_mensual: 2000, pagas: [{ mes: 7, importe: 1500 }], desde: '2027-03', hasta: '2027-12', incluida: true }
+    const n = { id: 'n', nombre: 'X', neto_mensual: 2000, pagas: [{ mes: 7, importe: 1500 }], desde: '2027-03', hasta: '2027-12', incluida: true, bonus: null }
     expect(importeNomina(n, '2027-02')).toBe(0)
     expect(importeNomina(n, '2027-07')).toBe(3500)
     expect(importeNomina(n, '2028-01')).toBe(0)
+  })
+
+  it('bonus aparte: cuenta en su mes y se puede quitar en la simulación', () => {
+    const db = nomina(crear(20000), 'Mi nómina', 3000, { bonus: { mes: 7, importe: 6000 } })
+    const id = db.ajustes.nominas[0].id
+    // El bonus de julio de 2027 entra antes del pago de ese mes
+    expect(calcularPlan(db, HOY).plan!.pagos[0].pago).toBe(16500)
+    expect(calcularPlan(db, HOY, { ahorroExtra: 0, recorte: null, bonus: { [id]: false } }).plan!.pagos[0].pago).toBe(10500)
+    const julio = preverIngresos(db, HOY)!.meses.find((m) => m.mes === '2027-07')!
+    expect(julio.nominas[0]).toMatchObject({ importe: 9000, bonus: 6000 })
+    expect(() => nomina(crear(20000), 'X', 1000, { bonus: { mes: 13, importe: 1 } })).toThrow(ErrorDatos)
+    expect(() => nomina(crear(20000), 'X', 1000, { bonus: { mes: 7, importe: 0 } })).toThrow(ErrorDatos)
   })
 
   it('comprobaciones al guardar', () => {

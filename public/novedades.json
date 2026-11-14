@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.25.0",
+    "fecha": "2026-11-14",
+    "cambios": [
+      "Bonus anual en tu nómina, aparte de las pagas extra: mes e importe neto. Cuenta en la previsión y en el plan de pagos.",
+      "En «Simular», quita el bonus para ver el ahorro, el capital y el pago de julio sin él."
+    ]
+  },
+  {
     "version": "0.24.0",
     "fecha": "2026-11-14",
     "cambios": [

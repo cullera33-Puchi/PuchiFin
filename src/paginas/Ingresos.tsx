@@ -1,5 +1,5 @@
 import { Briefcase, ChevronRight, Plus } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useHacer } from '../componentes/acciones'
 import { BarraNavegacion } from '../componentes/Encabezado'
@@ -9,7 +9,7 @@ import { borrarNomina, guardarNomina } from '../datos/operaciones'
 import { useDatos } from '../datos/ProveedorDatos'
 import { hoyIso, MESES, mesLargo, sumarMeses } from '../lib/fechas'
 import { formatearRedondo, leerImporteUsuario, plural } from '../lib/formato'
-import { calcularPlan, preverIngresos, SIN_SIMULACION, type Simulacion } from '../lib/plan'
+import { calcularPlan, preverIngresos, simulaNominas, SIN_SIMULACION, type Simulacion } from '../lib/plan'
 import type { BaseDatos, Nomina, PagaExtra } from '../lib/tipos'
 
 const conMayuscula = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
@@ -24,6 +24,7 @@ export function resumenNomina(n: Nomina): string {
     const meses = n.pagas.map((p) => MESES[p.mes - 1])
     partes.push(`${n.pagas.length === 1 ? 'paga extra en' : 'pagas en'} ${meses.length > 1 ? `${meses.slice(0, -1).join(', ')} y ${meses.at(-1)}` : meses[0]}`)
   }
+  if (n.bonus) partes.push(`bonus de ${formatearRedondo(n.bonus.importe)} en ${MESES[n.bonus.mes - 1]}`)
   if (n.desde) partes.push(`desde ${mesLargo(`${n.desde}-01`).toLowerCase()}`)
   if (n.hasta) partes.push(`hasta ${mesLargo(`${n.hasta}-01`).toLowerCase()}`)
   return partes.join(', ')
@@ -43,13 +44,30 @@ export function SimularNominas({ db, sim, setSim }: { db: BaseDatos; sim: Simula
       {nominas.map((n) => {
         const activa = sim.nominas?.[n.id] ?? n.incluida
         return (
-          <li key={n.id} className="flex min-h-11 items-center gap-3">
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[15px]">{n.nombre}</span>
-              <span className="block truncate text-[12px] text-zinc-500">{resumenNomina(n)}</span>
-            </span>
-            <Interruptor etiqueta={`Simular con ${n.nombre}`} activo={activa} onCambio={(v) => setSim({ ...sim, nominas: { ...sim.nominas, [n.id]: v } })} />
-          </li>
+          <Fragment key={n.id}>
+            <li className="flex min-h-11 items-center gap-3">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[15px]">{n.nombre}</span>
+                <span className="block truncate text-[12px] text-zinc-500">{resumenNomina(n)}</span>
+              </span>
+              <Interruptor etiqueta={`Simular con ${n.nombre}`} activo={activa} onCambio={(v) => setSim({ ...sim, nominas: { ...sim.nominas, [n.id]: v } })} />
+            </li>
+            {n.bonus && activa && (
+              <li key={`${n.id}-bonus`} className="flex min-h-11 items-center gap-3 pl-4">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[15px]">Bonus de {MESES[n.bonus.mes - 1]}</span>
+                  <span className="block truncate text-[12px] text-zinc-500">
+                    {formatearRedondo(n.bonus.importe)} neto, de {n.nombre}
+                  </span>
+                </span>
+                <Interruptor
+                  etiqueta={`Simular con el bonus de ${n.nombre}`}
+                  activo={sim.bonus?.[n.id] !== false}
+                  onCambio={(v) => setSim({ ...sim, bonus: { ...sim.bonus, [n.id]: v } })}
+                />
+              </li>
+            )}
+          </Fragment>
         )
       })}
     </ul>
@@ -79,7 +97,7 @@ export function Ingresos() {
   const nominas = db.ajustes.nominas ?? []
   const [editando, setEditando] = useState<Nomina | 'nueva' | null>(null)
   const [sim, setSim] = useState<Simulacion>(SIN_SIMULACION)
-  const simulando = Object.entries(sim.nominas ?? {}).some(([id, v]) => nominas.find((n) => n.id === id)?.incluida !== v)
+  const simulando = simulaNominas(db, sim)
   const base = useMemo(() => preverIngresos(db, hoy), [db, hoy])
   const conSim = useMemo(() => (simulando ? preverIngresos(db, hoy, sim) : null), [db, hoy, sim, simulando])
   const plan = useMemo(() => calcularPlan(db, hoy).plan, [db, hoy])
@@ -102,8 +120,8 @@ export function Ingresos() {
         }
       />
       <p className="mb-3 px-1 text-[13px] text-zinc-500">
-        Tus nóminas netas, lo que llega al banco, con sus pagas extra. Si una cuenta en la previsión, sustituye a tu historial de nómina; el resto de ingresos sale del
-        historial. Una nómina que no cuenta sirve para simular, por ejemplo una segunda.
+        Tus nóminas netas, lo que llega al banco, con sus pagas extra. Si una cuenta en la previsión, sustituye a tu historial de nómina; el resto de ingresos sale del historial.
+        Una nómina que no cuenta sirve para simular, por ejemplo una segunda.
       </p>
 
       {!nominas.length ? (
@@ -190,7 +208,14 @@ export function Ingresos() {
                 <span className="min-w-0 flex-1">
                   <span className="block text-[15px]">{nombreMes(m.mes)}</span>
                   <span className="block truncate text-[12px] text-zinc-500 tabular-nums">
-                    {[...m.nominas.map((x) => `${x.nombre} ${formatearRedondo(x.importe)}`), m.otros >= 1 ? `otros ${formatearRedondo(m.otros)}` : ''].filter(Boolean).join(', ')}
+                    {[
+                      ...m.nominas.map((x) =>
+                        x.bonus ? `${x.nombre} ${formatearRedondo(x.importe - x.bonus)}, bonus ${formatearRedondo(x.bonus)}` : `${x.nombre} ${formatearRedondo(x.importe)}`,
+                      ),
+                      m.otros >= 1 ? `otros ${formatearRedondo(m.otros)}` : '',
+                    ]
+                      .filter(Boolean)
+                      .join(', ')}
                   </span>
                 </span>
                 <span className="text-[15px] tabular-nums">{formatearRedondo(m.total)}</span>
@@ -202,7 +227,11 @@ export function Ingresos() {
           </p>
         </section>
       )}
-      {!base && <p className="tarjeta mt-4 text-center text-[13px] text-zinc-500">Con un mes completo de datos, además del primero importado, aparece la previsión de los próximos meses.</p>}
+      {!base && (
+        <p className="tarjeta mt-4 text-center text-[13px] text-zinc-500">
+          Con un mes completo de datos, además del primero importado, aparece la previsión de los próximos meses.
+        </p>
+      )}
 
       <HojaNomina nomina={editando} onCerrar={() => setEditando(null)} sugerido={base?.mediaNomina ?? null} />
     </>
@@ -225,6 +254,9 @@ function HojaNomina({ nomina, onCerrar, sugerido }: { nomina: Nomina | 'nueva' |
   const [desde, setDesde] = useState('')
   const [hasta, setHasta] = useState('')
   const [incluida, setIncluida] = useState(true)
+  const [conBonus, setConBonus] = useState(false)
+  const [bonusMes, setBonusMes] = useState(7)
+  const [bonusImporte, setBonusImporte] = useState('')
   const [error, setError] = useState<string | null>(null)
   // Al abrir otra nómina, sus valores (ajuste durante el render, sin efecto)
   if (clave && clave !== abiertaCon) {
@@ -232,11 +264,21 @@ function HojaNomina({ nomina, onCerrar, sugerido }: { nomina: Nomina | 'nueva' |
     const primera = !(db.ajustes.nominas ?? []).length
     setNombre(existente?.nombre ?? (primera ? 'Mi nómina' : `Nómina ${(db.ajustes.nominas ?? []).length + 1}`))
     setNeto(existente ? texto(existente.neto_mensual) : primera && sugerido ? texto(Math.round(sugerido)) : '')
-    setPagas(existente ? existente.pagas.map((p) => ({ mes: p.mes, importe: texto(p.importe) })) : [])
+    setPagas(
+      existente
+        ? existente.pagas.map((p) => ({
+            mes: p.mes,
+            importe: texto(p.importe),
+          }))
+        : [],
+    )
     setDesde(existente?.desde ?? '')
     setHasta(existente?.hasta ?? '')
     // La primera es la propia y cuenta; las siguientes, para simular
     setIncluida(existente ? existente.incluida : primera)
+    setConBonus(!!existente?.bonus)
+    setBonusMes(existente?.bonus?.mes ?? 7)
+    setBonusImporte(existente?.bonus ? texto(existente.bonus.importe) : '')
     setError(null)
   }
   const cerrar = () => {
@@ -252,13 +294,35 @@ function HojaNomina({ nomina, onCerrar, sugerido }: { nomina: Nomina | 'nueva' |
       if (v === null || v <= 0) return setError(`Escribe el importe de la paga de ${MESES[p.mes - 1]}`)
       lista.push({ mes: p.mes, importe: v })
     }
+    let bonus = null
+    if (conBonus) {
+      const v = leerImporteUsuario(bonusImporte)
+      if (v === null || v <= 0) return setError('Escribe el importe neto del bonus')
+      bonus = { mes: bonusMes, importe: v }
+    }
     setError(null)
-    const datos = { nombre, neto_mensual: valor, pagas: lista, desde: desde || null, hasta: hasta || null, incluida }
+    const datos = {
+      nombre,
+      neto_mensual: valor,
+      pagas: lista,
+      desde: desde || null,
+      hasta: hasta || null,
+      incluida,
+      bonus,
+    }
     if (await hacer((d) => guardarNomina(d, datos, existente?.id), existente ? 'Nómina guardada' : `${nombre.trim()}: añadida`)) cerrar()
   }
   const borrar = async () => {
     if (!existente) return
-    if (!(await confirmar({ titulo: 'Borrar la nómina', texto: existente.nombre, aceptar: 'Borrar', peligro: true }))) return
+    if (
+      !(await confirmar({
+        titulo: 'Borrar la nómina',
+        texto: existente.nombre,
+        aceptar: 'Borrar',
+        peligro: true,
+      }))
+    )
+      return
     if (await hacer((d) => borrarNomina(d, existente.id), 'Nómina borrada')) cerrar()
   }
   const libre = [6, 12, 7, 3, 9, 1, 2, 4, 5, 8, 10, 11].find((m) => !pagas.some((p) => p.mes === m))
@@ -308,12 +372,48 @@ function HojaNomina({ nomina, onCerrar, sugerido }: { nomina: Nomina | 'nueva' |
               </div>
             ))}
             {libre && (
-              <button type="button" className="fila min-h-12 w-full text-[15px] text-marca-700 active:bg-zinc-100 dark:text-marca-500 dark:active:bg-zinc-800" onClick={() => setPagas([...pagas, { mes: libre, importe: neto }])}>
+              <button
+                type="button"
+                className="fila min-h-12 w-full text-[15px] text-marca-700 active:bg-zinc-100 dark:text-marca-500 dark:active:bg-zinc-800"
+                onClick={() => setPagas([...pagas, { mes: libre, importe: neto }])}
+              >
                 <Plus className="size-4" strokeWidth={2} /> Añadir paga extra
               </button>
             )}
           </div>
           <p className="mt-1 px-4 text-[12px] text-zinc-500">Si las pagas van prorrateadas en la nómina, no añadas ninguna.</p>
+        </section>
+        <section>
+          <h3 className="cabecera-grupo">Bonus</h3>
+          <div className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
+            <div className="fila min-h-12">
+              <span className="flex-1 text-[15px]">Bonus anual</span>
+              <Interruptor etiqueta="Bonus anual" activo={conBonus} onCambio={setConBonus} />
+            </div>
+            {conBonus && (
+              <div className="fila min-h-12">
+                <select className="bg-transparent text-[15px] outline-none" aria-label="Mes del bonus" value={bonusMes} onChange={(e) => setBonusMes(Number(e.target.value))}>
+                  {MESES.map((m, k) => (
+                    <option key={m} value={k + 1}>
+                      {conMayuscula(m)}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  className={`${campo} tabular-nums`}
+                  inputMode="decimal"
+                  placeholder="Neto, 0,00 €"
+                  aria-label="Importe neto del bonus"
+                  value={bonusImporte}
+                  onChange={(e) => setBonusImporte(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+          <p className="mt-1 px-4 text-[12px] text-zinc-500">
+            Neto, lo que llega al banco. Cuenta en su mes y se puede quitar en la simulación. Si el del año pasado está en otra categoría, pásalo a Ingresos, Nómina para no
+            contarlo dos veces.
+          </p>
         </section>
         <div className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
           <label className="fila min-h-12">
