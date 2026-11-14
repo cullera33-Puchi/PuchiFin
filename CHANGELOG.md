@@ -2,6 +2,17 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.23.0. Presupuesto completo, gastos previstos, plan de pagos y Analizar con Claude (14 de noviembre de 2026)
+
+Puntos 1 a 6 de la hoja de ruta revisada (fase 4).
+
+- Presupuesto: aviso al terminar una importación si una categoría pasa del umbral (80 %) o del 100 % en el mes en curso o el anterior (`avisosPresupuesto`); excepciones por mes con «Meses especiales» (`guardarExcepcionPresupuesto`; un presupuesto con solo excepciones se guarda con importe 0); vista anual con el presupuesto de cada mes frente a lo gastado (`presupuestoAnual`, desde enero o el primer mes completo, el mes en curso en proporción a los días con datos).
+- Gastos previstos (`guardarEvento`, `borrarEvento`, `src/lib/previstos.ts`, pantalla `/extracto/previstos`): alta y edición de gastos o ingresos con fecha, importe y categoría opcional; estado pendiente, ya cargado (movimiento Normal del mismo signo a 20 días o menos, importe ±30 % y de la categoría) o no visto; «repetir el año que viene» (`mismoDiaEn`). Los pendientes del mes entran en `preverCierre` (`previstos`, `importePrevistos`), sin los que ya cubre un recibo recurrente de la misma categoría.
+- Plan de pagos (`src/lib/plan.ts`, pantalla `/extracto/plan`): esquema 10, el colchón va sobre una cuenta (`base_colchon: 'cuenta'`, `cuenta_colchon_id`; la migración elige la Cuenta 2 o la segunda cuenta). `guardarCompromiso` (deuda a una fecha, colchón, cuenta, ventana y mes de referencia, sin intereses). `calcularPlan`: saldo de la cuenta según el banco más el ahorro previsto de cada mes (ingresos del mismo mes del año anterior o la media; gastos del presupuesto o la media de cada categoría; previstos pendientes), pago en el mes de referencia de todo lo que supere el colchón sin pasar de la deuda, hasta saldarla (máximo 30 años). Deuda pendiente: inicial menos los movimientos Pago de deuda desde la fecha. Simulación con ahorro extra o recorte de una categoría. `efectoMesCerrado`: ahorro real del último mes cerrado frente al previsto con los meses anteriores. Tarjeta en el Extracto, acceso desde Ajustes, General.
+- Analizar con Claude (`src/lib/analizar.ts`, `HojaClaude` y `BotonClaude`): textos del Extracto, Informes (con los comercios que más pesan), Presupuesto y Plan de pagos, enmascarados y sin cuentas; copiar, compartir o abrir claude.ai. «Optimizar con Claude» usa la misma hoja.
+- Archivos de prueba: esquema 9 en `tests/fixtures/archivos` y en las pruebas de navegador.
+- Pruebas: 390 tests unitarios y 10 recorridos de navegador.
+
 ## v0.22.0. Mejoras 8 a 16 de la hoja de ruta, revisión y optimización (14 de noviembre de 2026)
 
 - Gastos fijos y recurrentes (`src/lib/recurrentes.ts`): `detectarRecurrentes` agrupa los gastos de tipo Normal por comercio (PayPal, por importe), clasifica la periodicidad por la mediana de los intervalos (mensual, bimestral, trimestral, semestral, anual) y descarta importes muy dispares; importe, coste al mes y al año, próximo cargo, activo o de baja y subida. `resumenFijos`, `fijoYVariable` y `avisosRecurrentes` (subida reciente, cargo que no llega con la fecha de los datos de cada cuenta, cargo nuevo que se repite si la cuenta ya tenía datos antes). Pantalla `/informes/fijos`, tarjeta en Informes y aviso en el Extracto.

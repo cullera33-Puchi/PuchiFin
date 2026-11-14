@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.23.0",
+    "fecha": "2026-11-14",
+    "cambios": [
+      "Plan de pagos de la deuda (Extracto): pago previsto de cada verano, año en que queda saldada y simulación ahorrando más o recortando una categoría. Se configura con la deuda y el colchón de la Cuenta 2.",
+      "Gastos previstos del año (IBI, seguros, vacaciones): cuentan en la previsión del mes y en el plan de pagos.",
+      "Presupuesto: meses especiales con otro importe, resumen del año y aviso al importar si una categoría se pasa.",
+      "«Analizar con Claude» en el Extracto, Informes, Presupuesto y Plan de pagos."
+    ]
+  },
+  {
     "version": "0.22.0",
     "fecha": "2026-11-14",
     "cambios": [

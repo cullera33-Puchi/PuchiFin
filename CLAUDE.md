@@ -41,7 +41,7 @@ La especificación funcional completa está en la segunda parte de este document
 
 ## Alcance de esta primera versión
 
-Fases 1 a 3 de la hoja de ruta. Las fases 4 a 6 quedan fuera hasta nueva indicación, pero el modelo de datos se crea completo desde la fase 1.
+Fases 1 a 3 de la hoja de ruta. La fase 4 se construye en la v0.23.0 a petición del usuario (14/11/2026); las fases 5 y 6 quedan fuera hasta nueva indicación. El modelo de datos se crea completo desde la fase 1.
 
 ### Fase 1. Base
 
@@ -122,7 +122,7 @@ Ordenada por esfuerzo, de menos a más, con prioridad para la usabilidad y el re
 | 14 (hecha, v0.22.0) | Optimizar con Claude: prompt preparado con fijos, recurrentes y hormiga, por enlace o archivo. Sin API ni coste | Reporting | Medio |
 | 15 (hecha, v0.22.0) | Pruebas de navegador (Playwright) en GitHub antes de publicar, con archivos de cada esquema anterior | Técnica | Medio |
 | 16 (hecha, v0.22.0) | Cambiar de pestaña deslizando y recolocación animada de las listas (guía 4.1 y 5) | Usabilidad | Medio |
-| 17 | Fase 4: plan de pagos de la deuda familiar con simulación y «Analizar con Claude» en el resto de vistas (definido el 14/11/2026, apartado 10) | Reporting | Alto |
+| 17 (hecha, v0.23.0) | Fase 4: plan de pagos de la deuda familiar con simulación, gastos previstos, presupuesto con meses especiales, vista anual y avisos, y «Analizar con Claude» en el resto de vistas (definido el 14/11/2026, apartado 10) | Reporting | Alto |
 | 18 | Fase 5: estacionalidad y gastos atípicos | Reporting | Alto |
 | 19 | Fase 6: Face ID e importación de PDF. Las notificaciones exigen un servidor de envío, fuera del alcance sin coste | Usabilidad | Alto |
 | Decisión | Repositorio privado (exige otro alojamiento gratuito) | Técnica | Pendiente del usuario |
@@ -137,6 +137,11 @@ Ordenada por esfuerzo, de menos a más, con prioridad para la usabilidad y el re
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.23.0 (14/11/2026): fase 4 (puntos 1 a 6 confirmados por el usuario). Pendiente de validar con datos reales.
+  - Presupuesto: aviso al importar si una categoría pasa del 80 % o del 100 %, meses especiales con otro importe (`guardarExcepcionPresupuesto`) y resumen del año (`presupuestoAnual`).
+  - Gastos previstos (`/extracto/previstos`, `src/lib/previstos.ts`): pendientes, ya cargados o no vistos; entran en la previsión de cierre y en el plan de pagos.
+  - Plan de pagos (`/extracto/plan`, `src/lib/plan.ts`): esquema 10 con el colchón sobre la Cuenta 2 (`cuenta_colchon_id`), `guardarCompromiso`, proyección mes a mes, pago cada julio, calendario, simulación, pagos reales y efecto del mes cerrado; tarjeta en el Extracto.
+  - Analizar con Claude (`src/lib/analizar.ts`, `HojaClaude`) en el Extracto, Informes, Presupuesto y Plan de pagos.
 - v0.22.0 (14/11/2026): las mejoras 8 a 16 de la hoja de ruta, revisión de código y optimización.
   - Gastos fijos y recurrentes (`src/lib/recurrentes.ts`, pantalla `/informes/fijos`): detección por comercio (PayPal, por importe), periodicidad e importe; fijo frente a variable, próximos cargos, subidas y bajas. Avisos: subida de precio, cargo que no llega (con la fecha de los datos de cada cuenta, no la de hoy) y cargo nuevo que se repite.
   - Previsión de cierre del mes en curso (`src/lib/prevision.ts`): gastado, recibos que faltan y variable al ritmo de los meses anteriores.

@@ -38,3 +38,43 @@ describe('presupuesto por categoría', () => {
     expect(s.has(raiz('Ingresos').id)).toBe(false)
   })
 })
+
+describe('excepciones por mes, vista anual y avisos', () => {
+  const ali = raiz('Alimentación').id
+  it('un mes con otro importe; al quitarlo vuelve al de siempre', async () => {
+    const { guardarExcepcionPresupuesto } = await import('../datos/operaciones')
+    let d = guardarPresupuesto(db, ali, 50)
+    d = guardarExcepcionPresupuesto(d, ali, '2026-11', 5000)
+    expect(consumoPresupuestos(d, '2026-11', '2026-11-13')[0]).toMatchObject({ presupuesto: 5000, estado: 'dentro' })
+    expect(consumoPresupuestos(d, '2026-10', '2026-11-13')[0].presupuesto).toBe(50)
+    d = guardarExcepcionPresupuesto(d, ali, '2026-11', null)
+    expect(consumoPresupuestos(d, '2026-11', '2026-11-13')[0].presupuesto).toBe(50)
+    expect(() => guardarExcepcionPresupuesto(d, ali, '2026-13', 10)).toThrow(/Mes/)
+  })
+
+  it('solo con un mes especial, el presupuesto vale solo ese mes', async () => {
+    const { guardarExcepcionPresupuesto } = await import('../datos/operaciones')
+    const d = guardarExcepcionPresupuesto(db, raiz('Viajes').id, '2026-08', 1500)
+    expect(consumoPresupuestos(d, '2026-08', '2026-11-13').map((l) => l.presupuesto)).toEqual([1500])
+    expect(consumoPresupuestos(d, '2026-09', '2026-11-13')).toEqual([])
+    // Quitar el importe mensual no borra los meses especiales
+    expect(guardarPresupuesto(d, raiz('Viajes').id, null).presupuestos).toHaveLength(1)
+  })
+
+  it('vista anual: suma de cada mes desde el primero completo, el actual en proporción', async () => {
+    const { presupuestoAnual } = await import('./presupuesto')
+    const d = guardarPresupuesto(db, ali, 300)
+    const a = presupuestoAnual(d, '2026', '2026-11-13')
+    // Datos desde agosto: cuentan septiembre, octubre y noviembre (13 de 30 días)
+    expect(a.meses).toBe(3)
+    expect(a.lineas[0].presupuesto).toBeCloseTo(300 + 300 + (300 * 13) / 30, 2)
+  })
+
+  it('avisos al importar: categorías cerca del límite o superadas', async () => {
+    const { avisosPresupuesto } = await import('./presupuesto')
+    let d = guardarPresupuesto(db, ali, 50)
+    d = guardarPresupuesto(d, raiz('Viajes').id, 100_000)
+    const a = avisosPresupuesto(d, ['2026-11'], '2026-11-13')
+    expect(a.map((x) => [x.categoria.nombre, x.estado])).toEqual([['Alimentación', 'superado']])
+  })
+})

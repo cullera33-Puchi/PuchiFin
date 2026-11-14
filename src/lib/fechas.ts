@@ -37,6 +37,14 @@ export function sumarMeses(iso: string, meses: number): string {
   return aIso(d)
 }
 
+/** La misma fecha unos meses después (el 31 pasa al último día si ese mes es más corto) */
+export function mismoDiaEn(iso: string, meses: number): string {
+  const destino = sumarMeses(iso, meses)
+  const ultimo = ultimoDeMes(destino)
+  const dia = iso.slice(8, 10)
+  return dia > ultimo.slice(8, 10) ? ultimo : `${destino.slice(0, 8)}${dia}`
+}
+
 /** Hoy en la zona horaria del dispositivo */
 export function hoyIso(): string {
   const d = new Date()

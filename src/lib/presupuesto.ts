@@ -64,3 +64,49 @@ export function sugerirPresupuestos(db: BaseDatos, mes: string): Map<string, num
   }
   return res
 }
+
+export interface LineaAnual {
+  categoria: Categoria
+  /** Suma del presupuesto de cada mes (con sus excepciones), el mes en curso en proporción a los días con datos */
+  presupuesto: number
+  gastado: number
+  estado: EstadoPresupuesto
+}
+
+/**
+ * Presupuesto del año hasta hoy frente al gasto real. Cuenta desde enero o desde el primer mes completo
+ * con datos (el primero importado suele empezar a mitad), hasta el mes en curso.
+ */
+export function presupuestoAnual(db: BaseDatos, anio: string, hoy: string): { meses: number; lineas: LineaAnual[] } {
+  const umbral = (db.ajustes.umbral_aviso_presupuesto ?? 80) / 100
+  const hasta = fechaDeLosDatos(db, hoy)
+  const actual = hoy.slice(0, 7)
+  const primero = primerMes(db)
+  const meses: string[] = []
+  for (let m = `${anio}-01`; m <= `${anio}-12` && m <= actual; m = sumarMeses(`${m}-01`, 1).slice(0, 7)) if (m > primero) meses.push(m)
+  const lineas: LineaAnual[] = []
+  for (const p of db.presupuestos) {
+    const categoria = db.categorias.find((c) => c.id === p.categoria_id)
+    if (!categoria || !categoria.activa) continue
+    let presupuesto = 0
+    let gastado = 0
+    for (const mes of meses) {
+      const delMes = p.excepciones[mes] ?? p.importe_mensual
+      if (mes === actual) {
+        const diasMes = Number(sumarDias(sumarMeses(`${mes}-01`, 1), -1).slice(8, 10))
+        const dia = hasta.startsWith(mes) ? Number(hasta.slice(8, 10)) : 0
+        presupuesto += (delMes * dia) / diasMes
+      } else presupuesto += delMes
+      gastado += gastoDe(db, mes, categoria)
+    }
+    if (presupuesto <= 0) continue
+    const ratio = gastado / presupuesto
+    lineas.push({ categoria, presupuesto: redondear(presupuesto), gastado: redondear(gastado), estado: ratio >= 1 ? 'superado' : ratio >= umbral ? 'cerca' : 'dentro' })
+  }
+  return { meses: meses.length, lineas: lineas.sort((a, b) => b.gastado / b.presupuesto - a.gastado / a.presupuesto) }
+}
+
+/** Categorías que pasan del umbral (80 %) o del 100 % en los meses indicados, para avisar al importar */
+export function avisosPresupuesto(db: BaseDatos, meses: string[], hoy: string): (LineaPresupuesto & { mes: string })[] {
+  return meses.flatMap((mes) => consumoPresupuestos(db, mes, hoy).filter((l) => l.estado !== 'dentro').map((l) => ({ ...l, mes })))
+}

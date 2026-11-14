@@ -1,18 +1,16 @@
-import { CalendarClock, ChevronRight, Copy, Repeat, Share, Sparkles, TrendingUp, TriangleAlert } from 'lucide-react'
+import { CalendarClock, ChevronRight, Repeat, Sparkles, TrendingUp, TriangleAlert } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BarraNavegacion } from '../componentes/Encabezado'
 import { Baldosa } from '../componentes/Icono'
-import { Hoja, useInterfaz } from '../componentes/Interfaz'
+import { HojaClaude } from '../componentes/HojaClaude'
 import { useDatos } from '../datos/ProveedorDatos'
-import { compartirArchivo, copiarTexto } from '../lib/compartir'
 import { esPasarela } from '../lib/conceptos'
 import { hoyIso } from '../lib/fechas'
 import { formatearFecha, formatearImporte, plural } from '../lib/formato'
 import { mesEfectivo } from '../lib/imputacion'
-import { enlaceClaude, textoOptimizar } from '../lib/optimizar'
+import { textoOptimizar } from '../lib/optimizar'
 import { avisosRecurrentes, detectarRecurrentes, fijoYVariable, NOMBRE_PERIODICIDAD, resumenFijos, type Recurrente, type TipoAviso } from '../lib/recurrentes'
-import { registrar } from '../lib/registro'
 import { calcularTotales } from '../lib/resumen'
 import { nombreCategoria } from '../lib/vista'
 
@@ -173,44 +171,19 @@ export function Fijos() {
   )
 }
 
-/** Texto para Claude: se ve antes de enviarlo; copiar, compartir o abrir claude.ai */
+/** Texto para Claude con los fijos y los gastos hormiga */
 function HojaOptimizar({ abierta, recurrentes, onCerrar }: { abierta: boolean; recurrentes: Recurrente[]; onCerrar: () => void }) {
   const db = useDatos()
-  const { avisar } = useInterfaz()
   const texto = useMemo(() => (abierta ? textoOptimizar(db, recurrentes, hoyIso()) : ''), [abierta, db, recurrentes])
-  const abrirClaude = async () => {
-    await copiarTexto(texto)
-    registrar('info', 'Optimizar con Claude: abierto', { fijos: recurrentes.filter((r) => r.activo).length })
-    window.open(enlaceClaude(texto), '_blank', 'noopener')
-  }
   return (
-    <Hoja abierta={abierta} titulo="Optimizar con Claude" listo="Listo" onCerrar={onCerrar}>
-      <div className="space-y-4">
-        <p className="text-[15px] text-zinc-600 dark:text-zinc-400">
-          Claude revisa tus fijos y gastos hormiga: suscripciones que sobran, tarifas de luz, fibra y seguros mejores y qué recortar. Se usa tu suscripción de Claude, sin coste
-          en la app. Solo salen comercios, categorías e importes.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <button className="boton-primario" onClick={abrirClaude}>
-            <Sparkles className="size-4" strokeWidth={2} /> Abrir en Claude
-          </button>
-          <button
-            className="boton-secundario"
-            onClick={async () => {
-              const ok = await copiarTexto(texto)
-              registrar('info', 'Optimizar con Claude: copiado')
-              avisar(ok ? 'Copiado. Pégalo en el chat con Claude' : 'No se ha podido copiar')
-            }}
-          >
-            <Copy className="size-4" strokeWidth={2} /> Copiar
-          </button>
-          <button className="boton-secundario" onClick={() => compartirArchivo(new Blob([texto], { type: 'text/plain' }), 'puchifin-gastos-fijos.txt', 'Gastos fijos para Claude')}>
-            <Share className="size-4" strokeWidth={2} /> Compartir
-          </button>
-        </div>
-        <p className="text-xs text-zinc-500">«Abrir en Claude» también lo copia: si el chat no aparece escrito, pégalo. Esto es exactamente lo que se envía:</p>
-        <pre className="max-h-72 overflow-auto rounded-xl bg-zinc-100 p-3 font-mono text-[11px] leading-snug whitespace-pre-wrap select-text dark:bg-zinc-800">{texto}</pre>
-      </div>
-    </Hoja>
+    <HojaClaude
+      abierta={abierta}
+      titulo="Optimizar con Claude"
+      explicacion="Claude revisa tus fijos y gastos hormiga: suscripciones que sobran, tarifas de luz, fibra y seguros mejores y qué recortar."
+      texto={texto}
+      archivo="puchifin-gastos-fijos.txt"
+      registro="Optimizar con Claude"
+      onCerrar={onCerrar}
+    />
   )
 }

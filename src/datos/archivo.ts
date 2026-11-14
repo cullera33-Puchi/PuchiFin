@@ -100,6 +100,14 @@ export function migrar(d: Partial<BaseDatos>): BaseDatos {
   if (desde < 7) datos.categorias = actualizarCatalogo(datos.categorias)
   // Esquema 5 (v0.8.0): versión de la lógica aplicada a lo pendiente (null: se aplica al arrancar)
   if (desde < 5) datos.ajustes = { ...datos.ajustes, version_logica: datos.ajustes.version_logica ?? null }
+  // Esquema 10 (v0.23.0): el colchón de la deuda va sobre una cuenta, la de ahorro (Cuenta 2 o la segunda cuenta)
+  if (desde < 10) {
+    const bancarias = datos.cuentas.filter((c) => c.tipo === 'cuenta').sort((a, b) => a.orden - b.orden)
+    const ahorro = bancarias.find((c) => c.alias.trim().toLowerCase() === 'cuenta 2') ?? bancarias[1] ?? bancarias[0]
+    datos.compromisos = datos.compromisos.map((c) =>
+      c.cuenta_colchon_id !== undefined ? c : { ...c, base_colchon: 'cuenta' as const, cuenta_colchon_id: ahorro?.id ?? null },
+    )
+  }
   if (desde < 4) datos.cuentas = datos.cuentas.map((c) => ({ ...c, saldo_confirmado: c.saldo_confirmado ?? null }))
   return datos
 }

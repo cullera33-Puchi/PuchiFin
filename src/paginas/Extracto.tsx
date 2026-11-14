@@ -1,4 +1,4 @@
-import { ChartColumn, ChevronRight, ListChecks, Repeat, Target, FileText, FlaskConical, HardDriveDownload, Landmark, Sheet, Sparkles, Tag, Upload } from 'lucide-react'
+import { ChartColumn, ChevronRight, HandCoins, ListChecks, Repeat, Target, FileText, FlaskConical, HardDriveDownload, Landmark, Sheet, Sparkles, Tag, Upload } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Aviso, Encabezado } from '../componentes/Encabezado'
@@ -17,7 +17,10 @@ import { consumoPresupuestos, type LineaPresupuesto } from '../lib/presupuesto'
 import { ultimaExportacion } from '../lib/copias'
 import { calcularExtracto, fraseDelMes, mesDe } from '../lib/extracto'
 import { mesEfectivo } from '../lib/imputacion'
-import { hoyIso, mesLargo, sumarMeses } from '../lib/fechas'
+import { hoyIso, MESES, mesLargo, sumarMeses } from '../lib/fechas'
+import { calcularPlan, efectoMesCerrado } from '../lib/plan'
+import { textoExtracto } from '../lib/analizar'
+import { BotonClaude, HojaClaude } from '../componentes/HojaClaude'
 import { formatearFecha, formatearImporte, formatearRedondo, plural } from '../lib/formato'
 import { porcentaje, textoComparacion, type Tono } from '../lib/resumen'
 import { cuadrarCuenta } from '../lib/saldos'
@@ -63,6 +66,7 @@ export function Extracto() {
   const avisosFijos = useMemo(() => avisosRecurrentes(db, recurrentes), [db, recurrentes])
   const prevision = useMemo(() => preverCierre(db, mes, hoyIso(), recurrentes), [db, mes, recurrentes])
   const [verPendientes, setVerPendientes] = useState(false)
+  const [claude, setClaude] = useState(false)
   const presupuestos = useMemo(() => consumoPresupuestos(db, mes, hoyIso()), [db, mes])
   const irA = (m: string) => setParams({ mes: m }, { replace: true })
   // Meses de la tira: del primero con datos al último (el en curso o uno posterior imputado, como la nómina)
@@ -187,10 +191,14 @@ export function Extracto() {
                 <p className="mt-0.5 text-[22px] leading-tight font-bold tabular-nums">Unos {formatearRedondo(prevision.total)} de gasto</p>
                 <p className="mt-1 text-[13px] text-zinc-500">
                   Llevas {formatearRedondo(prevision.gastado)}
-                  {prevision.hasta < hoyIso() ? ` con los datos hasta el ${formatearFecha(prevision.hasta).slice(0, 5)}` : ''}. Faltan {prevision.pendientes.length ? `recibos por ${formatearRedondo(prevision.recibos)} y ` : ''}unos{' '}
+                  {prevision.hasta < hoyIso() ? ` con los datos hasta el ${formatearFecha(prevision.hasta).slice(0, 5)}` : ''}. Faltan {prevision.pendientes.length ? `recibos por ${formatearRedondo(prevision.recibos)}, ` : ''}
+                  {prevision.previstos.length ? `${plural(prevision.previstos.length, 'gasto previsto', 'gastos previstos')} por ${formatearRedondo(prevision.importePrevistos)} y ` : prevision.pendientes.length ? 'y ' : ''}unos{' '}
                   {formatearRedondo(prevision.variable)} de gasto variable en los {prevision.diasRestantes} días que quedan, a tu ritmo habitual.
                   {prevision.media !== null && ` Tu media mensual: ${formatearRedondo(prevision.media)}.`}
                 </p>
+                <Link to="/extracto/previstos" className="boton-texto mt-1 -ml-1 inline-flex px-1">
+                  Gastos previstos del año
+                </Link>
                 {prevision.pendientes.length > 0 && (
                   <>
                     <button className="boton-texto mt-1 -ml-1 px-1" onClick={() => setVerPendientes((v) => !v)}>
@@ -279,6 +287,7 @@ export function Extracto() {
             )}
 
             <SeccionPresupuesto lineas={presupuestos} />
+            <TarjetaDeuda />
 
             <section>
               <div className="mb-1.5 flex items-baseline justify-between px-4">
@@ -318,12 +327,22 @@ export function Extracto() {
               </ul>
             </section>
 
+            <BotonClaude onPulsar={() => setClaude(true)} />
             <button className="boton-texto mx-auto flex items-center gap-1.5" onClick={exportar}>
               <Sheet className="size-4" strokeWidth={2} /> Exportar el mes a Excel
             </button>
           </div>
         )}
       </Deslizable>
+      <HojaClaude
+        abierta={claude}
+        titulo="Analizar con Claude"
+        explicacion="Claude analiza el mes: qué se desvía de tu media, tu tasa de ahorro y qué hacer el mes que viene."
+        texto={claude ? textoExtracto(db, mes, hoyIso()) : ''}
+        archivo={`puchifin-extracto-${mes}.txt`}
+        registro="Analizar extracto"
+        onCerrar={() => setClaude(false)}
+      />
     </>
   )
 }
@@ -331,6 +350,40 @@ export function Extracto() {
 const COLOR_ESTADO = { dentro: 'var(--serie-3)', cerca: '#FF9500', superado: '#FF3B30' } as const
 
 /** Barras de consumo del presupuesto del mes; sin presupuestos, un acceso para definirlos */
+/** Deuda familiar: pendiente, pago previsto del próximo verano y lo que el mes cerrado suma o resta */
+function TarjetaDeuda() {
+  const db = useDatos()
+  const datos = useMemo(() => {
+    const r = calcularPlan(db, hoyIso())
+    return r.plan ? { plan: r.plan, efecto: efectoMesCerrado(db, hoyIso()) } : null
+  }, [db])
+  if (!datos) return null
+  const { plan, efecto } = datos
+  const proximo = plan.pagos[0]
+  return (
+    <Link to="/extracto/plan" className="tarjeta flex items-center gap-3 active:opacity-70">
+      <Baldosa glifo={HandCoins} color="#AF52DE" />
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-semibold tabular-nums">
+          {plan.deudaPendiente > 0 ? `Deuda: ${formatearRedondo(plan.deudaPendiente)}` : 'Deuda saldada'}
+        </span>
+        {proximo && (
+          <span className="block text-[12px] text-zinc-500 tabular-nums">
+            Pago previsto en {MESES[Number(proximo.mes.slice(5, 7)) - 1]} de {proximo.anio}: {formatearRedondo(proximo.pago)}
+            {plan.saldadaEn ? `. Saldada en ${plan.saldadaEn}` : ''}
+          </span>
+        )}
+        {efecto && efecto.diferencia !== 0 && (
+          <span className={`block text-[12px] tabular-nums ${efecto.diferencia > 0 ? TONO.bueno : TONO.malo}`}>
+            {MESES[Number(efecto.mes.slice(5, 7)) - 1].replace(/^./, (x) => x.toUpperCase())} {efecto.diferencia > 0 ? 'suma' : 'resta'} {formatearRedondo(Math.abs(efecto.diferencia))} al pago
+          </span>
+        )}
+      </span>
+      <ChevronRight className="size-4 shrink-0 text-zinc-400" />
+    </Link>
+  )
+}
+
 function SeccionPresupuesto({ lineas }: { lineas: LineaPresupuesto[] }) {
   if (!lineas.length)
     return (

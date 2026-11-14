@@ -17,6 +17,8 @@ import { calcularPosicion } from '../lib/posicion'
 import { mesEfectivo } from '../lib/imputacion'
 import { porDia } from '../lib/vista'
 import { gastosHormiga, IMPORTE_HORMIGA, rankingComercios } from '../lib/comercios'
+import { textoInforme } from '../lib/analizar'
+import { BotonClaude, HojaClaude } from '../componentes/HojaClaude'
 import { avisosRecurrentes, detectarRecurrentes, resumenFijos } from '../lib/recurrentes'
 import { Baldosa } from '../componentes/Icono'
 
@@ -77,6 +79,7 @@ export function Informes() {
   const siguiente = moverPeriodo(periodo, 1)
   const hayAnterior = anterior.clave >= periodoDeFecha(escala, primero).clave
   const haySiguiente = siguiente.clave <= periodoDeFecha(escala, hoy).clave
+  const [claude, setClaude] = useState(false)
 
   return (
     <>
@@ -105,8 +108,18 @@ export function Informes() {
           {vista === 'gasto' && <SeccionHormiga informe={informe} hoy={hoy} />}
           <Evolucion db={db} informe={informe} onPeriodo={(p) => (p.length === 7 && escala === 'anio' ? irAlMes(ir, p) : ir({ p }))} />
           <SeccionCapital db={db} />
+          <BotonClaude onPulsar={() => setClaude(true)} />
         </div>
       </Deslizable>
+      <HojaClaude
+        abierta={claude}
+        titulo="Analizar con Claude"
+        explicacion="Claude analiza el gasto del periodo frente al anterior, los comercios que más pesan y qué recortar."
+        texto={claude ? textoInforme(db, periodo, hoy) : ''}
+        archivo={`puchifin-informe-${periodo.clave}.txt`}
+        registro="Analizar informe"
+        onCerrar={() => setClaude(false)}
+      />
     </>
   )
 }

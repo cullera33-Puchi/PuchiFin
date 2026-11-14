@@ -238,3 +238,21 @@ describe('actualizarCatalogo (v0.13.0)', () => {
   })
 })
 
+
+describe('gastos previstos', () => {
+  it('se crean, se editan y se borran con sus comprobaciones', async () => {
+    const { guardarEvento, borrarEvento, ErrorDatos } = await import('./operaciones')
+    const db = datosIniciales()
+    const d = guardarEvento(db, { fecha: '2027-05-10', concepto: 'IBI', importe: -321.456, categoria_id: null })
+    expect(d.eventos_previstos).toHaveLength(1)
+    expect(d.eventos_previstos[0].importe).toBe(-321.46)
+    const id = d.eventos_previstos[0].id
+    const e = guardarEvento(d, { fecha: '2027-06-10', concepto: 'IBI', importe: -300, categoria_id: null }, id)
+    expect(e.eventos_previstos[0]).toMatchObject({ id, fecha: '2027-06-10', importe: -300 })
+    expect(borrarEvento(e, id).eventos_previstos).toHaveLength(0)
+    expect(() => guardarEvento(db, { fecha: '2027-05-10', concepto: '', importe: -1, categoria_id: null })).toThrow(ErrorDatos)
+    expect(() => guardarEvento(db, { fecha: '2027-13-40', concepto: 'IBI', importe: -1, categoria_id: null })).toThrow(ErrorDatos)
+    expect(() => guardarEvento(db, { fecha: '2027-05-10', concepto: 'IBI', importe: 0, categoria_id: null })).toThrow(ErrorDatos)
+    expect(() => guardarEvento(db, { fecha: '2027-05-10', concepto: 'ES9121000418450200051332', importe: -1, categoria_id: null })).toThrow(ErrorDatos)
+  })
+})

@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Briefcase, CalendarArrowUp, CircleCheck, ClipboardPaste, CopyCheck, FileSpreadsheet, Landmark, ShieldAlert, Tag } from 'lucide-react'
+import { ArrowLeftRight, Briefcase, CalendarArrowUp, CircleCheck, ClipboardPaste, CopyCheck, FileSpreadsheet, Landmark, ShieldAlert, Tag, Target } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Aviso, BarraNavegacion } from '../componentes/Encabezado'
@@ -11,8 +11,9 @@ import { confirmarImportacion, cuentaSugerida, deshacerImportacion, proponer, ty
 import { ErrorLectura, leerFichero, leerPortapapeles, type Lectura } from '../importacion/lector'
 import { hacerCopia } from '../lib/copias'
 import { formatearFecha, formatearImporte, plural } from '../lib/formato'
-import { nombreMes } from '../lib/fechas'
-import { mesSiguiente } from '../lib/imputacion'
+import { hoyIso, nombreMes, sumarMeses } from '../lib/fechas'
+import { mesEfectivo, mesSiguiente } from '../lib/imputacion'
+import { avisosPresupuesto } from '../lib/presupuesto'
 import { registrar } from '../lib/registro'
 import { cuadrarCuenta } from '../lib/saldos'
 import { esPendiente } from '../importacion/pendientes'
@@ -70,6 +71,14 @@ export function Importar() {
   )
   const pendientesHecha = hecha ? db.movimientos.filter((m) => m.importacion_id === hecha.id && esPendiente(m)).length : 0
   const cuadreHecha = useMemo(() => (hecha ? cuadrarCuenta(db.movimientos.filter((m) => m.cuenta_id === hecha.cuenta_id)) : null), [hecha, db])
+  // Presupuesto: categorías que pasan del 80 % o del 100 % en el mes en curso o el anterior, si la importación los toca
+  const avisosHecha = useMemo(() => {
+    if (!hecha) return []
+    const hoy = hoyIso()
+    const recientes = new Set([hoy.slice(0, 7), sumarMeses(`${hoy.slice(0, 7)}-01`, -1).slice(0, 7)])
+    const meses = [...new Set(db.movimientos.filter((m) => m.importacion_id === hecha.id).map(mesEfectivo))].filter((m) => recientes.has(m)).sort()
+    return avisosPresupuesto(db, meses, hoy)
+  }, [hecha, db])
   // Por defecto, las sugerencias seguras (confianza 0,75 o más) vienen aceptadas y las dudosas no
   const rechazadas =
     desactivadas && desactivadas.para === propuesta
@@ -214,6 +223,19 @@ export function Importar() {
             <div className="text-left">
               <CuadreSaldo cuadre={cuadreHecha} />
             </div>
+          )}
+          {avisosHecha.length > 0 && (
+            <Link to="/extracto/presupuesto" className="block rounded-xl bg-zinc-100 px-3 py-2 text-left dark:bg-zinc-800">
+              <span className="flex items-center gap-1.5 text-[13px] font-medium text-[#C93400] dark:text-[#FF9F0A]">
+                <Target className="size-4" strokeWidth={2} /> Presupuesto
+              </span>
+              {avisosHecha.map((a) => (
+                <span key={`${a.mes}|${a.categoria.id}`} className="mt-0.5 block text-[13px]">
+                  {a.categoria.nombre} ({nombreMes(`${a.mes}-01`).toLowerCase()}): {a.estado === 'superado' ? 'superado' : `${Math.round((a.gastado / a.presupuesto) * 100)} % usado`}, {formatearImporte(a.gastado)} de{' '}
+                  {formatearImporte(a.presupuesto)}
+                </span>
+              ))}
+            </Link>
           )}
           {pendientesHecha > 0 && (
             <button className="boton-primario w-full" onClick={() => navegar('/movimientos/categorizar')}>

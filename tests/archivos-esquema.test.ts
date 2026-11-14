@@ -1,5 +1,5 @@
 /**
- * Archivos exportados como los guardaban las versiones anteriores (esquemas 3, 5, 7 y 8), con datos
+ * Archivos exportados como los guardaban las versiones anteriores (esquemas 3, 5, 7, 8 y 9), con datos
  * inventados. Las pruebas de navegador (tests/e2e) los importan en la app para comprobar que se siguen
  * leyendo. npm run archivos:prueba los regenera; npm test solo comprueba que se leen.
  */
@@ -18,8 +18,13 @@ function archivo(esquema: number): string {
   const importaciones = p.importaciones.map((i) => ({ ...i, origen: i.cuenta_id === db.cuentas[2].id ? 'bbva_tarjeta' : 'bbva_cuenta' }))
   const a = JSON.parse(JSON.stringify(crearArchivo({ ...db, ...p, importaciones } as typeof db)))
   a.datos.esquema = esquema
-  a.version_app = { 3: '0.6.0', 5: '0.8.0', 7: '0.13.0', 8: '0.14.0' }[esquema]
+  a.version_app = { 3: '0.6.0', 5: '0.8.0', 7: '0.13.0', 8: '0.14.0', 9: '0.22.0' }[esquema]
   // Quita lo que llegó después de ese esquema
+  if (esquema < 10)
+    for (const c of a.datos.compromisos) {
+      delete c.cuenta_colchon_id
+      c.base_colchon = 'saldo_conjunto'
+    }
   if (esquema < 9) for (const m of a.datos.movimientos) delete m.cuadre_confirmado
   if (esquema < 8) Object.assign(a.datos.ajustes, { fecha_inicio: '2026-09-01', fecha_corte_fintonic: '2026-08-31' })
   if (esquema < 5) delete a.datos.ajustes.version_logica
@@ -28,11 +33,13 @@ function archivo(esquema: number): string {
 }
 
 describe('archivos de esquemas anteriores', () => {
-  it.each([3, 5, 7, 8])('el del esquema %i se lee y se adapta al actual', (esquema) => {
+  it.each([3, 5, 7, 8, 9])('el del esquema %i se lee y se adapta al actual', (esquema) => {
     const texto = archivo(esquema)
     const a = leerArchivo(texto)
     expect(a.datos.esquema).toBe(VERSION_ESQUEMA)
     expect(a.datos.movimientos.length).toBeGreaterThan(100)
+    // Esquema 10: el colchón de la deuda, sobre la Cuenta 2
+    expect(a.datos.compromisos[0]).toMatchObject({ base_colchon: 'cuenta', cuenta_colchon_id: a.datos.cuentas.find((c) => c.alias === 'Cuenta 2')!.id })
     if (process.env.GENERAR_ARCHIVOS) {
       mkdirSync('tests/fixtures/archivos', { recursive: true })
       writeFileSync(`tests/fixtures/archivos/esquema-${esquema}.json`, texto)

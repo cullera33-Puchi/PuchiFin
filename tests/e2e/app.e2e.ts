@@ -52,6 +52,8 @@ test('las cuatro pestañas responden y deslizar fuera de las listas cambia de pe
     await expect(page).toHaveURL(new RegExp(`${ruta}$`))
   }
   await page.goto('/ajustes/general')
+  // Que la pantalla esté montada (con sus gestos) antes de deslizar
+  await expect(page.getByText(/nombre del ordenante/)).toBeVisible()
   await deslizar(page, 80, 420, 340)
   await expect(page).toHaveURL(/\/informes$/)
   expect(e).toEqual([])
@@ -96,7 +98,38 @@ test('Informes, gastos fijos, PayPal y presupuesto se abren sin errores', async 
   expect(e).toEqual([])
 })
 
-for (const esquema of [3, 5, 7, 8]) {
+test('gastos previstos, plan de pagos y Analizar con Claude', async ({ page }) => {
+  const e = errores(page)
+  await conDatosDePrueba(page)
+  // Un gasto previsto
+  await page.goto('/extracto/previstos')
+  await page.getByRole('button', { name: 'Añadir el primero' }).tap()
+  await page.getByPlaceholder('IBI, seguro del coche…').fill('Seguro anual')
+  await page.getByPlaceholder('0,00 €').fill('350')
+  await page.getByRole('button', { name: 'Guardar', exact: true }).tap()
+  await expect(page.getByText('Seguro anual').first()).toBeVisible()
+  // Plan de pagos: configurar la deuda y el colchón
+  await page.goto('/extracto/plan')
+  await page.getByRole('button', { name: 'Configurar' }).tap()
+  const importes = page.getByPlaceholder('0,00 €')
+  await importes.nth(0).fill('30000')
+  await importes.nth(1).fill('2000')
+  await page.getByRole('button', { name: 'Guardar', exact: true }).tap()
+  await expect(page.locator('#contenido').getByText('Deuda pendiente', { exact: true })).toBeVisible()
+  await expect(page.getByText(/Pago previsto en julio/)).toBeVisible()
+  await page.getByRole('radio', { name: '+200 €' }).tap()
+  await expect(page.getByText(/Primer pago:/)).toBeVisible()
+  await page.getByRole('button', { name: 'Analizar con Claude' }).tap()
+  await expect(page.getByText(/Deuda pendiente: 30\.000,00 €/)).toBeVisible()
+  // La tarjeta de la deuda en el Extracto
+  await page.goto('/')
+  await expect(page.getByText(/Deuda: 30\.000/)).toBeVisible()
+  await page.getByRole('button', { name: 'Analizar con Claude' }).tap()
+  await expect(page.getByText(/Gasto por categoría \(importe/)).toBeVisible()
+  expect(e).toEqual([])
+})
+
+for (const esquema of [3, 5, 7, 8, 9]) {
   test(`importa un archivo del esquema ${esquema} y lo enseña igual`, async ({ page }) => {
     const e = errores(page)
     await page.goto('/ajustes/herramientas')

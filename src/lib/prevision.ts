@@ -8,7 +8,8 @@ import { mesEfectivo } from './imputacion'
 import { fijoYVariable, type Recurrente } from './recurrentes'
 import { fechaDeLosDatos } from './extracto'
 import { calcularTotales } from './resumen'
-import type { BaseDatos } from './tipos'
+import { previstosPendientes } from './previstos'
+import type { BaseDatos, EventoPrevisto } from './tipos'
 
 const redondear = (n: number) => Math.round(n * 100) / 100
 /** Primer mes con datos: casi siempre incompleto (el primer Excel empieza a mitad de mes) */
@@ -29,6 +30,9 @@ export interface Prevision {
   media: number | null
   /** Fecha del último dato importado: la previsión cuenta desde ahí */
   hasta: string
+  /** Gastos previstos dados de alta (IBI, seguros) que faltan este mes */
+  previstos: EventoPrevisto[]
+  importePrevistos: number
 }
 
 export function preverCierre(db: BaseDatos, mes: string, hoy: string, recurrentes: Recurrente[]): Prevision | null {
@@ -69,5 +73,7 @@ export function preverCierre(db: BaseDatos, mes: string, hoy: string, recurrente
     media = redondear(datos.reduce((s, d) => s + d.gastos, 0) / datos.length)
   }
   const variable = redondear(porDia * diasRestantes)
-  return { gastado, pendientes, recibos, variable, total: redondear(gastado + recibos + variable), diasRestantes, media, hasta }
+  const previstos = previstosPendientes(db, hasta, fin, hoy, recurrentes).filter((e) => e.importe < 0)
+  const importePrevistos = redondear(-previstos.reduce((s, e) => s + e.importe, 0))
+  return { gastado, pendientes, recibos, variable, total: redondear(gastado + recibos + variable + importePrevistos), diasRestantes, media, hasta, previstos, importePrevistos }
 }

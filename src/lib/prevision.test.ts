@@ -41,3 +41,18 @@ describe('previsión con los datos atrasados', () => {
     expect(p.pendientes.some((r) => r.nombre.toLowerCase().includes('energia'))).toBe(true)
   })
 })
+
+describe('gastos previstos dados de alta', () => {
+  it('entran en la previsión si faltan este mes y se dan por cobrados al aparecer', async () => {
+    const { guardarEvento } = await import('../datos/operaciones')
+    const { estadoEventos } = await import('./previstos')
+    const cat = db.categorias.find((c) => c.nombre === 'Coche')!.id
+    let d = guardarEvento(db, { fecha: '2026-11-25', concepto: 'Seguro del coche', importe: -400, categoria_id: cat }, undefined)
+    d = guardarEvento(d, { fecha: '2026-11-06', concepto: 'Seguro del coche', importe: -390, categoria_id: cat }, undefined)
+    const p = preverCierre(d, '2026-11', '2026-11-13', detectarRecurrentes(d))!
+    expect(p.previstos.map((e) => e.fecha)).toEqual(['2026-11-25'])
+    expect(p.importePrevistos).toBe(400)
+    // El del 6 de noviembre ya está: los datos de prueba traen el seguro del coche ese día
+    expect(estadoEventos(d, '2026-11-13').map((e) => e.estado)).toEqual(['cobrado', 'pendiente'])
+  })
+})

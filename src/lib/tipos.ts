@@ -123,7 +123,9 @@ export interface Compromiso {
   fecha_referencia: string
   interes_anual: number
   colchon: number
-  base_colchon: 'saldo_conjunto' | 'cuenta_principal'
+  /** Desde el esquema 10, «cuenta»: el colchón y el pago van sobre la cuenta de ahorro (cuenta_colchon_id) */
+  base_colchon: 'saldo_conjunto' | 'cuenta_principal' | 'cuenta'
+  cuenta_colchon_id: string | null
   ventana_mes_inicio: number
   ventana_mes_fin: number
   mes_referencia: number
@@ -157,7 +159,7 @@ export interface Ajustes {
   version_logica: string | null
 }
 
-export const VERSION_ESQUEMA = 9
+export const VERSION_ESQUEMA = 10
 
 export interface BaseDatos {
   esquema: number

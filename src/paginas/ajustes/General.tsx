@@ -153,21 +153,17 @@ export function General() {
       </Link>
 
       {deuda && (
-        <section className="tarjeta space-y-2">
-          <h2 className="text-sm font-semibold">{deuda.nombre}</h2>
-          {deuda.deuda_inicial === 0 ? (
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              Importes sin configurar. Se introducen en la fase 4, con el plan de pagos, y solo se guardan en el iPhone.
-            </p>
-          ) : (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            {formatearImporte(deuda.deuda_inicial)} pendientes, colchón de {formatearImporte(deuda.colchon)}, pago entre{' '}
-            {MESES[deuda.ventana_mes_inicio - 1]} y {MESES[deuda.ventana_mes_fin - 1]} con {MESES[deuda.mes_referencia - 1]} como
-            referencia, {deuda.interes_anual > 0 ? `${deuda.interes_anual} % de interés` : 'sin intereses'}.
-          </p>
-          )}
-          <p className="text-xs text-zinc-500">Valores iniciales. Se podrán editar en la fase 4, con el plan de pagos.</p>
-        </section>
+        <Link to="/extracto/plan" className="lista fila min-h-14">
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px]">{deuda.nombre}</span>
+            <span className="block text-[12px] text-zinc-500">
+              {deuda.deuda_inicial === 0
+                ? 'Sin configurar. Deuda, colchón y ventana de pago en el plan de pagos'
+                : `Colchón de ${formatearImporte(deuda.colchon)}, pago entre ${MESES[deuda.ventana_mes_inicio - 1]} y ${MESES[deuda.ventana_mes_fin - 1]}, sin intereses`}
+            </span>
+          </span>
+          <ChevronRight className="size-4 text-zinc-400" />
+        </Link>
       )}
 
       {error && <Aviso>{error}</Aviso>}

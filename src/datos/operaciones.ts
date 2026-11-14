@@ -97,15 +97,16 @@ export function datosIniciales(): BaseDatos {
       categorias.push({ id: nuevoId(), padre_id: id, nombre: sub, icono: null, color, naturaleza, activa: true, orden: j + 1 }),
     )
   })
+  const cuentas = [
+    cuenta('Cuenta principal', 'BBVA', 'cuenta', 1),
+    cuenta('Cuenta 2', 'BBVA', 'cuenta', 2),
+    cuenta('Tarjeta', 'BBVA', 'tarjeta_credito', 3),
+    cuenta('Hipoteca', null, 'hipoteca', 4),
+  ]
   return {
     esquema: VERSION_ESQUEMA,
     ajustes: structuredClone(AJUSTES_POR_DEFECTO),
-    cuentas: [
-      cuenta('Cuenta principal', 'BBVA', 'cuenta', 1),
-      cuenta('Cuenta 2', 'BBVA', 'cuenta', 2),
-      cuenta('Tarjeta', 'BBVA', 'tarjeta_credito', 3),
-      cuenta('Hipoteca', null, 'hipoteca', 4),
-    ],
+    cuentas,
     categorias,
     reglas: reglasPredeterminadas(categorias, creada),
     importaciones: [],
@@ -120,7 +121,9 @@ export function datosIniciales(): BaseDatos {
         fecha_referencia: '2026-10-01',
         interes_anual: 0,
         colchon: 0,
-        base_colchon: 'saldo_conjunto',
+        // El colchón y el pago, sobre la Cuenta 2 (la de ahorro); la principal es la del día a día
+        base_colchon: 'cuenta',
+        cuenta_colchon_id: cuentas[1].id,
         ventana_mes_inicio: 6,
         ventana_mes_fin: 8,
         mes_referencia: 7,
@@ -269,11 +272,103 @@ export function guardarPresupuesto(db: BaseDatos, categoria_id: string, importe:
   if (!c) throw new ErrorDatos('Categoría no encontrada')
   if (c.naturaleza !== 'gasto') throw new ErrorDatos('Solo las categorías de gasto llevan presupuesto')
   const existente = db.presupuestos.find((p) => p.categoria_id === categoria_id)
-  if (importe === null || importe === 0) return existente ? { ...db, presupuestos: db.presupuestos.filter((p) => p.id !== existente.id) } : db
+  if (importe === null || importe === 0) {
+    if (!existente) return db
+    // Sin importe mensual pero con meses especiales, se conservan esos meses
+    if (Object.keys(existente.excepciones).length)
+      return { ...db, presupuestos: db.presupuestos.map((p) => (p.id === existente.id ? { ...p, importe_mensual: 0 } : p)) }
+    return { ...db, presupuestos: db.presupuestos.filter((p) => p.id !== existente.id) }
+  }
   if (!Number.isFinite(importe) || importe < 0 || importe > 1_000_000) throw new ErrorDatos('El presupuesto debe ser un importe positivo')
   const valor = Math.round(importe * 100) / 100
   if (existente) return { ...db, presupuestos: db.presupuestos.map((p) => (p.id === existente.id ? { ...p, importe_mensual: valor } : p)) }
   return { ...db, presupuestos: [...db.presupuestos, { id: nuevoId(), categoria_id, importe_mensual: valor, excepciones: {}, created_at: ahora() }] }
+}
+
+/**
+ * Presupuesto distinto en un mes concreto (Viajes en agosto, Hijos en septiembre); con null se quita y
+ * ese mes vuelve al importe de siempre.
+ */
+export function guardarExcepcionPresupuesto(db: BaseDatos, categoria_id: string, mes: string, importe: number | null): BaseDatos {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes)) throw new ErrorDatos('Mes no válido')
+  const c = db.categorias.find((x) => x.id === categoria_id)
+  if (!c) throw new ErrorDatos('Categoría no encontrada')
+  if (c.naturaleza !== 'gasto') throw new ErrorDatos('Solo las categorías de gasto llevan presupuesto')
+  if (importe !== null && (!Number.isFinite(importe) || importe < 0 || importe > 1_000_000)) throw new ErrorDatos('El presupuesto debe ser un importe positivo')
+  const existente = db.presupuestos.find((p) => p.categoria_id === categoria_id)
+  if (importe === null) {
+    if (!existente || !(mes in existente.excepciones)) return db
+    const { [mes]: _quitado, ...excepciones } = existente.excepciones
+    // Sin importe mensual ni meses especiales, el presupuesto desaparece
+    if (!existente.importe_mensual && !Object.keys(excepciones).length) return { ...db, presupuestos: db.presupuestos.filter((p) => p.id !== existente.id) }
+    return { ...db, presupuestos: db.presupuestos.map((p) => (p.id === existente.id ? { ...p, excepciones } : p)) }
+  }
+  const valor = Math.round(importe * 100) / 100
+  if (existente) return { ...db, presupuestos: db.presupuestos.map((p) => (p.id === existente.id ? { ...p, excepciones: { ...p.excepciones, [mes]: valor } } : p)) }
+  return { ...db, presupuestos: [...db.presupuestos, { id: nuevoId(), categoria_id, importe_mensual: 0, excepciones: { [mes]: valor }, created_at: ahora() }] }
+}
+
+// ---------------------------------------------------------------------------
+// Gastos (o ingresos) previstos: IBI, seguros anuales, vacaciones, pagas extra
+// ---------------------------------------------------------------------------
+
+export interface DatosEvento {
+  fecha: string
+  concepto: string
+  /** Con signo: negativo es gasto, positivo es ingreso */
+  importe: number
+  categoria_id: string | null
+}
+
+export function guardarEvento(db: BaseDatos, datos: DatosEvento, id?: string): BaseDatos {
+  const concepto = datos.concepto.trim()
+  if (!concepto) throw new ErrorDatos('Escribe qué es (por ejemplo, IBI o seguro del coche)')
+  if (concepto.length > 60) throw new ErrorDatos('El concepto admite un máximo de 60 caracteres')
+  exigirSinIdentificativos('Concepto', concepto)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datos.fecha) || Number.isNaN(Date.parse(datos.fecha))) throw new ErrorDatos('Fecha no válida')
+  if (!Number.isFinite(datos.importe) || datos.importe === 0 || Math.abs(datos.importe) > 1_000_000) throw new ErrorDatos('Escribe un importe')
+  if (datos.categoria_id && !db.categorias.some((c) => c.id === datos.categoria_id)) throw new ErrorDatos('Categoría no encontrada')
+  const valores = { fecha: datos.fecha, concepto, importe: Math.round(datos.importe * 100) / 100, categoria_id: datos.categoria_id }
+  if (id) {
+    if (!db.eventos_previstos.some((e) => e.id === id)) throw new ErrorDatos('Gasto previsto no encontrado')
+    return { ...db, eventos_previstos: db.eventos_previstos.map((e) => (e.id === id ? { ...e, ...valores } : e)) }
+  }
+  return { ...db, eventos_previstos: [...db.eventos_previstos, { id: nuevoId(), ...valores, created_at: ahora() }] }
+}
+
+export function borrarEvento(db: BaseDatos, id: string): BaseDatos {
+  return { ...db, eventos_previstos: db.eventos_previstos.filter((e) => e.id !== id) }
+}
+
+export interface DatosCompromiso {
+  deuda_inicial: number
+  fecha_referencia: string
+  colchon: number
+  cuenta_colchon_id: string | null
+  ventana_mes_inicio: number
+  ventana_mes_fin: number
+  mes_referencia: number
+}
+
+/** Deuda familiar: importes y regla de pago. Los importes solo viven en el dispositivo */
+export function guardarCompromiso(db: BaseDatos, id: string, datos: DatosCompromiso): BaseDatos {
+  if (!db.compromisos.some((c) => c.id === id)) throw new ErrorDatos('Deuda no encontrada')
+  if (!Number.isFinite(datos.deuda_inicial) || datos.deuda_inicial < 0 || datos.deuda_inicial > 10_000_000) throw new ErrorDatos('Escribe la deuda pendiente')
+  if (!Number.isFinite(datos.colchon) || datos.colchon < 0 || datos.colchon > 10_000_000) throw new ErrorDatos('Escribe el colchón')
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datos.fecha_referencia) || Number.isNaN(Date.parse(datos.fecha_referencia))) throw new ErrorDatos('Fecha no válida')
+  const mes = (n: number) => Number.isInteger(n) && n >= 1 && n <= 12
+  if (!mes(datos.ventana_mes_inicio) || !mes(datos.ventana_mes_fin) || !mes(datos.mes_referencia)) throw new ErrorDatos('Mes no válido')
+  if (datos.ventana_mes_inicio > datos.ventana_mes_fin) throw new ErrorDatos('La ventana de pago empieza después de acabar')
+  if (datos.mes_referencia < datos.ventana_mes_inicio || datos.mes_referencia > datos.ventana_mes_fin) throw new ErrorDatos('El mes de referencia debe estar dentro de la ventana de pago')
+  if (datos.cuenta_colchon_id && !db.cuentas.some((c) => c.id === datos.cuenta_colchon_id && c.tipo === 'cuenta')) throw new ErrorDatos('Cuenta no encontrada')
+  const valores = {
+    ...datos,
+    deuda_inicial: Math.round(datos.deuda_inicial * 100) / 100,
+    colchon: Math.round(datos.colchon * 100) / 100,
+    base_colchon: 'cuenta' as const,
+    interes_anual: 0,
+  }
+  return { ...db, compromisos: db.compromisos.map((c) => (c.id === id ? { ...c, ...valores } : c)) }
 }
 
 export function guardarAjustes(db: BaseDatos, cambios: Partial<Ajustes>): BaseDatos {
