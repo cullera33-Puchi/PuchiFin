@@ -14,6 +14,11 @@
 }
 
 @layer base {
+  /* Sin zoom por doble toque en ninguna parte (v0.30.0): Safari en el iPhone espera un posible doble toque
+     y, si se pulsa dos veces seguidas, se queda con los dos toques. Desplazar y los gestos propios siguen igual */
+  * {
+    touch-action: manipulation;
+  }
   html {
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;

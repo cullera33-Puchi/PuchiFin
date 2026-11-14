@@ -2,6 +2,12 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.30.0. Los comercios de Informes responden al primer toque (14 de noviembre de 2026)
+
+- `touch-action: manipulation` en toda la app (capa base): Safari en el iPhone ya no espera un posible doble toque para hacer zoom. Con dos o tres toques seguidos, se quedaba con ellos y la fila no respondía. Los gestos propios (filas, hojas) mantienen su `touch-action`.
+- «Dónde más gastas» y «Gastos hormiga»: tocar un comercio abre una hoja con sus movimientos del periodo (`HojaComercio`, `movimientosDeComercio`), dentro de Informes y sin montar la pestaña Movimientos; cada fila abre su detalle y admite los gestos de siempre. «Ver en Movimientos» lleva a la lista completa. Registro «Informes: comercio abierto» con el número de movimientos.
+- Recorrido de navegador: tocar un comercio abre su hoja y «Ver en Movimientos» lleva a la búsqueda.
+
 ## v0.29.0. Volver deslizando, más fluido (14 de noviembre de 2026)
 
 - `useVolverDesdeBorde` ya no usa estado de React: el desplazamiento se aplica directamente a la capa de la pantalla (`translate3d`), una vez por fotograma (`requestAnimationFrame`), con `will-change` solo mientras dura el gesto. Antes, cada movimiento del dedo redibujaba la estructura de la app y pintaba una sombra de 24 px sobre toda la pantalla.

@@ -18,6 +18,11 @@ export interface LineaComercio {
 
 const claveDe = (m: Movimiento) => claveComercio(m.concepto_limpio) || m.concepto_normalizado
 
+/** Movimientos de un comercio (por su clave de las listas), del más reciente al más antiguo */
+export function movimientosDeComercio(movs: Movimiento[], clave: string): Movimiento[] {
+  return movs.filter((m) => claveDe(m) === clave).sort((a, b) => b.fecha_operacion.localeCompare(a.fecha_operacion))
+}
+
 /** Agrupa por comercio (PayPal, todo junto) con el nombre del movimiento más reciente */
 export function porComercio(movs: Movimiento[], signo: 1 | -1): LineaComercio[] {
   const grupos = new Map<string, { nombre: string; fecha: string; importe: number; veces: number }>()

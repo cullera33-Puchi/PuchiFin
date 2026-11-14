@@ -137,6 +137,7 @@ Ordenada por esfuerzo, de menos a más, con prioridad para la usabilidad y el re
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.30.0 (14/11/2026): sin zoom por doble toque en toda la app (`touch-action: manipulation`), que se comía los toques seguidos en el iPhone; los comercios de Informes abren una hoja con sus movimientos en lugar de saltar a Movimientos.
 - v0.29.0 (14/11/2026): volver deslizando más fluido: el gesto mueve la capa de la pantalla directamente, una vez por fotograma y sin redibujar la app; sombra en una franja aparte.
 - v0.28.0 (14/11/2026): plan de pagos más rápido (estadísticas y capital calculados una vez por versión de los datos, simulación diferida), una sola simulación compartida entre Ingresos previstos y el plan (`useSimulacion`), tarjeta de la deuda debajo de «Tu posición» y en Informes, y apartado del plan en el PDF de los resúmenes con el escenario actual y el de las nóminas que no cuentan.
 - v0.27.0 (14/11/2026): la deuda pendiente y el colchón se pueden cambiar en la simulación del plan de pagos (`Simulacion.deuda` y `colchon`) y guardar en el plan si convencen.

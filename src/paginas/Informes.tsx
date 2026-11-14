@@ -1,11 +1,11 @@
 import { ChartColumn, Check, ChevronRight, Repeat, Sheet, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Bar, BarChart, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { BarraNavegacion, Encabezado } from '../componentes/Encabezado'
 import { FilaMovimientoDeslizable } from '../componentes/FilaMovimientoDeslizable'
 import { opcionesAnios, opcionesMeses, TiraPeriodos } from '../componentes/TiraPeriodos'
-import { Segmentado, useInterfaz } from '../componentes/Interfaz'
+import { Hoja, Segmentado, useInterfaz } from '../componentes/Interfaz'
 import { DetalleMovimiento } from '../componentes/movimientos'
 import { useDatos } from '../datos/ProveedorDatos'
 import { diaLargo, hoyIso, MESES, mesLargo } from '../lib/fechas'
@@ -15,7 +15,9 @@ import { calcularTotales, porcentaje } from '../lib/resumen'
 import { calcularPosicion } from '../lib/posicion'
 import { mesEfectivo } from '../lib/imputacion'
 import { porDia } from '../lib/vista'
-import { gastosHormiga, IMPORTE_HORMIGA, rankingComercios } from '../lib/comercios'
+import { gastosHormiga, IMPORTE_HORMIGA, movimientosDeComercio, rankingComercios, type LineaComercio } from '../lib/comercios'
+import { registrar } from '../lib/registro'
+import type { Movimiento } from '../lib/tipos'
 import { textoInforme } from '../lib/analizar'
 import { BotonClaude, HojaClaude } from '../componentes/HojaClaude'
 import { TarjetaDeuda } from '../componentes/TarjetaDeuda'
@@ -297,7 +299,7 @@ const buscarComercio = (navegar: ReturnType<typeof useNavigate>, clave: string, 
 
 /** Dónde más se gasta (o de dónde vienen los ingresos) del periodo, por importe o por veces */
 function SeccionComercios({ informe, movimientos }: { informe: Informe; movimientos: Informe['movimientos'] }) {
-  const navegar = useNavigate()
+  const [abierto, setAbierto] = useState<LineaComercio | null>(null)
   const [orden, setOrden] = useState<'importe' | 'veces'>('importe')
   const lista = useMemo(() => rankingComercios(movimientos, informe.vista === 'gasto' ? -1 : 1, orden), [movimientos, informe.vista, orden])
   if (lista.length < 2) return null
@@ -312,7 +314,7 @@ function SeccionComercios({ informe, movimientos }: { informe: Informe; movimien
       <ol className="divide-y divide-zinc-200/70 dark:divide-zinc-800">
         {lista.map((l, i) => (
           <li key={l.clave}>
-            <button className="flex min-h-11 w-full items-center gap-3 py-1.5 text-left active:opacity-60" onClick={() => buscarComercio(navegar, l.clave, informe.periodo)}>
+            <button className="flex min-h-11 w-full items-center gap-3 py-1.5 text-left active:opacity-60" onClick={() => setAbierto(l)}>
               <span className="w-5 shrink-0 text-right text-[13px] text-zinc-500 tabular-nums">{i + 1}</span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[15px]">{l.nombre}</span>
@@ -324,7 +326,57 @@ function SeccionComercios({ informe, movimientos }: { informe: Informe; movimien
           </li>
         ))}
       </ol>
+      <HojaComercio comercio={abierto} movimientos={movimientos} periodo={informe.periodo} onCerrar={() => setAbierto(null)} />
     </section>
+  )
+}
+
+/**
+ * Movimientos de un comercio en el periodo, en una hoja dentro de Informes (v0.30.0): se abre al momento,
+ * sin cambiar de pestaña, y «Ver en Movimientos» lleva a la lista completa.
+ */
+function HojaComercio({ comercio, movimientos, periodo, onCerrar }: { comercio: LineaComercio | null; movimientos: Movimiento[]; periodo: PeriodoInforme; onCerrar: () => void }) {
+  const navegar = useNavigate()
+  const db = useDatos()
+  const [detalle, setDetalle] = useState<string | null>(null)
+  // Los movimientos se leen de los datos actuales: un cambio de categoría o de tipo se ve al momento
+  const lista = useMemo(() => {
+    if (!comercio) return []
+    const ids = new Set(movimientosDeComercio(movimientos, comercio.clave).map((m) => m.id))
+    return db.movimientos.filter((m) => ids.has(m.id)).sort((a, b) => b.fecha_operacion.localeCompare(a.fecha_operacion))
+  }, [comercio, movimientos, db.movimientos])
+  useEffect(() => {
+    if (comercio) registrar('info', 'Informes: comercio abierto', { movimientos: lista.length })
+  }, [comercio]) // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <>
+      <Hoja abierta={!!comercio} titulo={comercio?.nombre ?? ''} listo="Listo" onCerrar={onCerrar}>
+        {comercio && (
+          <div className="space-y-3">
+            <p className="text-center text-[13px] text-zinc-500 tabular-nums">
+              {plural(comercio.veces, 'vez', 'veces')}, {formatearImporte(comercio.importe)} en {periodo.escala === 'mes' ? mesLargo(`${periodo.clave}-01`).toLowerCase() : periodo.clave}
+            </p>
+            <ul className="lista divide-y divide-zinc-200/70 bg-zinc-100/70 dark:divide-zinc-800 dark:bg-zinc-800/50">
+              {lista.map((m) => (
+                <li key={m.id}>
+                  <FilaMovimientoDeslizable m={m} conFecha onPulsar={() => setDetalle(m.id)} />
+                </li>
+              ))}
+            </ul>
+            <button
+              className="boton-secundario w-full"
+              onClick={() => {
+                onCerrar()
+                buscarComercio(navegar, comercio.clave, periodo)
+              }}
+            >
+              Ver en Movimientos
+            </button>
+          </div>
+        )}
+      </Hoja>
+      <DetalleMovimiento id={detalle} onCerrar={() => setDetalle(null)} />
+    </>
   )
 }
 
@@ -338,7 +390,7 @@ function mesesDelPeriodo(p: PeriodoInforme, hoy: string): number {
 
 /** Gastos hormiga: compras pequeñas y frecuentes, su total y lo que suman en un año */
 function SeccionHormiga({ informe, hoy }: { informe: Informe; hoy: string }) {
-  const navegar = useNavigate()
+  const [abierto, setAbierto] = useState<LineaComercio | null>(null)
   // En un año, los meses con datos (un año con datos solo desde octubre son tres meses, no doce)
   const meses = useMemo(() => {
     const m = mesesDelPeriodo(informe.periodo, hoy)
@@ -356,7 +408,7 @@ function SeccionHormiga({ informe, hoy }: { informe: Informe; hoy: string }) {
       <ul className="mt-2 divide-y divide-zinc-200/70 dark:divide-zinc-800">
         {h.comercios.slice(0, 5).map((c) => (
           <li key={c.clave}>
-            <button className="flex min-h-11 w-full items-center gap-3 py-1.5 text-left active:opacity-60" onClick={() => buscarComercio(navegar, c.clave, informe.periodo)}>
+            <button className="flex min-h-11 w-full items-center gap-3 py-1.5 text-left active:opacity-60" onClick={() => setAbierto(c)}>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[15px]">{c.nombre}</span>
                 <span className="block text-[11px] text-zinc-500">{c.veces} veces</span>
@@ -367,6 +419,7 @@ function SeccionHormiga({ informe, hoy }: { informe: Informe; hoy: string }) {
           </li>
         ))}
       </ul>
+      <HojaComercio comercio={abierto} movimientos={informe.movimientos} periodo={informe.periodo} onCerrar={() => setAbierto(null)} />
     </section>
   )
 }

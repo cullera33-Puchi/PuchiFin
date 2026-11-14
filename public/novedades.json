@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.30.0",
+    "fecha": "2026-11-14",
+    "cambios": [
+      "Informes: tocar un comercio de «Dónde más gastas» o de «Gastos hormiga» abre al momento sus movimientos, sin salir de Informes. «Ver en Movimientos» lleva a la lista completa.",
+      "Los botones y las filas responden al primer toque, aunque pulses varias veces seguidas."
+    ]
+  },
+  {
     "version": "0.29.0",
     "fecha": "2026-11-14",
     "cambios": [
