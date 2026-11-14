@@ -43,7 +43,7 @@ export function Plan() {
   const hoy = hoyIso()
   const r = useMemo(() => calcularPlan(db, hoy), [db, hoy])
   const [sim, setSim] = useState<Simulacion>(SIN_SIMULACION)
-  const simulando = sim.ahorroExtra !== 0 || sim.recorte !== null || simulaNominas(db, sim)
+  const simulando = sim.ahorroExtra !== 0 || sim.recorte !== null || sim.colchon !== undefined || sim.deuda !== undefined || simulaNominas(db, sim)
   const simulado = useMemo(() => (simulando ? calcularPlan(db, hoy, sim).plan : null), [db, hoy, sim, simulando])
   const efecto = useMemo(() => efectoMesCerrado(db, hoy), [db, hoy])
   const [ajustes, setAjustes] = useState(false)
@@ -113,6 +113,8 @@ function ContenidoPlan({
   const c = plan.compromiso
   const proximo = plan.pagos[0]
   const [eligiendo, setEligiendo] = useState(false)
+  // Al restablecer, los campos de deuda y colchón vuelven a los importes del plan
+  const [reinicio, setReinicio] = useState(0)
   const recorte = sim.recorte
   const diferencia = simulado && proximo ? (simulado.pagos[0]?.pago ?? 0) - proximo.pago : 0
   const anios = simulado?.saldadaEn && plan.saldadaEn ? plan.saldadaEn - simulado.saldadaEn : 0
@@ -184,8 +186,22 @@ function ContenidoPlan({
       </section>
 
       <section>
-        <h3 className="cabecera-grupo">Simulación</h3>
+        <div className="flex items-baseline justify-between">
+          <h3 className="cabecera-grupo">Simulación</h3>
+          {simulado && (
+            <button
+              className="boton-texto px-4 text-[15px]"
+              onClick={() => {
+                setSim(SIN_SIMULACION)
+                setReinicio((n) => n + 1)
+              }}
+            >
+              Restablecer
+            </button>
+          )}
+        </div>
         <div className="lista space-y-3 px-4 py-3">
+          <DeudaYColchon key={`${reinicio}-${plan.deudaPendiente}-${c.colchon}`} plan={plan} sim={sim} setSim={setSim} />
           <div>
             <p className="mb-1 text-[13px] text-zinc-500">Nóminas</p>
             <SimularNominas db={db} sim={sim} setSim={setSim} />
@@ -279,6 +295,67 @@ function ContenidoPlan({
         }}
         onCerrar={() => setEligiendo(false)}
       />
+    </div>
+  )
+}
+
+/**
+ * Deuda pendiente y colchón para simular: se prueban otros importes sin cambiar el plan y, si convencen,
+ * «Guardar estos importes» los deja como valores del plan.
+ */
+function DeudaYColchon({ plan, sim, setSim }: { plan: DatosPlan; sim: Simulacion; setSim: (s: Simulacion) => void }) {
+  const hacer = useHacer()
+  const c = plan.compromiso
+  const inicial = (n: number) => String(Math.round(n * 100) / 100).replace('.', ',')
+  const [deuda, setDeuda] = useState(inicial(sim.deuda ?? plan.deudaPendiente))
+  const [colchon, setColchon] = useState(inicial(sim.colchon ?? c.colchon))
+  const cambiar = (campo: 'deuda' | 'colchon', texto: string) => {
+    if (campo === 'deuda') setDeuda(texto)
+    else setColchon(texto)
+    const v = leerImporteUsuario(texto || '0')
+    if (v === null || v < 0) return
+    const guardado = campo === 'deuda' ? plan.deudaPendiente : c.colchon
+    setSim({ ...sim, [campo]: Math.abs(v - guardado) < 0.005 ? undefined : v })
+  }
+  const distinto = sim.deuda !== undefined || sim.colchon !== undefined
+  const guardar = async () => {
+    // La deuda se guarda a la fecha de referencia: lo pendiente más lo ya pagado desde entonces
+    const ok = await hacer(
+      (d) =>
+        guardarCompromiso(d, c.id, {
+          deuda_inicial: (sim.deuda ?? plan.deudaPendiente) + plan.pagado,
+          colchon: sim.colchon ?? c.colchon,
+          fecha_referencia: c.fecha_referencia,
+          cuenta_colchon_id: c.cuenta_colchon_id,
+          ventana_mes_inicio: c.ventana_mes_inicio,
+          ventana_mes_fin: c.ventana_mes_fin,
+          mes_referencia: c.mes_referencia,
+        }),
+      'Deuda y colchón guardados en el plan',
+    )
+    if (ok) setSim({ ...sim, deuda: undefined, colchon: undefined })
+  }
+  const campo = 'w-28 rounded-lg bg-zinc-100 px-2 py-1.5 text-right text-[15px] tabular-nums outline-none dark:bg-zinc-800'
+  return (
+    <div>
+      <label className="flex min-h-11 items-center gap-3">
+        <span className="flex-1 text-[15px]">Deuda pendiente</span>
+        <input className={campo} inputMode="decimal" aria-label="Deuda pendiente para simular" value={deuda} onChange={(e) => cambiar('deuda', e.target.value)} />
+      </label>
+      <label className="flex min-h-11 items-center gap-3">
+        <span className="flex-1 text-[15px]">Colchón en {plan.cuenta.alias}</span>
+        <input className={campo} inputMode="decimal" aria-label="Colchón para simular" value={colchon} onChange={(e) => cambiar('colchon', e.target.value)} />
+      </label>
+      {distinto && (
+        <div className="mt-1 flex flex-wrap items-center gap-x-4">
+          <span className="text-[12px] text-zinc-500">
+            En el plan: {formatearRedondo(plan.deudaPendiente)} de deuda y {formatearRedondo(c.colchon)} de colchón.
+          </span>
+          <button className="boton-texto px-0 text-[15px]" onClick={guardar}>
+            Guardar estos importes
+          </button>
+        </div>
+      )}
     </div>
   )
 }

@@ -137,6 +137,7 @@ Ordenada por esfuerzo, de menos a más, con prioridad para la usabilidad y el re
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.27.0 (14/11/2026): la deuda pendiente y el colchón se pueden cambiar en la simulación del plan de pagos (`Simulacion.deuda` y `colchon`) y guardar en el plan si convencen.
 - v0.26.0 (14/11/2026): decisiones del usuario sobre la navegación. Entre pestañas solo con la barra (fuera `useCambioDePestana`) y sin cambio de mes deslizando en el Extracto e Informes: el mes se elige en la tira, que enseña siempre cinco meses enteros. Ajustes pasa a una lista agrupada al estilo del iPhone (`PaginaAjuste`, «‹ Ajustes»); las pantallas del Extracto abiertas desde Ajustes vuelven a Ajustes (`state.atras`).
 - v0.25.0 (14/11/2026): bonus anual en cada nómina, aparte de las pagas extra (esquema 12, `bonus`): mes e importe neto, cuenta en la previsión y se puede quitar en la simulación (`Simulacion.bonus`).
 - v0.24.0 (14/11/2026): previsión de ingresos pedida por el usuario. Nóminas netas con pagas extra y fechas (esquema 11, `ajustes.nominas`, `guardarNomina`); con una incluida, sustituyen al historial de nómina en la previsión. Una nómina no incluida sirve para simular (por ejemplo, la de la pareja): efecto en el ahorro, el capital dentro de un año, el pago de julio y el año de liquidación. Pantalla `/extracto/ingresos` y gráfico de capital previsto en el plan de pagos (`serie`, `GraficoCapital`). Pendiente de validar con datos reales.
@@ -483,7 +484,7 @@ Supuesto (14/11/2026): el ahorro de cada mes acaba en la Cuenta 2 con los traspa
 
 - **Tarjeta en el extracto mensual:** deuda pendiente, pago previsto del próximo verano y cuánto ha sumado o restado el mes cerrado a ese pago, comparando el ahorro real con el previsto.
 - **Calendario de pagos:** un año por fila con el pago previsto, la deuda pendiente tras el pago y el año en que queda saldada.
-- **Simulación:** efecto en el pago, en el año de liquidación y en el capital previsto de ahorrar una cantidad distinta cada mes, recortar una categoría concreta o sumar o quitar una nómina o el bonus.
+- **Simulación:** efecto en el pago, en el año de liquidación y en el capital previsto de otra deuda pendiente u otro colchón, ahorrar una cantidad distinta cada mes, recortar una categoría concreta o sumar o quitar una nómina o el bonus.
 - **Seguimiento anual:** después de cada pago, la app compara lo previsto con lo transferido y recalcula el calendario.
 
 **Datos que necesita:** el saldo de las cuentas en cada importación (columna de saldo del Excel de BBVA, a confirmar) y los eventos previstos del año.

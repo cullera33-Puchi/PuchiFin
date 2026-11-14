@@ -76,6 +76,17 @@ describe('plan de pagos de la deuda', () => {
     expect(recorte.pagos[0].pago).toBe(14750)
   })
 
+  it('simulación: otra deuda pendiente u otro colchón, sin cambiar lo guardado', () => {
+    const db = crear(20000)
+    // 13.500 en julio: con un colchón de 1.000, el pago sube a 12.500
+    expect(calcularPlan(db, HOY, { ahorroExtra: 0, recorte: null, colchon: 1000 }).plan!.pagos[0].pago).toBe(12500)
+    const otra = calcularPlan(db, HOY, { ahorroExtra: 0, recorte: null, deuda: 8000 }).plan!
+    expect(otra.deudaPendiente).toBe(8000)
+    expect(otra.pagos).toHaveLength(1)
+    expect(otra.saldadaEn).toBe(2027)
+    expect(calcularPlan(db, HOY).plan!.deudaPendiente).toBe(20000)
+  })
+
   it('el presupuesto manda sobre la media y los previstos pendientes restan', () => {
     let db = guardarPresupuesto(crear(20000), cat('Vivienda'), 500)
     expect(calcularPlan(db, HOY).plan!.pagos[0].pago).toBe(14750)

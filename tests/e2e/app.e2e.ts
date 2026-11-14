@@ -130,10 +130,16 @@ test('gastos previstos, plan de pagos y Analizar con Claude', async ({ page }) =
   await importes.nth(0).fill('30000')
   await importes.nth(1).fill('2000')
   await page.getByRole('button', { name: 'Guardar', exact: true }).tap()
-  await expect(page.locator('#contenido').getByText('Deuda pendiente', { exact: true })).toBeVisible()
+  await expect(page.locator('#contenido').getByText('Deuda pendiente', { exact: true }).first()).toBeVisible()
   await expect(page.getByText(/Pago previsto en julio/)).toBeVisible()
   await page.getByRole('radio', { name: '+200 €' }).tap()
   await expect(page.getByText(/Primer pago:/)).toBeVisible()
+  // Otro colchón para simular y guardarlo en el plan
+  await page.getByLabel('Colchón para simular').fill('1000')
+  await expect(page.getByText(/En el plan: .* de colchón/)).toBeVisible()
+  await page.getByRole('button', { name: 'Guardar estos importes' }).tap()
+  await expect(page.getByText(/Deuda y colchón guardados/)).toBeVisible()
+  await expect(page.getByText(/todo lo que supere el colchón de 1\.000\s€/)).toBeVisible()
   await page.getByRole('button', { name: 'Analizar con Claude' }).tap()
   await expect(page.getByText(/Deuda pendiente: 30\.000,00 €/)).toBeVisible()
   // La tarjeta de la deuda en el Extracto
@@ -153,7 +159,7 @@ test('ingresos previstos: mi nómina con pagas extra y una segunda nómina simul
   await page.getByPlaceholder('0,00 €').nth(0).fill('30000')
   await page.getByPlaceholder('0,00 €').nth(1).fill('2000')
   await page.getByRole('button', { name: 'Guardar', exact: true }).tap()
-  await expect(page.locator('#contenido').getByText('Deuda pendiente', { exact: true })).toBeVisible()
+  await expect(page.locator('#contenido').getByText('Deuda pendiente', { exact: true }).first()).toBeVisible()
   // Mi nómina con dos pagas extra
   await page.goto('/extracto/ingresos')
   await page.getByRole('button', { name: 'Añadir mi nómina' }).tap()

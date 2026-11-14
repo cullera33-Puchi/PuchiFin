@@ -2,6 +2,12 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.27.0. Deuda y colchón editables en la simulación del plan de pagos (14 de noviembre de 2026)
+
+- `Simulacion.deuda` y `Simulacion.colchon`: otra deuda pendiente u otro colchón solo en la simulación (`calcularPlan` los usa en lugar de los guardados).
+- Plan de pagos: campos «Deuda pendiente» y «Colchón» al principio de la simulación, con los importes del plan; al cambiarlos se recalculan el primer pago, el año de liquidación y el capital previsto. «Guardar estos importes» los deja en el plan (la deuda se guarda a la fecha de referencia, sumando lo ya pagado) y «Restablecer» quita toda la simulación.
+- El texto para Claude incluye la deuda y el colchón simulados. Test de la simulación y recorrido de navegador que cambia el colchón y lo guarda.
+
 ## v0.26.0. Sin gestos laterales entre pestañas, tira de meses sin cortes y Ajustes en lista (14 de noviembre de 2026)
 
 - Gestos (decisión del usuario): fuera `useCambioDePestana` (entre pestañas solo con la barra) y el cambio de mes o periodo deslizando en el Extracto e Informes (`Deslizable` se queda solo en Resúmenes). En las pantallas principales el único gesto lateral es el de las filas; volver deslizando sigue en las pantallas apiladas. `RAICES` queda en las cuatro pestañas.

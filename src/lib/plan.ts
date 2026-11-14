@@ -33,6 +33,9 @@ export interface Simulacion {
   nominas?: Record<string, boolean>
   /** Bonus que se quitan (false) en la simulación, por id de nómina; sin dato, cuenta */
   bonus?: Record<string, boolean>
+  /** Otro colchón o otra deuda pendiente, solo en la simulación */
+  colchon?: number
+  deuda?: number
 }
 
 export const SIN_SIMULACION: Simulacion = { ahorroExtra: 0, recorte: null }
@@ -217,7 +220,8 @@ export function calcularPlan(db: BaseDatos, hoy: string, sim: Simulacion = SIN_S
   if (!mod.meses) return { plan: null, falta: 'sin_historia' }
 
   const { pagado, pagosReales } = pagosDeDeuda(db, compromiso)
-  const deudaPendiente = redondear(Math.max(0, compromiso.deuda_inicial - pagado))
+  const deudaPendiente = redondear(Math.max(0, sim.deuda ?? compromiso.deuda_inicial - pagado))
+  const colchon = sim.colchon ?? compromiso.colchon
   // Previstos pendientes por mes (con su signo)
   const puntuales = new Map<string, number>()
   for (const e of estadoEventos(db, hoy)) if (e.estado === 'pendiente') puntuales.set(e.evento.fecha.slice(0, 7), (puntuales.get(e.evento.fecha.slice(0, 7)) ?? 0) + e.evento.importe)
@@ -253,7 +257,7 @@ export function calcularPlan(db: BaseDatos, hoy: string, sim: Simulacion = SIN_S
     const ahorro = mod.ahorro(mes) * Math.max(0, parte) + (puntuales.get(mes) ?? 0)
     saldo += ahorro
     if (deuda > 0 && esMesDePago(mes)) {
-      const pago = redondear(Math.min(deuda, Math.max(0, saldo - compromiso.colchon)))
+      const pago = redondear(Math.min(deuda, Math.max(0, saldo - colchon)))
       deuda = redondear(deuda - pago)
       saldo -= pago
       pagos.push({ anio: Number(mes.slice(0, 4)), mes, saldo: redondear(saldo + pago), pago, deudaTras: deuda })

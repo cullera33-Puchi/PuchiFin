@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.27.0",
+    "fecha": "2026-11-14",
+    "cambios": [
+      "Plan de pagos: en la simulación puedes cambiar la deuda pendiente y el colchón para ver el pago de julio, el año en que queda saldada y el capital.",
+      "Si te convencen los importes, «Guardar estos importes» los deja en el plan. «Restablecer» vuelve a lo guardado."
+    ]
+  },
+  {
     "version": "0.26.0",
     "fecha": "2026-11-14",
     "cambios": [
