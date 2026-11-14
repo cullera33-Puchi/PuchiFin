@@ -2,7 +2,6 @@ import { ChartColumn, ChevronRight, HandCoins, ListChecks, Repeat, Target, FileT
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Aviso, Encabezado } from '../componentes/Encabezado'
-import { Deslizable } from '../componentes/gestos'
 import { opcionesMeses, TiraPeriodos } from '../componentes/TiraPeriodos'
 import { TarjetaPosicion } from '../componentes/Posicion'
 import { Baldosa } from '../componentes/Icono'
@@ -17,7 +16,7 @@ import { consumoPresupuestos, type LineaPresupuesto } from '../lib/presupuesto'
 import { ultimaExportacion } from '../lib/copias'
 import { calcularExtracto, fraseDelMes, mesDe } from '../lib/extracto'
 import { mesEfectivo } from '../lib/imputacion'
-import { hoyIso, MESES, mesLargo, sumarMeses } from '../lib/fechas'
+import { hoyIso, MESES, mesLargo } from '../lib/fechas'
 import { calcularPlan, efectoMesCerrado } from '../lib/plan'
 import { textoExtracto } from '../lib/analizar'
 import { BotonClaude, HojaClaude } from '../componentes/HojaClaude'
@@ -77,9 +76,6 @@ export function Extracto() {
     const hasta = efectivos.reduce((max, x) => (x > max ? x : max), actual)
     return opcionesMeses(desde < mes ? desde : mes, hasta > mes ? hasta : mes)
   }, [db.movimientos, mes])
-  const anterior = sumarMeses(`${mes}-01`, -1).slice(0, 7)
-  const siguiente = sumarMeses(`${mes}-01`, 1).slice(0, 7)
-  const puedeSiguiente = siguiente <= mesDe(hoyIso()) || e.haySiguiente
   const t = e.totales
   const m = e.media
   const comparar = (actual: number, media: number | undefined, subirEsBueno: boolean) =>
@@ -173,7 +169,8 @@ export function Extracto() {
         <TiraPeriodos etiqueta="Mes del extracto" opciones={meses} valor={mes} onElegir={irA} />
       </div>
 
-      <Deslizable onAnterior={() => irA(anterior)} onSiguiente={() => irA(siguiente)} hayAnterior={e.hayAnterior} haySiguiente={puedeSiguiente}>
+      {/* El mes se cambia con la tira (sin gesto lateral, v0.26.0) */}
+      <div>
         {t.movimientos === 0 && !e.categorias.length ? (
           <div className="tarjeta space-y-3 text-center">
             <p className="text-[15px]">Sin movimientos en {mesLargo(`${mes}-01`).toLowerCase()}.</p>
@@ -338,7 +335,7 @@ export function Extracto() {
             </button>
           </div>
         )}
-      </Deslizable>
+      </div>
       <HojaClaude
         abierta={claude}
         titulo="Analizar con Claude"

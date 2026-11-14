@@ -2,6 +2,14 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.26.0. Sin gestos laterales entre pestañas, tira de meses sin cortes y Ajustes en lista (14 de noviembre de 2026)
+
+- Gestos (decisión del usuario): fuera `useCambioDePestana` (entre pestañas solo con la barra) y el cambio de mes o periodo deslizando en el Extracto e Informes (`Deslizable` se queda solo en Resúmenes). En las pantallas principales el único gesto lateral es el de las filas; volver deslizando sigue en las pantallas apiladas. `RAICES` queda en las cuatro pestañas.
+- `TiraPeriodos`: ocupa el ancho de las tarjetas y cada botón una quinta parte, con encaje al soltar (`snap-mandatory`, `snap-start`): siempre cinco meses enteros, sin medios botones en los bordes. El elegido se coloca hacia el centro, encajado.
+- Ajustes al estilo del iPhone: lista agrupada (Datos: Cuentas, Categorías y Reglas; Planificación: Nóminas e ingresos, Presupuesto, Gastos previstos y Plan de pagos; App: General y Copias, archivo y herramientas), con recuentos y la versión al pie. Cada apartado es una pantalla apilada (`PaginaAjuste`) con «‹ Ajustes». Fuera las pestañas de arriba; General pierde los accesos que pasan a la lista.
+- `BarraNavegacion`: `inicio` (adónde vuelve sin pantalla anterior) y la etiqueta de vuelta desde `location.state.atras`, para que las pantallas del Extracto abiertas desde Ajustes digan «‹ Ajustes».
+- Recorrido de navegador: las pestañas solo con la barra, deslizar en Informes no cambia de pestaña ni de periodo, y Ajustes abre y vuelve deslizando.
+
 ## v0.25.0. Bonus anual en la nómina (14 de noviembre de 2026)
 
 - Esquema 12: `bonus` en cada nómina (mes e importe neto, aparte de las pagas extra; la migración lo deja en null). Comprobaciones en `guardarNomina`.

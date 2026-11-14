@@ -346,7 +346,7 @@ const conGestoPropio = (t: EventTarget | null) =>
   t instanceof Element && !!t.closest('[data-fila-deslizable], [data-deslizable], input, textarea, select, [contenteditable], .overflow-x-auto')
 
 /** Pantallas raíz de cada pestaña: desde ellas no se vuelve atrás */
-const RAICES = ['/', '/movimientos', '/informes', '/ajustes', '/ajustes/cuentas', '/ajustes/categorias', '/ajustes/general', '/ajustes/herramientas']
+const RAICES = ['/', '/movimientos', '/informes', '/ajustes']
 
 /**
  * Deslizar desde el borde izquierdo vuelve a la pantalla anterior, con la pantalla actual siguiendo
@@ -434,89 +434,4 @@ export function useVolverDesdeBorde(): { dx: number; animar: boolean } {
   }, [raiz, navegar])
 
   return { dx: raiz ? 0 : dx, animar }
-}
-
-/**
- * Cambiar de pestaña deslizando (guía 4.1): en la pantalla principal de cada pestaña, deslizar a la
- * izquierda pasa a la siguiente y a la derecha a la anterior, con la pantalla siguiendo al dedo. No
- * participan las filas, el cambio de mes, las tiras que se desplazan de lado, los campos ni las hojas.
- * Devuelve el desplazamiento para aplicarlo al contenido.
- */
-// oxlint-disable-next-line react/only-export-components
-export function useCambioDePestana(rutas: string[], indice: number): { dx: number; animar: boolean } {
-  const navegar = useNavigate()
-  const { pathname } = useLocation()
-  const [dx, setDx] = useState(0)
-  const [animar, setAnimar] = useState(false)
-  const raiz = RAICES.includes(pathname)
-
-  useEffect(() => {
-    if (!raiz || indice < 0) return
-    let inicio: { x: number; y: number; vel: Velocidad; horizontal: boolean | null } | null = null
-    let actual = 0
-    let ultimoT = 0
-    const alEmpezar = (e: TouchEvent) => {
-      inicio = null
-      const t = e.touches[0]
-      if (e.touches.length !== 1 || document.documentElement.classList.contains('con-hoja')) return
-      const objetivo = e.target instanceof Element ? e.target : null
-      if (!objetivo || objetivo.closest('nav, [role="dialog"]') || enFila(objetivo) || conGestoPropio(objetivo)) return
-      inicio = { x: t.clientX, y: t.clientY, vel: crearVelocidad(t.clientX, e.timeStamp), horizontal: null }
-    }
-    const alMover = (e: TouchEvent) => {
-      if (!inicio) return
-      const t = e.touches[0]
-      const mx = t.clientX - inicio.x
-      const my = t.clientY - inicio.y
-      if (inicio.horizontal === null) {
-        if (Math.abs(mx) < 10 && Math.abs(my) < 10) return
-        inicio.horizontal = Math.abs(mx) > Math.abs(my) * 1.2
-        if (!inicio.horizontal) {
-          inicio = null
-          return
-        }
-      }
-      if (e.cancelable) e.preventDefault()
-      // Sin pestaña a ese lado, la pantalla se resiste
-      const sinDestino = (mx > 0 && indice === 0) || (mx < 0 && indice === rutas.length - 1)
-      actual = sinDestino ? mx / 5 : mx
-      inicio.vel.mover(t.clientX, e.timeStamp)
-      ultimoT = e.timeStamp
-      setAnimar(false)
-      setDx(actual)
-    }
-    const alTerminar = (e: TouchEvent) => {
-      if (!inicio) return
-      const fijo = inicio.horizontal
-      const v = inicio.vel.valor(e.type === 'touchcancel' ? ultimoT + 1000 : e.timeStamp)
-      inicio = null
-      if (!fijo) return
-      setAnimar(true)
-      const destino = actual < 0 ? indice + 1 : indice - 1
-      const lejos = Math.abs(actual) > window.innerWidth / 3 || esLanzamiento(v, actual, actual < 0 ? -1 : 1)
-      if (e.type !== 'touchcancel' && lejos && destino >= 0 && destino < rutas.length) {
-        vibrar()
-        setDx(actual < 0 ? -window.innerWidth : window.innerWidth)
-        window.setTimeout(() => {
-          navegar(rutas[destino])
-          setAnimar(false)
-          setDx(0)
-          window.scrollTo(0, 0)
-        }, 220)
-      } else setDx(0)
-      actual = 0
-    }
-    window.addEventListener('touchstart', alEmpezar, { passive: true })
-    window.addEventListener('touchmove', alMover, { passive: false })
-    window.addEventListener('touchend', alTerminar)
-    window.addEventListener('touchcancel', alTerminar)
-    return () => {
-      window.removeEventListener('touchstart', alEmpezar)
-      window.removeEventListener('touchmove', alMover)
-      window.removeEventListener('touchend', alTerminar)
-      window.removeEventListener('touchcancel', alTerminar)
-    }
-  }, [raiz, indice, rutas, navegar])
-
-  return { dx: raiz ? dx : 0, animar }
 }

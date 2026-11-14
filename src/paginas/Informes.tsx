@@ -4,7 +4,6 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Bar, BarChart, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { BarraNavegacion, Encabezado } from '../componentes/Encabezado'
 import { FilaMovimientoDeslizable } from '../componentes/FilaMovimientoDeslizable'
-import { Deslizable } from '../componentes/gestos'
 import { opcionesAnios, opcionesMeses, TiraPeriodos } from '../componentes/TiraPeriodos'
 import { Segmentado, useInterfaz } from '../componentes/Interfaz'
 import { DetalleMovimiento } from '../componentes/movimientos'
@@ -75,10 +74,6 @@ export function Informes() {
   const { hoy, vista, escala, periodo, ir, consulta } = useEstadoInforme()
   const informe = useMemo(() => calcularInforme(db, periodo, vista, undefined, hoy), [db, periodo.clave, periodo.escala, vista, hoy]) // eslint-disable-line react-hooks/exhaustive-deps
   const primero = useMemo(() => db.movimientos.reduce((min, m) => (m.fecha_operacion < min ? m.fecha_operacion : min), hoy), [db.movimientos, hoy])
-  const anterior = moverPeriodo(periodo, -1)
-  const siguiente = moverPeriodo(periodo, 1)
-  const hayAnterior = anterior.clave >= periodoDeFecha(escala, primero).clave
-  const haySiguiente = siguiente.clave <= periodoDeFecha(escala, hoy).clave
   const [claude, setClaude] = useState(false)
 
   return (
@@ -99,7 +94,8 @@ export function Informes() {
         <TiraPeriodos etiqueta="Periodo del informe" opciones={tiraDe(escala, primero, hoy)} valor={periodo.clave} onElegir={(p) => ir({ p })} />
       </div>
 
-      <Deslizable onAnterior={() => ir({ p: anterior.clave })} onSiguiente={() => ir({ p: siguiente.clave })} hayAnterior={hayAnterior} haySiguiente={haySiguiente}>
+      {/* El periodo se cambia con la tira (sin gesto lateral, v0.26.0) */}
+      <div>
         <div className="space-y-4">
           <Totales informe={informe} onVista={(v) => ir({ vista: v })} />
           <PanelQuesito informe={informe} onAbrir={(id) => navegar(`/informes/categoria/${id ?? 'sin'}?${consulta}`)} />
@@ -110,7 +106,7 @@ export function Informes() {
           <SeccionCapital db={db} />
           <BotonClaude onPulsar={() => setClaude(true)} />
         </div>
-      </Deslizable>
+      </div>
       <HojaClaude
         abierta={claude}
         titulo="Analizar con Claude"

@@ -35,26 +35,38 @@ export function opcionesAnios(desde: string, hasta: string): OpcionPeriodo[] {
   return res
 }
 
+/** Botones que caben enteros a la vez en la tira */
+const VISIBLES = 5
+
 /**
- * Tira de periodos que se desliza de lado, con botones grandes y el elegido resaltado y centrado.
- * Sustituye a las flechas pequeñas de mes anterior y siguiente.
+ * Tira de periodos que se desliza de lado, con botones grandes y el elegido resaltado. Siempre se ven
+ * cinco botones enteros: la tira ocupa el ancho de las tarjetas, cada botón una quinta parte, y al soltarla
+ * se encaja en un botón, sin medios meses en los bordes (v0.26.0).
  */
 export function TiraPeriodos({ opciones, valor, onElegir, etiqueta }: { opciones: OpcionPeriodo[]; valor: string; onElegir: (clave: string) => void; etiqueta: string }) {
   const caja = useRef<HTMLDivElement>(null)
 
-  // El elegido, centrado (sin animar la primera vez)
+  // El elegido, hacia el centro y encajado en un botón (sin animar la primera vez)
   const primera = useRef(true)
   useLayoutEffect(() => {
     const c = caja.current
-    const el = c?.querySelector<HTMLElement>('[aria-checked="true"]')
-    if (!c || !el) return
-    const destino = el.offsetLeft - c.clientWidth / 2 + el.clientWidth / 2
-    c.scrollTo({ left: destino, behavior: primera.current ? 'auto' : 'smooth' })
+    if (!c) return
+    const botones = c.querySelectorAll<HTMLElement>('[role="radio"]')
+    const i = opciones.findIndex((o) => o.clave === valor)
+    if (i < 0 || botones.length < 2) return
+    const paso = botones[1].offsetLeft - botones[0].offsetLeft
+    const primero = Math.max(0, Math.min(i - Math.floor(VISIBLES / 2), botones.length - VISIBLES))
+    c.scrollTo({ left: primero * paso, behavior: primera.current ? 'auto' : 'smooth' })
     primera.current = false
-  }, [valor, opciones.length])
+  }, [valor, opciones])
 
   return (
-    <div ref={caja} role="radiogroup" aria-label={etiqueta} className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div
+      ref={caja}
+      role="radiogroup"
+      aria-label={etiqueta}
+      className="flex snap-x snap-mandatory gap-2 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
       {opciones.map((o) => {
         const activa = o.clave === valor
         return (
@@ -63,7 +75,7 @@ export function TiraPeriodos({ opciones, valor, onElegir, etiqueta }: { opciones
             role="radio"
             aria-checked={activa}
             onClick={() => onElegir(o.clave)}
-            className={`flex min-h-12 min-w-[3.75rem] shrink-0 snap-center flex-col items-center justify-center rounded-2xl px-3 leading-tight transition-colors active:opacity-70 ${
+            className={`flex min-h-12 shrink-0 basis-[calc((100%-2rem)/5)] snap-start flex-col items-center justify-center rounded-2xl px-1 leading-tight transition-colors active:opacity-70 ${
               activa ? 'bg-marca-700 text-white dark:bg-marca-600' : 'bg-white text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300'
             }`}
             style={{ touchAction: 'manipulation' }}

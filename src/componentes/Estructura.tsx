@@ -2,7 +2,7 @@ import { ArrowLeft, ChartPie, ChevronsLeftRight, EyeOff, List, ReceiptText, Sett
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { registrar } from '../lib/registro'
-import { useCambioDePestana, useVolverDesdeBorde } from './gestos'
+import { useVolverDesdeBorde } from './gestos'
 import { Hoja } from './Interfaz'
 
 /**
@@ -16,8 +16,6 @@ const SECCIONES = [
   { a: '/ajustes', texto: 'Ajustes', icono: Settings, fin: false },
 ]
 
-const RUTAS = SECCIONES.map((s) => s.a)
-
 const CLAVE_BIENVENIDA = 'puchifin-bienvenida'
 const DOS_HORAS = 2 * 60 * 60 * 1000
 
@@ -29,9 +27,8 @@ export function Estructura() {
   const enExtracto = pathname === '/' || ['/extracto', '/analisis', '/resumenes'].some((p) => pathname.startsWith(p))
   // Pestaña activa: la del Extracto incluye sus pantallas secundarias; las demás, todo lo que cuelga de ellas
   const activa = enExtracto ? 0 : SECCIONES.findIndex((s, i) => i > 0 && pathname.startsWith(s.a))
-  const pestana = useCambioDePestana(RUTAS, activa)
-  // Solo uno de los dos gestos está activo a la vez: volver (pantallas apiladas) o cambiar de pestaña (principales)
-  const mover = borde.dx ? borde : pestana
+  // Entre pestañas solo se cambia con la barra (decisión del usuario, v0.26.0); deslizar vuelve atrás en las pantallas apiladas
+  const mover = borde
 
   // Al volver tras más de dos horas fuera, la app vuelve a la pantalla principal (salvo con una hoja abierta)
   useEffect(() => {

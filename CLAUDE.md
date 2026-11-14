@@ -86,7 +86,7 @@ Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (po
 
 - Una fase cada vez. Al terminar cada fase, resume qué se ha hecho, qué queda pendiente y cómo probarlo.
 - Tests unitarios para el lector de Excel, la anonimización, la deduplicación y las reglas de categorización. Es donde un error no se ve en pantalla. Las pruebas de navegador (`npm run build` y después `npm run e2e`) recorren la app en un iPhone simulado; toda pantalla o gesto nuevo importante se añade a `tests/e2e/app.e2e.ts`. `src/importacion/importar.test.ts` importa los Excel de prueba de punta a punta: cualquier cambio del importador debe mantenerlo en verde.
-- Gestos: toda lista de movimientos usa `FilaMovimientoDeslizable` (el gesto sobre una fila no lo toman `Deslizable` ni la vuelta desde el borde); toda pantalla secundaria, `BarraNavegacion` (vuelve también deslizando a la derecha, desde el borde o desde cualquier punto sin gesto propio); las hojas se cierran arrastrando.
+- Gestos: toda lista de movimientos usa `FilaMovimientoDeslizable` (el gesto sobre una fila no lo toma la vuelta desde el borde); toda pantalla secundaria, `BarraNavegacion` (vuelve también deslizando a la derecha, desde el borde o desde cualquier punto sin gesto propio); las hojas se cierran arrastrando. Entre pestañas solo con la barra y el mes, con la tira: sin gestos laterales en las pantallas principales salvo las filas (decisión del usuario, v0.26.0).
 - Usabilidad: `docs/guia-usabilidad-iphone.md` es la guía de comportamiento y aspecto (aportada por el usuario, v0.7.0). Se aplica salvo donde choca con esta especificación: el stack sigue siendo React con Vite, los nombres del código siguen en español y los menús de pulsación larga quedan pendientes. En la práctica: hojas con `Hoja` (portal, guardia de 450 ms) y confirmaciones con `confirmar()`; cambios de datos que el usuario hace a mano con `useHacer()` (aviso con «Deshacer»); barras flotantes con `Flotante`; cabeceras de grupo con la clase `cabecera-grupo`; recuentos con `plural()`; gestos con `crearVelocidad` y `esLanzamiento`.
 - Datos del usuario entre versiones: nada de lo categorizado, tipificado o conciliado cambia al publicar una versión. Las mejoras de categorización llegan solo a lo pendiente (`esPendiente`) mediante `actualizarLogica`. Si cambia el modelo, subir `VERSION_ESQUEMA`, añadir el paso en `migrar()` y mantener en verde `src/datos/versiones.test.ts`.
 - Cuadre con el banco: toda importación de cuenta debe dejar `cuadrarCuenta` en verde, y la liquidación de la tarjeta, `cuadrarLiquidaciones`. La deduplicación empareja primero por saldo del banco y después por concepto; `src/importacion/importar.test.ts` lo cubre.
@@ -121,7 +121,7 @@ Ordenada por esfuerzo, de menos a más, con prioridad para la usabilidad y el re
 | 13 (hecha, v0.22.0) | Avisos de recurrentes: cargo nuevo, subida de importe o cargo esperado que no llega | Reporting | Medio |
 | 14 (hecha, v0.22.0) | Optimizar con Claude: prompt preparado con fijos, recurrentes y hormiga, por enlace o archivo. Sin API ni coste | Reporting | Medio |
 | 15 (hecha, v0.22.0) | Pruebas de navegador (Playwright) en GitHub antes de publicar, con archivos de cada esquema anterior | Técnica | Medio |
-| 16 (hecha, v0.22.0) | Cambiar de pestaña deslizando y recolocación animada de las listas (guía 4.1 y 5) | Usabilidad | Medio |
+| 16 (hecha, v0.22.0; el cambio de pestaña deslizando se retiró en la v0.26.0 a petición del usuario) | Cambiar de pestaña deslizando y recolocación animada de las listas (guía 4.1 y 5) | Usabilidad | Medio |
 | 17 (hecha, v0.23.0) | Fase 4: plan de pagos de la deuda familiar con simulación, gastos previstos, presupuesto con meses especiales, vista anual y avisos, y «Analizar con Claude» en el resto de vistas (definido el 14/11/2026, apartado 10) | Reporting | Alto |
 | 18 | Fase 5: estacionalidad y gastos atípicos | Reporting | Alto |
 | 19 | Fase 6: Face ID e importación de PDF. Las notificaciones exigen un servidor de envío, fuera del alcance sin coste | Usabilidad | Alto |
@@ -137,6 +137,7 @@ Ordenada por esfuerzo, de menos a más, con prioridad para la usabilidad y el re
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.26.0 (14/11/2026): decisiones del usuario sobre la navegación. Entre pestañas solo con la barra (fuera `useCambioDePestana`) y sin cambio de mes deslizando en el Extracto e Informes: el mes se elige en la tira, que enseña siempre cinco meses enteros. Ajustes pasa a una lista agrupada al estilo del iPhone (`PaginaAjuste`, «‹ Ajustes»); las pantallas del Extracto abiertas desde Ajustes vuelven a Ajustes (`state.atras`).
 - v0.25.0 (14/11/2026): bonus anual en cada nómina, aparte de las pagas extra (esquema 12, `bonus`): mes e importe neto, cuenta en la previsión y se puede quitar en la simulación (`Simulacion.bonus`).
 - v0.24.0 (14/11/2026): previsión de ingresos pedida por el usuario. Nóminas netas con pagas extra y fechas (esquema 11, `ajustes.nominas`, `guardarNomina`); con una incluida, sustituyen al historial de nómina en la previsión. Una nómina no incluida sirve para simular (por ejemplo, la de la pareja): efecto en el ahorro, el capital dentro de un año, el pago de julio y el año de liquidación. Pantalla `/extracto/ingresos` y gráfico de capital previsto en el plan de pagos (`serie`, `GraficoCapital`). Pendiente de validar con datos reales.
 - v0.23.0 (14/11/2026): fase 4 (puntos 1 a 6 confirmados por el usuario). Pendiente de validar con datos reales.
@@ -409,7 +410,7 @@ El extracto mensual es la pantalla de inicio y solo cuenta movimientos de tipo N
 - Desglose por categoría con importe, peso sobre el gasto total y comparativa con la media.
 - Al tocar una categoría se abren sus movimientos del mes.
 - Aviso visible si hay movimientos sin categoría, mejoras de categoría o descuadres con el banco.
-- Navegación mes a mes con gesto lateral y con una tira de meses de botones grandes.
+- Navegación mes a mes con una tira de meses de botones grandes, siempre enteros (sin gesto lateral desde la v0.26.0).
 - Aviso cuando una cuenta o la tarjeta lleva 5 días o más sin subir datos del banco.
 
 **Vistas de análisis**
@@ -509,7 +510,7 @@ El móvil es para consultar y marcar rápido; el escritorio, para importar, revi
 | Revisión de importación | Tarjetas por bloque | Tabla editable |
 | Categorizar | Detalle del movimiento | Edición en línea en la tabla |
 
-Navegación con barra inferior de cuatro pestañas: Extracto, Movimientos, Informes y Ajustes (Informes desde la v0.7.0; Empleado retirada en la v0.15.0). Tema Automático, Claro u Oscuro, a elegir en Ajustes, General.
+Navegación con barra inferior de cuatro pestañas: Extracto, Movimientos, Informes y Ajustes (Informes desde la v0.7.0; Empleado retirada en la v0.15.0). Entre pestañas solo se cambia con la barra (v0.26.0). Ajustes es una lista agrupada al estilo del iPhone, con un apartado por pantalla. Tema Automático, Claro u Oscuro, a elegir en Ajustes, General.
 
 **Escritorio: en pausa (13/11/2026).** La columna de escritorio de la tabla y el menú lateral se retoman solo cuando el usuario lo indique. Hoy la app es solo para el iPhone.
 

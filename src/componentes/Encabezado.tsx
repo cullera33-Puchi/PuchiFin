@@ -1,6 +1,6 @@
 import { ChevronLeft } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 export function Encabezado({ titulo, subtitulo, accion }: { titulo: string; subtitulo?: string; accion?: ReactNode }) {
   // Como en iOS, en una sola fila de 44 pt: título de 22 px a la izquierda y acciones a la derecha
@@ -43,18 +43,37 @@ export function Proximamente({ fase, children }: { fase: number; children: React
  * Barra de navegación de una pantalla secundaria, al estilo de iOS: «‹ Atrás» a la izquierda,
  * título y una acción opcional a la derecha. También se vuelve deslizando desde el borde izquierdo.
  */
-export function BarraNavegacion({ titulo, atras = 'Atrás', destino, accion, subtitulo }: { titulo: string; atras?: string; destino?: string; accion?: ReactNode; subtitulo?: string }) {
+export function BarraNavegacion({
+  titulo,
+  atras = 'Atrás',
+  destino,
+  inicio = '/',
+  accion,
+  subtitulo,
+}: {
+  titulo: string
+  atras?: string
+  /** Siempre vuelve a esta ruta */
+  destino?: string
+  /** Sin pantalla anterior (enlace directo), vuelve a esta */
+  inicio?: string
+  accion?: ReactNode
+  subtitulo?: string
+}) {
   const navegar = useNavigate()
+  // Abierta desde otra pestaña (por ejemplo, desde Ajustes): el botón dice adónde vuelve
+  const desde = (useLocation().state as { atras?: string } | null)?.atras
+  const etiqueta = desde ?? atras
   // Pantalla apilada: «‹ Atrás» a la izquierda, título de 17 px centrado y acción a la derecha
   return (
     <header className="mb-3">
       <div className="grid min-h-11 grid-cols-[1fr_auto_1fr] items-center gap-2">
         <button
           className="-ml-2 flex min-h-11 items-center justify-self-start text-[17px] text-marca-700 active:opacity-60 dark:text-marca-500"
-          onClick={() => (destino ? navegar(destino) : window.history.state?.idx > 0 ? navegar(-1) : navegar('/'))}
+          onClick={() => (destino && !desde ? navegar(destino) : window.history.state?.idx > 0 ? navegar(-1) : navegar(inicio))}
         >
           <ChevronLeft className="size-7" strokeWidth={2.25} />
-          <span className="max-w-[6.5rem] truncate">{atras}</span>
+          <span className="max-w-[6.5rem] truncate">{etiqueta}</span>
         </button>
         <h1 className="max-w-[12rem] truncate text-center text-[17px] font-semibold">{titulo}</h1>
         <div className="flex items-center justify-self-end">{accion}</div>

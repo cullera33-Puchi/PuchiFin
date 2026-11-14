@@ -1,20 +1,15 @@
-import { ChevronRight, Plus, X } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Plus, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Aviso } from '../../componentes/Encabezado'
 import { Segmentado } from '../../componentes/Interfaz'
 import { guardarTema, leerTema, type Tema } from '../../lib/tema'
 import { contieneIdentificativo } from '../../lib/identificativos'
-import { formatearImporte, plural } from '../../lib/formato'
 import { guardarAjustes } from '../../datos/operaciones'
 import { intentar, useDatos } from '../../datos/ProveedorDatos'
 import type { Ajustes } from '../../lib/tipos'
 
-const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
-
 export function General() {
   const db = useDatos()
-  const deuda = db.compromisos.find((c) => c.activo)
   // Borrador local: se guarda al pulsar «Guardar ajustes»
   const [ajustes, setAjustes] = useState<Ajustes>(() => structuredClone(db.ajustes))
   const [nuevoAlias, setNuevoAlias] = useState('')
@@ -146,36 +141,6 @@ export function General() {
       </section>
 
       <Aspecto />
-
-      <Link to="/ajustes/reglas" className="lista fila">
-        <span className="flex-1 text-[15px]">Reglas de categorización</span>
-        <span className="text-[15px] text-zinc-500">{db.reglas.filter((r) => r.activa).length} activas</span>
-        <ChevronRight className="size-4 text-zinc-400" />
-      </Link>
-
-      <Link to="/extracto/ingresos" className="lista fila min-h-14">
-        <span className="min-w-0 flex-1">
-          <span className="block text-[15px]">Nóminas e ingresos previstos</span>
-          <span className="block text-[12px] text-zinc-500">
-            {(db.ajustes.nominas ?? []).length ? plural((db.ajustes.nominas ?? []).length, 'nómina', 'nóminas') : 'Tu nómina neta y sus pagas extra, y otra para simular'}
-          </span>
-        </span>
-        <ChevronRight className="size-4 text-zinc-400" />
-      </Link>
-
-      {deuda && (
-        <Link to="/extracto/plan" className="lista fila min-h-14">
-          <span className="min-w-0 flex-1">
-            <span className="block text-[15px]">{deuda.nombre}</span>
-            <span className="block text-[12px] text-zinc-500">
-              {deuda.deuda_inicial === 0
-                ? 'Sin configurar. Deuda, colchón y ventana de pago en el plan de pagos'
-                : `Colchón de ${formatearImporte(deuda.colchon)}, pago entre ${MESES[deuda.ventana_mes_inicio - 1]} y ${MESES[deuda.ventana_mes_fin - 1]}, sin intereses`}
-            </span>
-          </span>
-          <ChevronRight className="size-4 text-zinc-400" />
-        </Link>
-      )}
 
       {error && <Aviso>{error}</Aviso>}
       {guardado && <Aviso tipo="ok">Ajustes guardados.</Aviso>}

@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.26.0",
+    "fecha": "2026-11-14",
+    "cambios": [
+      "Ajustes, como en el iPhone: una lista con cada apartado (cuentas, categorías, reglas, nóminas, presupuesto, gastos previstos, plan de pagos, general y copias).",
+      "Para cambiar de pestaña, usa la barra de abajo. Deslizar a los lados ya no cambia de pantalla ni de mes; sigue sirviendo para volver atrás y en las filas.",
+      "La tira de meses enseña siempre meses enteros, sin botones cortados."
+    ]
+  },
+  {
     "version": "0.25.0",
     "fecha": "2026-11-14",
     "cambios": [

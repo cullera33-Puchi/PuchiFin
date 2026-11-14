@@ -44,18 +44,33 @@ test('arranca, genera datos de prueba y muestra el Extracto', async ({ page }) =
   expect(e).toEqual([])
 })
 
-test('las cuatro pestañas responden y deslizar fuera de las listas cambia de pestaña', async ({ page }) => {
+test('las cuatro pestañas responden; deslizar no cambia de pestaña y en Ajustes vuelve atrás', async ({ page }) => {
   const e = errores(page)
   await conDatosDePrueba(page)
-  for (const [t, ruta] of [['Movimientos', '/movimientos'], ['Informes', '/informes'], ['Ajustes', '/ajustes/cuentas'], ['Extracto', '/']] as const) {
+  for (const [t, ruta] of [['Movimientos', '/movimientos'], ['Informes', '/informes'], ['Ajustes', '/ajustes'], ['Extracto', '/']] as const) {
     await page.locator('nav[data-pestanas] a', { hasText: t }).tap()
     await expect(page).toHaveURL(new RegExp(`${ruta}$`))
   }
-  await page.goto('/ajustes/general')
-  // Que la pantalla esté montada (con sus gestos) antes de deslizar
-  await expect(page.getByText(/nombre del ordenante/)).toBeVisible()
-  await deslizar(page, 80, 420, 340)
+  // Entre pestañas solo con la barra: deslizar sobre Informes no cambia de pestaña ni de mes
+  await page.locator('nav[data-pestanas] a', { hasText: 'Informes' }).tap()
+  await expect(page.getByText('Dónde más gastas')).toBeVisible()
+  const mes = await page.locator('[role="radiogroup"][aria-label="Periodo del informe"] [aria-checked="true"]').textContent()
+  await deslizar(page, 300, 500, 40)
+  await deslizar(page, 60, 500, 330)
   await expect(page).toHaveURL(/\/informes$/)
+  await expect(page.locator('[role="radiogroup"][aria-label="Periodo del informe"] [aria-checked="true"]')).toHaveText(mes!)
+  // Ajustes en lista: cada apartado se abre y se vuelve deslizando
+  await page.locator('nav[data-pestanas] a', { hasText: 'Ajustes' }).tap()
+  await page.getByRole('link', { name: /Cuentas/ }).tap()
+  await expect(page).toHaveURL(/\/ajustes\/cuentas$/)
+  await expect(page.getByRole('button', { name: 'Ajustes' })).toBeVisible()
+  await expect(page.getByText(/Cuenta principal/).first()).toBeVisible()
+  await deslizar(page, 80, 420, 340)
+  await expect(page).toHaveURL(/\/ajustes$/)
+  // Una pantalla del Extracto abierta desde Ajustes vuelve a Ajustes
+  await page.getByRole('link', { name: /Nóminas e ingresos/ }).tap()
+  await page.getByRole('button', { name: 'Ajustes' }).tap()
+  await expect(page).toHaveURL(/\/ajustes$/)
   expect(e).toEqual([])
 })
 

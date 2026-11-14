@@ -48,7 +48,7 @@ export function Reglas() {
 
   return (
     <>
-      <BarraNavegacion titulo="Reglas" atras="Ajustes" destino="/ajustes/general" />
+      <BarraNavegacion titulo="Reglas" atras="Ajustes" inicio="/ajustes" />
       <div className="space-y-5">
         {grupos.map(([titulo, nota, reglas]) => (
           <section key={titulo}>

@@ -4,7 +4,7 @@ import { ProveedorActualizacion } from './componentes/Actualizacion'
 import { Estructura } from './componentes/Estructura'
 import { ProveedorInterfaz } from './componentes/Interfaz'
 import { ProveedorDatos } from './datos/ProveedorDatos'
-import { Ajustes } from './paginas/ajustes/Ajustes'
+import { Ajustes, PaginaAjuste } from './paginas/ajustes/Ajustes'
 import { Categorias } from './paginas/ajustes/Categorias'
 import { Cuentas } from './paginas/ajustes/Cuentas'
 import { General } from './paginas/ajustes/General'
@@ -58,13 +58,11 @@ export function App() {
                 <Route path="ajustes/reglas" element={<Reglas />} />
                 <Route path="empleado/*" element={<Navigate to="/" replace />} />
                 <Route path="resumenes" element={<Resumenes />} />
-                <Route path="ajustes" element={<Ajustes />}>
-                  <Route index element={<Navigate to="cuentas" replace />} />
-                  <Route path="cuentas" element={<Cuentas />} />
-                  <Route path="categorias" element={<Categorias />} />
-                  <Route path="general" element={<General />} />
-                  <Route path="herramientas" element={<Herramientas />} />
-                </Route>
+                <Route path="ajustes" element={<Ajustes />} />
+                <Route path="ajustes/cuentas" element={<PaginaAjuste titulo="Cuentas"><Cuentas /></PaginaAjuste>} />
+                <Route path="ajustes/categorias" element={<PaginaAjuste titulo="Categorías"><Categorias /></PaginaAjuste>} />
+                <Route path="ajustes/general" element={<PaginaAjuste titulo="General"><General /></PaginaAjuste>} />
+                <Route path="ajustes/herramientas" element={<PaginaAjuste titulo="Herramientas"><Herramientas /></PaginaAjuste>} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
             </Routes>
