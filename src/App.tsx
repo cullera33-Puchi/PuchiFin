@@ -20,6 +20,7 @@ import { Presupuesto } from './paginas/Presupuesto'
 import { Previstos } from './paginas/Previstos'
 import { Plan } from './paginas/Plan'
 import { Ingresos } from './paginas/Ingresos'
+import { Posicion } from './paginas/Posicion'
 import { Reglas } from './paginas/ajustes/Reglas'
 import { Resumenes } from './paginas/Resumenes'
 
@@ -46,6 +47,7 @@ export function App() {
                 <Route path="extracto/previstos" element={<Previstos />} />
                 <Route path="extracto/plan" element={<Plan />} />
                 <Route path="extracto/ingresos" element={<Ingresos />} />
+                <Route path="extracto/posicion" element={<Posicion />} />
                 <Route path="analisis" element={<Suspense fallback={cargando}><Analisis /></Suspense>} />
                 <Route path="informes" element={<Suspense fallback={cargando}><Informes /></Suspense>} />
                 <Route path="informes/categoria/:id" element={<Suspense fallback={cargando}><InformeCategoria /></Suspense>} />

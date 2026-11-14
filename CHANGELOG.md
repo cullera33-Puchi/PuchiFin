@@ -2,6 +2,17 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.31.0. Extracto rediseñado, menos recargado (14 de noviembre de 2026)
+
+Propuesta de diseño aprobada por el usuario («aplica todo»). La pantalla pasa de unas 2,5 a 1,4 alturas de iPhone con un año de datos.
+
+- Capital y deuda en dos filas compactas (`FilasPatrimonio`): capital con la variación del mes y deuda con el pago previsto y el año en que queda saldada; respetan el ojo que oculta las cifras. El detalle de «Tu posición» pasa a su pantalla (`/extracto/posicion`).
+- Tarjeta principal del mes (`TarjetaMes`) en lugar de la frase, la previsión, la nota de la media y las cuatro tarjetas: gastado en grande frente a la media, barra con la referencia (presupuesto o media) y lo que falta hasta el cierre previsto, la categoría que más sube (`categoriaQueMasSube`) y una fila con ingresos, ahorro y tasa de ahorro. «Cómo se calcula» (icono de información) abre la comparación con la media y hace un año, la previsión con sus recibos y los accesos a gastos e ingresos previstos.
+- Avisos agrupados (`usePendientes`, `Pendientes`): datos de prueba, subir movimientos, exportar, recibos, cierre de mes, cuadre, mejoras, sin categoría y presupuesto sin definir. Uno se ve tal cual; varios, en una fila «Cosas pendientes» que abre la lista. Fuera los banners de arriba.
+- Categorías: las seis primeras y «Ver todas»; la diferencia con la media solo si es relevante, al menos 20 € y un 15 % (`diferenciaRelevante`).
+- Acciones en el menú «…» de arriba: Resúmenes en PDF, Evolución y cierre anual, Analizar con Claude y Exportar el mes a Excel. Junto al menú, el acceso directo al PDF.
+- Importes redondos en los resúmenes; los céntimos quedan en las listas de movimientos.
+
 ## v0.30.0. Los comercios de Informes responden al primer toque (14 de noviembre de 2026)
 
 - `touch-action: manipulation` en toda la app (capa base): Safari en el iPhone ya no espera un posible doble toque para hacer zoom. Con dos o tres toques seguidos, se quedaba con ellos y la fila no respondía. Los gestos propios (filas, hojas) mantienen su `touch-action`.

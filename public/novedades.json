@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.31.0",
+    "fecha": "2026-11-14",
+    "cambios": [
+      "Extracto renovado y más limpio: lo esencial del mes en una tarjeta (gastado frente a tu media, cómo cerrará, ingresos, ahorro y tasa de ahorro).",
+      "Capital y deuda en dos filas arriba; el detalle de tus cuentas, a un toque.",
+      "Los avisos van juntos en «Cosas pendientes» y las categorías enseñan las seis primeras, con «Ver todas».",
+      "PDF, Claude, Excel y la evolución anual, en el menú «…» de arriba. El detalle de la media y la previsión, en el icono de información."
+    ]
+  },
+  {
     "version": "0.30.0",
     "fecha": "2026-11-14",
     "cambios": [

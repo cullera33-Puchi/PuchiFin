@@ -8,7 +8,9 @@ import { Baldosa } from './Icono'
 
 const CLAVE_OCULTA = 'puchifin-posicion-oculta'
 
-function leerOculta(): boolean {
+/** Cifras ocultas con el ojo de «Tu posición» (se recuerda en el dispositivo) */
+// oxlint-disable-next-line react/only-export-components
+export function leerOculta(): boolean {
   try {
     return localStorage.getItem(CLAVE_OCULTA) === '1'
   } catch {
@@ -73,7 +75,7 @@ export function TarjetaPosicion() {
   const finMesAnterior = sumarDias(`${p.fecha.slice(0, 7)}-01`, -1)
   const tono = p.variacionMes === null ? '' : p.variacionMes >= 0 ? 'text-[#248A3D] dark:text-[#30D158]' : 'text-[#D70015] dark:text-[#FF6961]'
   return (
-    <section className="tarjeta mb-3" aria-label="Tu posición">
+    <section className="tarjeta" aria-label="Tu posición">
       <div className="flex items-center gap-2">
         <h2 className="text-[13px] font-medium text-zinc-500 uppercase">Tu posición</h2>
         <span className="ml-auto text-[12px] text-zinc-500">al {formatearFecha(p.fecha)}</span>

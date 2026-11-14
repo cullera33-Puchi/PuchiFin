@@ -190,6 +190,22 @@ export function cierreAnual(db: BaseDatos): ({ anio: string; meses: number } & T
 
 const eur = formatearRedondo
 
+/** La categoría que más sube frente a su media (al menos 30 € y un 15 %); lo pendiente de categorizar no cuenta */
+export function categoriaQueMasSube(e: Extracto): LineaExtracto | null {
+  return (
+    e.categorias
+      .filter((c) => c.id !== null && c.media !== null && c.importe - c.media >= Math.max(30, c.media * 0.15))
+      .sort((a, b) => b.importe - b.media! - (a.importe - a.media!))[0] ?? null
+  )
+}
+
+/** Diferencia frente a la media que merece verse: al menos 20 € y un 15 % (sin «0,00 €» ni céntimos de ruido) */
+export function diferenciaRelevante(c: LineaExtracto): number | null {
+  if (c.media === null) return null
+  const dif = Math.round((c.importe - c.media) * 100) / 100
+  return Math.abs(dif) >= 20 && (c.media === 0 || Math.abs(dif) / c.media >= 0.15) ? dif : null
+}
+
 /**
  * El mes en una frase, para leerlo de un vistazo: lo gastado (hasta hoy si está en curso), frente a la
  * media de los meses anteriores y la categoría que más se desvía hacia arriba.
@@ -203,10 +219,7 @@ export function fraseDelMes(e: Extracto, nombreMes: string): string | null {
     const cuando = e.enCurso ? ' a estas alturas del mes' : ''
     partes[0] += Math.abs(v) < 0.05 ? `, en línea con tu media${cuando}` : `, un ${Math.round(Math.abs(v) * 100)} % ${v > 0 ? 'más' : 'menos'} que tu media${cuando}`
   }
-  // La categoría que más sube frente a su media (al menos 30 € y un 15 %); lo pendiente de categorizar no cuenta
-  const sube = e.categorias
-    .filter((c) => c.id !== null && c.media !== null && c.importe - c.media >= Math.max(30, c.media * 0.15))
-    .sort((a, b) => b.importe - b.media! - (a.importe - a.media!))[0]
+  const sube = categoriaQueMasSube(e)
   if (sube) partes.push(`Lo que más sube: ${sube.nombre}, ${eur(sube.importe - sube.media!)} por encima de lo habitual`)
   if (t.ingresos > 0) partes.push(t.ahorro >= 0 ? `Ahorras ${eur(t.ahorro)}` : `Gastas ${eur(-t.ahorro)} más de lo que ingresas`)
   return `${partes.join('. ')}.`

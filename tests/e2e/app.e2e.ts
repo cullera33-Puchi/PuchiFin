@@ -38,9 +38,23 @@ test('arranca, genera datos de prueba y muestra el Extracto', async ({ page }) =
   const e = errores(page)
   await conDatosDePrueba(page)
   await page.goto('/')
-  await expect(page.getByRole('region', { name: 'Tu posición' })).toBeVisible()
-  await expect(page.getByText(/gastados en|gastaste/).first()).toBeVisible()
+  // Extracto: capital en una fila, tarjeta principal del mes y categorías
+  await expect(page.getByRole('link', { name: /Capital/ })).toBeVisible()
+  await expect(page.getByRole('region', { name: /^Resumen de / })).toBeVisible()
+  await expect(page.getByText('gastado', { exact: true })).toBeVisible()
   await expect(page.getByRole('radiogroup', { name: 'Mes del extracto' })).toBeVisible()
+  await expect(page.getByText('Gasto por categoría')).toBeVisible()
+  // Cómo se calcula: la comparación con la media
+  await page.getByRole('button', { name: 'Cómo se calcula' }).tap()
+  await expect(page.getByText('Frente a otros meses')).toBeVisible()
+  await page.getByRole('button', { name: 'Listo' }).tap()
+  // Los avisos, agrupados
+  await page.getByText('Cosas pendientes').tap()
+  await expect(page.getByRole('dialog', { name: 'Pendiente' })).toBeVisible()
+  await page.getByRole('button', { name: 'Listo' }).tap()
+  // Tu posición, en su pantalla
+  await page.getByRole('link', { name: /Capital/ }).tap()
+  await expect(page.getByRole('region', { name: 'Tu posición' })).toBeVisible()
   expect(e).toEqual([])
 })
 
@@ -153,7 +167,8 @@ test('gastos previstos, plan de pagos y Analizar con Claude', async ({ page }) =
   await expect(page.getByText(/Deuda pendiente: 30\.000,00 €/)).toBeVisible()
   // La tarjeta de la deuda en el Extracto
   await page.goto('/')
-  await expect(page.getByText(/Deuda: 30\.000/)).toBeVisible()
+  await expect(page.getByRole('link', { name: /Deuda.*30\.000/ })).toBeVisible()
+  await page.getByRole('button', { name: 'Más opciones del extracto' }).tap()
   await page.getByRole('button', { name: 'Analizar con Claude' }).tap()
   await expect(page.getByText(/Gasto por categoría \(importe/)).toBeVisible()
   expect(e).toEqual([])
@@ -214,7 +229,7 @@ for (const esquema of [3, 5, 7, 8, 9, 10, 11]) {
     await page.goto('/movimientos')
     await expect(page.getByText(/^\d{3} movimientos\./)).toBeVisible()
     await page.goto('/')
-    await expect(page.getByRole('region', { name: 'Tu posición' })).toBeVisible()
+    await expect(page.getByRole('link', { name: /Capital/ })).toBeVisible()
     expect(e).toEqual([])
   })
 }

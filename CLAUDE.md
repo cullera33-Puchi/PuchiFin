@@ -137,6 +137,7 @@ Ordenada por esfuerzo, de menos a más, con prioridad para la usabilidad y el re
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.31.0 (14/11/2026): Extracto rediseñado a propuesta aprobada por el usuario: capital y deuda en dos filas (`FilasPatrimonio`, detalle en `/extracto/posicion`), tarjeta principal del mes (`TarjetaMes`, con «Cómo se calcula»), avisos agrupados en «Cosas pendientes», seis categorías con «Ver todas» y diferencias solo relevantes, y acciones en el menú «…».
 - v0.30.0 (14/11/2026): sin zoom por doble toque en toda la app (`touch-action: manipulation`), que se comía los toques seguidos en el iPhone; los comercios de Informes abren una hoja con sus movimientos en lugar de saltar a Movimientos.
 - v0.29.0 (14/11/2026): volver deslizando más fluido: el gesto mueve la capa de la pantalla directamente, una vez por fotograma y sin redibujar la app; sombra en una franja aparte.
 - v0.28.0 (14/11/2026): plan de pagos más rápido (estadísticas y capital calculados una vez por versión de los datos, simulación diferida), una sola simulación compartida entre Ingresos previstos y el plan (`useSimulacion`), tarjeta de la deuda debajo de «Tu posición» y en Informes, y apartado del plan en el PDF de los resúmenes con el escenario actual y el de las nóminas que no cuentan.
@@ -409,9 +410,10 @@ El extracto mensual es la pantalla de inicio y solo cuenta movimientos de tipo N
 
 **Extracto mensual**
 
-- Tu posición (v0.19.0), arriba del todo: capital, es decir, saldo de las cuentas según el banco menos lo gastado con la tarjeta pendiente de cargar, con el saldo de cada cuenta, la variación desde el cierre del mes anterior y la evolución mes a mes.
-- Cabecera: ingresos, gastos, ahorro del mes y tasa de ahorro, con la variación frente a la media de los meses anteriores disponibles, hasta un máximo de 12.
-- Desglose por categoría con importe, peso sobre el gasto total y comparativa con la media.
+- Arriba, en dos filas (v0.31.0): el capital (saldo de las cuentas según el banco menos lo gastado con la tarjeta pendiente de cargar) con su variación del mes, y la deuda con el pago previsto. El detalle de «Tu posición» (cada cuenta, tarjeta y evolución) está en su pantalla.
+- Tarjeta principal del mes (v0.31.0): gastado frente a la media de los meses anteriores disponibles (hasta 12), barra con el presupuesto o la media y el cierre previsto, la categoría que más sube, e ingresos, ahorro y tasa de ahorro. La comparación completa (media y hace un año) y la previsión, en «Cómo se calcula».
+- Desglose por categoría con importe, peso sobre el gasto total y diferencia con la media cuando es relevante (al menos 20 € y un 15 %); las seis primeras y «Ver todas».
+- Avisos agrupados en «Cosas pendientes»; las acciones (PDF, evolución anual, Claude y Excel), en el menú «…».
 - Al tocar una categoría se abren sus movimientos del mes.
 - Aviso visible si hay movimientos sin categoría, mejoras de categoría o descuadres con el banco.
 - Navegación mes a mes con una tira de meses de botones grandes, siempre enteros (sin gesto lateral desde la v0.26.0).
