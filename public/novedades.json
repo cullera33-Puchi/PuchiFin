@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.29.0",
+    "fecha": "2026-11-14",
+    "cambios": [
+      "Volver atrás deslizando va más fluido: la pantalla sigue al dedo sin tirones."
+    ]
+  },
+  {
     "version": "0.28.0",
     "fecha": "2026-11-14",
     "cambios": [

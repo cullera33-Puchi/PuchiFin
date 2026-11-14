@@ -2,6 +2,11 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.29.0. Volver deslizando, más fluido (14 de noviembre de 2026)
+
+- `useVolverDesdeBorde` ya no usa estado de React: el desplazamiento se aplica directamente a la capa de la pantalla (`translate3d`), una vez por fotograma (`requestAnimationFrame`), con `will-change` solo mientras dura el gesto. Antes, cada movimiento del dedo redibujaba la estructura de la app y pintaba una sombra de 24 px sobre toda la pantalla.
+- La sombra del borde es una franja fija aparte que se mueve con la pantalla. La animación al soltar dura 0,3 s y se limpian fotogramas y temporizadores al cambiar de pantalla.
+
 ## v0.28.0. Plan de pagos más rápido, a mano y en el PDF (14 de noviembre de 2026)
 
 - Rendimiento: las estadísticas por mes y el capital de hoy (`calcularPosicion`) se calculan una vez por cada versión de los datos (`WeakMap` en `plan.ts`); la simulación solo recalcula la proyección. Con unos 1.000 movimientos, cada cambio de la simulación pasa de unos 14 ms a menos de 1 ms (antes se repetía hasta cuatro veces por pulsación en Ingresos previstos). El cálculo usa `useDeferredValue`: los campos no se bloquean al escribir.

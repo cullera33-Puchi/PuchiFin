@@ -1,5 +1,5 @@
 import { ArrowLeft, ChartPie, ChevronsLeftRight, EyeOff, List, ReceiptText, Settings, Tag } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { registrar } from '../lib/registro'
 import { useVolverDesdeBorde } from './gestos'
@@ -20,7 +20,9 @@ const CLAVE_BIENVENIDA = 'puchifin-bienvenida'
 const DOS_HORAS = 2 * 60 * 60 * 1000
 
 export function Estructura() {
-  const borde = useVolverDesdeBorde()
+  const pantalla = useRef<HTMLElement>(null)
+  const sombra = useRef<HTMLDivElement>(null)
+  useVolverDesdeBorde(pantalla, sombra)
   const { pathname } = useLocation()
   const navegar = useNavigate()
   // Pantallas secundarias del Extracto: su pestaña sigue marcada
@@ -28,7 +30,6 @@ export function Estructura() {
   // Pestaña activa: la del Extracto incluye sus pantallas secundarias; las demás, todo lo que cuelga de ellas
   const activa = enExtracto ? 0 : SECCIONES.findIndex((s, i) => i > 0 && pathname.startsWith(s.a))
   // Entre pestañas solo se cambia con la barra (decisión del usuario, v0.26.0); deslizar vuelve atrás en las pantallas apiladas
-  const mover = borde
 
   // Al volver tras más de dos horas fuera, la app vuelve a la pantalla principal (salvo con una hoja abierta)
   useEffect(() => {
@@ -50,14 +51,13 @@ export function Estructura() {
 
   return (
     <div className="min-h-dvh overflow-x-clip">
-      <main
-        className="mx-auto max-w-lg px-4 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[calc(var(--alto-pestanas)+1.5rem)]"
-        style={{
-          transform: mover.dx ? `translateX(${mover.dx}px)` : undefined,
-          transition: mover.animar ? 'transform 0.4s var(--curva)' : 'none',
-          boxShadow: borde.dx ? '-8px 0 24px rgba(0,0,0,0.12)' : undefined,
-        }}
-      >
+      {/* Sombra del borde izquierdo al volver deslizando: franja fija que se mueve con la pantalla */}
+      <div
+        ref={sombra}
+        aria-hidden
+        className="pointer-events-none fixed inset-y-0 -left-4 z-10 w-4 bg-gradient-to-l from-black/15 to-transparent opacity-0"
+      />
+      <main ref={pantalla} className="mx-auto max-w-lg px-4 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[calc(var(--alto-pestanas)+1.5rem)]">
         <div id="contenido">
           <Outlet />
         </div>

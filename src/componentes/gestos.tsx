@@ -10,7 +10,7 @@
  * (para eso, desde fuera de las filas o desde el mismo borde de la pantalla).
  * Todos aceptan distancia o velocidad: un gesto corto y rápido cuenta como uno largo.
  */
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { vibrar } from '../lib/haptica'
 import { crearVelocidad, esLanzamiento, type Velocidad } from '../lib/velocidad'
@@ -349,15 +349,15 @@ const conGestoPropio = (t: EventTarget | null) =>
 const RAICES = ['/', '/movimientos', '/informes', '/ajustes']
 
 /**
- * Deslizar desde el borde izquierdo vuelve a la pantalla anterior, con la pantalla actual siguiendo
- * al dedo. Devuelve el desplazamiento para aplicarlo al contenido.
+ * Deslizar desde el borde izquierdo (o desde cualquier punto sin gesto propio) vuelve a la pantalla
+ * anterior, con la pantalla siguiendo al dedo. El desplazamiento se aplica directamente a la capa de la
+ * pantalla, una vez por fotograma y sin pasar por React (v0.29.0): el gesto no redibuja la app. La
+ * sombra es una franja fina aparte, que se mueve con la pantalla.
  */
 // oxlint-disable-next-line react/only-export-components
-export function useVolverDesdeBorde(): { dx: number; animar: boolean } {
+export function useVolverDesdeBorde(pantalla: RefObject<HTMLElement | null>, sombra: RefObject<HTMLElement | null>): void {
   const navegar = useNavigate()
   const { pathname } = useLocation()
-  const [dx, setDx] = useState(0)
-  const [animar, setAnimar] = useState(false)
   const raiz = RAICES.includes(pathname)
 
   useEffect(() => {
@@ -366,6 +366,23 @@ export function useVolverDesdeBorde(): { dx: number; animar: boolean } {
     let inicio: { x: number; y: number; vel: Velocidad; horizontal: boolean | null } | null = null
     let actual = 0
     let ultimoT = 0
+    let fotograma = 0
+    let temporizador = 0
+    const CURVA = 'transform 0.3s var(--curva)'
+
+    const pintar = (dx: number, transicion: string) => {
+      for (const el of [pantalla.current, sombra.current]) {
+        if (!el) continue
+        el.style.transition = transicion
+        el.style.transform = dx ? `translate3d(${dx}px,0,0)` : ''
+      }
+      if (sombra.current) sombra.current.style.opacity = dx ? '1' : '0'
+    }
+    const preparar = (si: boolean) => {
+      // Capa propia solo mientras dura el gesto: el navegador mueve la pantalla sin volver a pintarla
+      if (pantalla.current) pantalla.current.style.willChange = si ? 'transform' : ''
+    }
+
     const alEmpezar = (e: TouchEvent) => {
       inicio = null
       const t = e.touches[0]
@@ -392,14 +409,19 @@ export function useVolverDesdeBorde(): { dx: number; animar: boolean } {
           return
         }
         inicio.x = t.clientX - 1
+        preparar(true)
       }
       // Mientras vuelve, la pantalla no se desplaza en vertical
       if (e.cancelable) e.preventDefault()
       actual = Math.max(0, t.clientX - inicio.x)
       inicio.vel.mover(t.clientX, e.timeStamp)
       ultimoT = e.timeStamp
-      setAnimar(false)
-      setDx(actual)
+      // Un solo cambio por fotograma, aunque lleguen varios movimientos del dedo
+      if (!fotograma)
+        fotograma = requestAnimationFrame(() => {
+          fotograma = 0
+          pintar(actual, 'none')
+        })
     }
     const alTerminar = (e: TouchEvent) => {
       if (!inicio) return
@@ -407,17 +429,22 @@ export function useVolverDesdeBorde(): { dx: number; animar: boolean } {
       const v = inicio.vel.valor(e.type === 'touchcancel' ? ultimoT + 1000 : e.timeStamp)
       inicio = null
       if (!fijo) return
-      setAnimar(true)
+      cancelAnimationFrame(fotograma)
+      fotograma = 0
       if (e.type !== 'touchcancel' && (actual > window.innerWidth / 3 || esLanzamiento(v, actual, 1))) {
         vibrar()
-        setDx(window.innerWidth)
-        window.setTimeout(() => {
+        pintar(window.innerWidth, CURVA)
+        temporizador = window.setTimeout(() => {
           if (window.history.state?.idx > 0) navegar(-1)
           else navegar('/')
-          setAnimar(false)
-          setDx(0)
+          // La pantalla nueva aparece en su sitio, sin animar la vuelta
+          pintar(0, 'none')
+          preparar(false)
         }, 300)
-      } else setDx(0)
+      } else {
+        pintar(0, CURVA)
+        temporizador = window.setTimeout(() => preparar(false), 300)
+      }
       actual = 0
     }
     window.addEventListener('touchstart', alEmpezar, { passive: true })
@@ -430,8 +457,8 @@ export function useVolverDesdeBorde(): { dx: number; animar: boolean } {
       window.removeEventListener('touchmove', alMover)
       window.removeEventListener('touchend', alTerminar)
       window.removeEventListener('touchcancel', alTerminar)
+      cancelAnimationFrame(fotograma)
+      window.clearTimeout(temporizador)
     }
-  }, [raiz, navegar])
-
-  return { dx: raiz ? 0 : dx, animar }
+  }, [raiz, navegar, pantalla, sombra])
 }
