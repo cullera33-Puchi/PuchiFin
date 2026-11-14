@@ -2,6 +2,15 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.34.0. Reporting del análisis (R2 a R5), cálculos compartidos y revisión general (14 de noviembre de 2026)
+
+- P2, más cálculos guardados por versión de los datos: `calcularExtracto` (por mes y día), `avisosRecurrentes` y `efectoMesCerrado`.
+- R2, gastos fuera de lo normal (`src/lib/atipicos.ts`): en un comercio con al menos tres cargos en el año anterior, uno que pasa de 1,6 veces la mediana y la supera en 30 € o más; y un gasto de 300 € o más en un comercio sin cargos en un año (PayPal, solo este caso). Fila en el Extracto bajo la tarjeta del mes, con la lista y el motivo de cada uno, y sección en Informes, Comercios (escala de mes).
+- R3, ahorro y gasto fijo mes a mes (`ahorroYFijoPorMes`, `AhorroYFijo`): barras apiladas de fijo y variable de los últimos doce meses, la tasa de ahorro debajo y el porcentaje medio del gasto que son recibos. En Informes, Evolución. Los meses incompletos, atenuados.
+- R4, comparar periodos (`src/lib/comparar.ts`, `/informes/comparar`): meses, trimestres o años; por defecto, el más reciente frente al mismo del año anterior. Totales con su diferencia y gasto por categoría ordenado por cambio. Acceso con el icono de flechas de Informes.
+- R5, resumen del año (`src/lib/anual.ts`, `/informes/anual`, `generarPdfAnual`): totales frente al año anterior, gasto medio y fijo, mejor y peor mes completo, capital al empezar y al acabar, deuda pagada y pendiente, categorías y comercios que más pesan; en PDF de una página. Acceso desde Informes en la escala de año.
+- Tema: `marca-300` y `marca-400` en la paleta.
+
 ## v0.33.0. Usabilidad y visual del análisis: modo discreto, Herramientas por apartados, PDF al cerrar el mes e Informes por vistas (14 de noviembre de 2026)
 
 - U4, modo discreto (`src/lib/discreto.ts`, `useDiscreto`): oculta los importes en toda la app («•••• €» en `formatearImporte` y `formatearRedondo`, «••» en los ejes de los gráficos). Se activa con el ojo del Extracto, el de «Tu posición» o Ajustes, General; la pantalla se vuelve a pintar al cambiarlo. Lo que sale de la app lleva las cifras reales (`sinDiscreto` en la generación del PDF). Misma clave en el dispositivo que el ojo de antes.

@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.34.0",
+    "fecha": "2026-11-14",
+    "cambios": [
+      "Extracto: aviso de gastos fuera de lo normal, como un cargo muy por encima de lo habitual en un comercio o un gasto grande en un sitio nuevo.",
+      "Informes: compara dos meses, trimestres o años con el icono de flechas.",
+      "Resumen del año (en Informes, escala de año): lo ahorrado, los mejores y peores meses, la deuda y el capital, y en PDF para compartir.",
+      "Evolución: tu tasa de ahorro y cuánto de tu gasto son recibos, mes a mes."
+    ]
+  },
+  {
     "version": "0.33.0",
     "fecha": "2026-11-14",
     "cambios": [

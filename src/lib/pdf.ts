@@ -4,6 +4,7 @@
  */
 import { jsPDF } from 'jspdf'
 import autoTable, { type CellDef, type RowInput } from 'jspdf-autotable'
+import type { ResumenAnual } from './anual'
 import { diaSemana, hoyIso, MESES, mesLargo } from './fechas'
 import { sinDiscreto } from './discreto'
 import { formatearFecha, formatearImporte } from './formato'
@@ -433,4 +434,103 @@ function seccionPlan(
 export function nombreArchivoResumen(r: Resumen, reducida = false): string {
   const base = r.periodo.tipo === 'mes' ? `PuchiFin resumen ${r.periodo.inicio.slice(0, 7)}` : `PuchiFin semana ${r.periodo.inicio}`
   return `${base}${reducida ? ' (reducido)' : ''}.pdf`
+}
+
+/**
+ * Resumen del año en PDF (R5, v0.34.0): una página con los totales frente al año anterior, los mejores y
+ * peores meses, las categorías y comercios que más pesan, el gasto fijo, la deuda y el capital.
+ */
+export function generarPdfAnual(r: ResumenAnual, opciones: { hayDatosPrueba: boolean; generado?: string }): jsPDF {
+  return sinDiscreto(() => {
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+    doc.setFillColor(...MARCA)
+    doc.rect(0, 0, ANCHO, 30, 'F')
+    doc.setTextColor(255, 255, 255).setFont('helvetica', 'normal').setFontSize(9)
+    doc.text('PuchiFin', MARGEN, 10)
+    doc.text(`Generado el ${formatearFecha(opciones.generado ?? hoyIso())}`, ANCHO - MARGEN, 10, { align: 'right' })
+    doc.setFont('helvetica', 'bold').setFontSize(17)
+    doc.text(`Resumen del año ${r.anio}`, MARGEN, 19)
+    doc.setFont('helvetica', 'normal').setFontSize(11)
+    doc.text(r.enCurso ? `En curso: ${r.meses} meses con datos` : `${r.meses} meses con datos`, MARGEN, 25.5)
+    let y = 37
+    if (opciones.hayDatosPrueba) {
+      doc.setFillColor(254, 243, 199).roundedRect(MARGEN, y - 4.5, ANCHO - 2 * MARGEN, 7, 1.5, 1.5, 'F')
+      doc.setTextColor(146, 64, 14).setFontSize(8.5).text('Incluye datos de prueba generados por la app. No son movimientos reales.', MARGEN + 3, y)
+      y += 8
+    }
+    const t = r.totales
+    const a = r.anterior
+    const cajas: [string, string, string][] = [
+      ['Ingresos', eur(t.ingresos), a ? `Año anterior: ${eur(a.ingresos)}` : ''],
+      ['Gastos', eur(t.gastos), a ? `Año anterior: ${eur(a.gastos)}` : ''],
+      ['Ahorro', eur(t.ahorro), a ? `Año anterior: ${eur(a.ahorro)}` : ''],
+      ['Tasa de ahorro', t.tasaAhorro === null ? 'Sin ingresos' : pct(t.tasaAhorro), a?.tasaAhorro != null ? `Año anterior: ${pct(a.tasaAhorro)}` : ''],
+    ]
+    const hueco = 3
+    const anchoCaja = (ANCHO - 2 * MARGEN - hueco * 3) / 4
+    cajas.forEach(([etiqueta, valor, nota], i) => {
+      const x = MARGEN + i * (anchoCaja + hueco)
+      doc.setDrawColor(228, 228, 231).setFillColor(250, 250, 250).roundedRect(x, y, anchoCaja, 20, 2, 2, 'FD')
+      doc.setTextColor(...GRIS).setFont('helvetica', 'normal').setFontSize(8).text(etiqueta, x + 3, y + 5.5)
+      doc.setTextColor(...TINTA).setFont('helvetica', 'bold').setFontSize(12).text(valor, x + 3, y + 12)
+      if (nota) doc.setTextColor(...GRIS).setFont('helvetica', 'normal').setFontSize(7).text(nota, x + 3, y + 17)
+    })
+    y += 27
+    const estilo = {
+      theme: 'plain' as const,
+      margin: { left: MARGEN, right: MARGEN },
+      styles: { font: 'helvetica', fontSize: 8.5, cellPadding: { top: 1.6, bottom: 1.6, left: 2, right: 2 }, textColor: TINTA, lineColor: [228, 228, 231] as [number, number, number] },
+      headStyles: { fontStyle: 'bold' as const, textColor: GRIS, fontSize: 7.5, lineWidth: { bottom: 0.3 } },
+      bodyStyles: { lineWidth: { bottom: 0.1 } },
+    }
+    const titulo = (texto: string) => {
+      doc.setTextColor(...TINTA).setFont('helvetica', 'bold').setFontSize(11).text(texto, MARGEN, y)
+      y += 2.5
+    }
+    const despues = () => {
+      y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
+    }
+    const nombreMes = (mes: string) => `${MESES[Number(mes.slice(5, 7)) - 1]} de ${mes.slice(0, 4)}`
+    titulo('El año en cifras')
+    const filas: RowInput[] = [
+      ['Gasto medio al mes', { content: eur(r.gastoMedioMes), styles: { halign: 'right' } }],
+      ['Gasto fijo (recibos y suscripciones)', { content: eur(r.fijo), styles: { halign: 'right' } }],
+    ]
+    if (r.mejorMes) filas.push([`Mes de más ahorro: ${nombreMes(r.mejorMes.mes)}`, { content: eur(r.mejorMes.ahorro), styles: { halign: 'right', textColor: VERDE } }])
+    if (r.peorMes) filas.push([`Mes de menos ahorro: ${nombreMes(r.peorMes.mes)}`, { content: eur(r.peorMes.ahorro), styles: { halign: 'right', textColor: r.peorMes.ahorro < 0 ? ROJO : TINTA } }])
+    if (r.capital) {
+      if (r.capital.inicio !== null) filas.push([`Capital a final de ${Number(r.anio) - 1}`, { content: eur(r.capital.inicio), styles: { halign: 'right' } }])
+      filas.push([r.enCurso ? 'Capital hoy' : `Capital a final de ${r.anio}`, { content: eur(r.capital.fin), styles: { halign: 'right' } }])
+    }
+    if (r.deuda) {
+      filas.push([`Pagado de la deuda en ${r.anio}`, { content: eur(r.deuda.pagado), styles: { halign: 'right' } }])
+      filas.push(['Deuda pendiente hoy', { content: eur(r.deuda.pendiente), styles: { halign: 'right' } }])
+    }
+    autoTable(doc, { ...estilo, startY: y, body: filas, columnStyles: { 1: { cellWidth: 40 } } })
+    despues()
+    if (r.categorias.length) {
+      titulo('Categorías que más pesan')
+      autoTable(doc, {
+        ...estilo,
+        startY: y,
+        head: [['Categoría', { content: 'Gasto', styles: { halign: 'right' } }, { content: 'Peso', styles: { halign: 'right' } }, { content: 'Año anterior', styles: { halign: 'right' } }]],
+        body: r.categorias.map((c) => [c.nombre, { content: eur(c.importe), styles: { halign: 'right' } }, { content: pct(c.peso), styles: { halign: 'right' } }, { content: r.anterior ? eur(c.anterior) : '', styles: { halign: 'right' } }]),
+      })
+      despues()
+    }
+    if (r.comercios.length) {
+      titulo('Comercios con más gasto')
+      autoTable(doc, {
+        ...estilo,
+        startY: y,
+        head: [['Comercio', { content: 'Compras', styles: { halign: 'right' } }, { content: 'Gasto', styles: { halign: 'right' } }]],
+        body: r.comercios.map((c) => [c.nombre, { content: String(c.veces), styles: { halign: 'right' } }, { content: eur(c.importe), styles: { halign: 'right' } }]),
+      })
+      despues()
+    }
+    doc.setDrawColor(228, 228, 231).line(MARGEN, 286, ANCHO - MARGEN, 286)
+    doc.setTextColor(...GRIS).setFont('helvetica', 'normal').setFontSize(7)
+    doc.text(`PuchiFin v${APP_VERSION}. Totales con los movimientos de tipo Normal${r.enCurso ? '; el año anterior, con los mismos días' : ''}.`, MARGEN, 290)
+    return doc
+  })
 }

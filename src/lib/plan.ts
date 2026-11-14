@@ -8,6 +8,7 @@
  * o, sin un año de datos, la media de los meses cerrados. Gastos previstos: el presupuesto de cada
  * categoría o, si no lo tiene, su media. Más los gastos e ingresos previstos dados de alta.
  */
+import { porVersionYClave } from './cache'
 import { anadirA } from './agrupar'
 import { fechaDeLosDatos, gastoPorCategoria } from './extracto'
 import { sumarDias, sumarMeses } from './fechas'
@@ -366,7 +367,7 @@ export function preverIngresos(db: BaseDatos, hoy: string, sim: Simulacion = SIN
  * Efecto del último mes cerrado en el pago del próximo verano: ahorro real frente al que se preveía
  * para ese mes con los meses anteriores. Lo que se ahorra de más va entero al pago.
  */
-export function efectoMesCerrado(db: BaseDatos, hoy: string): { mes: string; real: number; previsto: number; diferencia: number } | null {
+function calcularEfecto(db: BaseDatos, hoy: string): { mes: string; real: number; previsto: number; diferencia: number } | null {
   const mesDatos = fechaDeLosDatos(db, hoy).slice(0, 7)
   const mes = sumarMeses(`${mesDatos}-01`, -1).slice(0, 7)
   if (mes <= primerMes(db)) return null
@@ -380,3 +381,6 @@ export function efectoMesCerrado(db: BaseDatos, hoy: string): { mes: string; rea
   const previsto = redondear(mod.ahorro(mes) + puntuales)
   return { mes, real, previsto, diferencia: redondear(real - previsto) }
 }
+
+// Una vez por versión de los datos y día (v0.34.0): el Extracto, Informes y el plan lo comparten
+export const efectoMesCerrado = porVersionYClave(calcularEfecto)

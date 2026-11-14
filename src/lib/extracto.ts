@@ -2,10 +2,13 @@
  * Extracto mensual (apartado 8) y vistas de análisis. Solo computan los movimientos de tipo Normal.
  * La comparativa es con la media de los meses anteriores con datos, hasta un máximo de 12.
  */
+import { porVersionYClave } from './cache'
 import { calcularTotales, type Totales } from './resumen'
 import { sumarMeses } from './fechas'
 import { formatearRedondo } from './formato'
 import { fechaEfectiva, mesEfectivo } from './imputacion'
+import { anadirA } from './agrupar'
+import { fijoYVariable, type Recurrente } from './recurrentes'
 import type { BaseDatos, Categoria, Movimiento } from './tipos'
 
 const redondear = (n: number) => Math.round(n * 100) / 100
@@ -75,7 +78,7 @@ export function fechaDeLosDatos(db: BaseDatos, hoy: string): string {
   return ultima || hoy
 }
 
-export function calcularExtracto(db: BaseDatos, mes: string, hoy?: string): Extracto {
+function calcularExtractoSin(db: BaseDatos, mes: string, hoy: string | undefined): Extracto {
   const enCurso = !!hoy && mesDe(hoy) === mes
   const corte = hoy ? fechaDeLosDatos(db, hoy) : null
   const diaCorte = enCurso ? Number((corte!.startsWith(mes) ? corte! : hoy!).slice(8, 10)) : null
@@ -223,4 +226,49 @@ export function fraseDelMes(e: Extracto, nombreMes: string): string | null {
   if (sube) partes.push(`Lo que más sube: ${sube.nombre}, ${eur(sube.importe - sube.media!)} por encima de lo habitual`)
   if (t.ingresos > 0) partes.push(t.ahorro >= 0 ? `Ahorras ${eur(t.ahorro)}` : `Gastas ${eur(-t.ahorro)} más de lo que ingresas`)
   return `${partes.join('. ')}.`
+}
+
+// Una vez por versión de los datos, mes y día (v0.34.0): volver a un mes ya visto no repite el cálculo
+const extractoGuardado = porVersionYClave((db, clave) => {
+  const [mes, hoy] = clave.split('|')
+  return calcularExtractoSin(db, mes, hoy || undefined)
+})
+
+export function calcularExtracto(db: BaseDatos, mes: string, hoy?: string): Extracto {
+  return extractoGuardado(db, `${mes}|${hoy ?? ''}`)
+}
+
+export interface MesAhorroYFijo {
+  mes: string
+  ingresos: number
+  gastos: number
+  /** Ahorro sobre ingresos (null sin ingresos) */
+  tasa: number | null
+  /** Gasto de recibos y suscripciones (recurrentes) y el resto */
+  fijo: number
+  variable: number
+  /** El primer mes importado o el mes en curso: incompletos */
+  incompleto: boolean
+}
+
+/**
+ * Tasa de ahorro y gasto fijo frente a variable de los últimos meses hasta «hasta» (R3, v0.34.0). Los meses
+ * sin datos del principio no salen; el primero importado y el en curso se marcan como incompletos.
+ */
+export function ahorroYFijoPorMes(db: BaseDatos, hasta: string, hoy: string, recurrentes: Recurrente[], meses = 12): MesAhorroYFijo[] {
+  const conDatos = new Set(db.movimientos.map(mesEfectivo))
+  const primero = [...conDatos].sort()[0]
+  if (!primero) return []
+  const porMes = new Map<string, Movimiento[]>()
+  for (const m of db.movimientos) anadirA(porMes, mesEfectivo(m), m)
+  const res: MesAhorroYFijo[] = []
+  for (let i = meses - 1; i >= 0; i--) {
+    const mes = sumarMeses(`${hasta}-01`, -i).slice(0, 7)
+    if (mes < primero) continue
+    const movs = porMes.get(mes) ?? []
+    const t = calcularTotales(movs, db.categorias)
+    const { fijo, variable } = fijoYVariable(movs, recurrentes)
+    res.push({ mes, ingresos: t.ingresos, gastos: t.gastos, tasa: t.tasaAhorro, fijo, variable, incompleto: mes === primero || mes >= hoy.slice(0, 7) })
+  }
+  return res
 }

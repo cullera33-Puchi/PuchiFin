@@ -242,6 +242,27 @@ test('ingresos previstos: mi nómina con pagas extra y una segunda nómina simul
   expect(e).toEqual([])
 })
 
+test('reporting: fuera de lo normal, comparar periodos y resumen del año', async ({ page }) => {
+  const e = errores(page)
+  await conDatosDePrueba(page)
+  // Comparar periodos: por defecto, el más reciente frente al anterior
+  await page.goto('/informes')
+  await page.getByRole('link', { name: 'Comparar periodos' }).tap()
+  await expect(page.getByRole('combobox', { name: 'Primer periodo' })).toBeVisible()
+  await expect(page.getByText('Gasto por categoría, de más a menos cambio')).toBeVisible()
+  await page.getByRole('radio', { name: 'Trimestre' }).tap()
+  await expect(page.getByRole('combobox', { name: 'Segundo periodo' })).toHaveValue(/T\d$/)
+  // Resumen del año, desde Informes en la escala de año
+  await page.goto('/informes?escala=anio')
+  await page.getByRole('link', { name: /Resumen del año/ }).tap()
+  await expect(page.getByText('El año en cifras')).toBeVisible()
+  await expect(page.getByRole('button', { name: /Compartir el resumen de \d{4} en PDF/ })).toBeVisible()
+  // Evolución: ahorro y gasto fijo mes a mes
+  await page.goto('/informes?ver=evolucion')
+  await expect(page.getByText(/Ahorro y gasto fijo, mes a mes/i)).toBeVisible()
+  expect(e).toEqual([])
+})
+
 for (const esquema of [3, 5, 7, 8, 9, 10, 11]) {
   test(`importa un archivo del esquema ${esquema} y lo enseña igual`, async ({ page }) => {
     const e = errores(page)

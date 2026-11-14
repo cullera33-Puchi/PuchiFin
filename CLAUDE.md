@@ -123,7 +123,7 @@ Ordenada por esfuerzo, de menos a más, con prioridad para la usabilidad y el re
 | 15 (hecha, v0.22.0) | Pruebas de navegador (Playwright) en GitHub antes de publicar, con archivos de cada esquema anterior | Técnica | Medio |
 | 16 (hecha, v0.22.0; el cambio de pestaña deslizando se retiró en la v0.26.0 a petición del usuario) | Cambiar de pestaña deslizando y recolocación animada de las listas (guía 4.1 y 5) | Usabilidad | Medio |
 | 17 (hecha, v0.23.0) | Fase 4: plan de pagos de la deuda familiar con simulación, gastos previstos, presupuesto con meses especiales, vista anual y avisos, y «Analizar con Claude» en el resto de vistas (definido el 14/11/2026, apartado 10) | Reporting | Alto |
-| 18 | Fase 5: estacionalidad y gastos atípicos | Reporting | Alto |
+| 18 (gastos atípicos hechos en la v0.34.0; la estacionalidad, pendiente para el final por decisión del usuario) | Fase 5: estacionalidad y gastos atípicos | Reporting | Alto |
 | 19 | Fase 6: Face ID e importación de PDF. Las notificaciones exigen un servidor de envío, fuera del alcance sin coste | Usabilidad | Alto |
 | Decisión | Repositorio privado (exige otro alojamiento gratuito) | Técnica | Pendiente del usuario |
 
@@ -137,6 +137,7 @@ Ordenada por esfuerzo, de menos a más, con prioridad para la usabilidad y el re
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.34.0 (14/11/2026): reporting del análisis: gastos fuera de lo normal (`src/lib/atipicos.ts`), ahorro y gasto fijo mes a mes, comparar periodos (`/informes/comparar`) y resumen del año con PDF (`/informes/anual`); más cálculos guardados por versión de los datos. Queda del análisis la estacionalidad (R6), que el usuario deja para el final.
 - v0.33.0 (14/11/2026): usabilidad y visual del análisis: modo discreto en toda la app (`src/lib/discreto.ts`; lo exportado sale con cifras reales), Herramientas por apartados (`/ajustes/herramientas/:apartado`), PDF del mes al completar el cierre (`compartirResumenMes`) e Informes en tres vistas (Categorías, Comercios y Evolución). Quedan del análisis: P2 (resto de cálculos compartidos) y el reporting R2 a R6.
 - v0.32.0 (14/11/2026): primer lote del análisis de la app: Movimientos más ligero, con memoria al cambiar de pestaña y carga por tramos de 40; nombres de categoría sin repetir; Informes con el estilo y los colores del Extracto; importes redondos en los totales; «Te quedan X € hasta fin de mes»; búsqueda diferida y cálculos guardados por versión de los datos (`src/lib/cache.ts`). Lo pendiente del análisis, en la entrada de la v0.33.0.
 - v0.31.0 (14/11/2026): Extracto rediseñado a propuesta aprobada por el usuario: capital y deuda en dos filas (`FilasPatrimonio`, detalle en `/extracto/posicion`), tarjeta principal del mes (`TarjetaMes`, con «Cómo se calcula»), avisos agrupados en «Cosas pendientes», seis categorías con «Ver todas» y diferencias solo relevantes, y acciones en el menú «…».

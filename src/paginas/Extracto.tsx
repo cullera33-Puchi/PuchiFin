@@ -24,6 +24,7 @@ import { Encabezado } from '../componentes/Encabezado'
 import { HojaClaude } from '../componentes/HojaClaude'
 import { Baldosa } from '../componentes/Icono'
 import { Hoja, useInterfaz } from '../componentes/Interfaz'
+import { FilaAtipicos } from '../componentes/Atipicos'
 import { FilasPatrimonio } from '../componentes/Patrimonio'
 import { opcionesMeses, TiraPeriodos } from '../componentes/TiraPeriodos'
 import { propuestasRecategorizacion } from '../datos/categorizar'
@@ -145,6 +146,7 @@ export function Extracto() {
       ) : (
         <div className="space-y-4">
           <TarjetaMes e={e} mes={mes} prevision={prevision} presupuestos={presupuestos} />
+          <FilaAtipicos mes={mes} />
           <Pendientes lista={pendientes} />
           {presupuestos.length > 0 && <SeccionPresupuesto lineas={presupuestos} />}
           <Categorias e={e} mes={mes} />

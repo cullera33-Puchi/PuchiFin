@@ -216,7 +216,7 @@ const eur = formatearImporte
  *   - nuevo: dos cargos iguales con un mes de diferencia en un comercio que no aparecía antes, aunque
  *     la cuenta ya tenía datos (con pocos meses importados, todo parecería nuevo).
  */
-export function avisosRecurrentes(db: BaseDatos, recurrentes = detectarRecurrentes(db)): AvisoRecurrente[] {
+function calcularAvisos(db: BaseDatos, recurrentes: Recurrente[]): AvisoRecurrente[] {
   const referencia = ultimasFechas(db)
   const avisos: AvisoRecurrente[] = []
   const cuentaDe = new Map(db.movimientos.map((m) => [m.id, m.cuenta_id]))
@@ -254,3 +254,10 @@ export function avisosRecurrentes(db: BaseDatos, recurrentes = detectarRecurrent
 
 /** Una vez por versión de los datos: el Extracto, Informes, Gastos fijos y la previsión lo comparten */
 export const detectarRecurrentes = porVersion(calcularRecurrentes)
+
+// Con los recurrentes de esa misma versión de los datos, una vez por versión (v0.34.0)
+const avisosGuardados = porVersion((db) => calcularAvisos(db, detectarRecurrentes(db)))
+
+export function avisosRecurrentes(db: BaseDatos, recurrentes?: Recurrente[]): AvisoRecurrente[] {
+  return !recurrentes || recurrentes === detectarRecurrentes(db) ? avisosGuardados(db) : calcularAvisos(db, recurrentes)
+}

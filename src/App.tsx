@@ -28,6 +28,8 @@ import { Resumenes } from './paginas/Resumenes'
 const Analisis = lazy(() => import('./paginas/Analisis').then((m) => ({ default: m.Analisis })))
 const Informes = lazy(() => import('./paginas/Informes').then((m) => ({ default: m.Informes })))
 const InformeCategoria = lazy(() => import('./paginas/Informes').then((m) => ({ default: m.InformeCategoria })))
+const ResumenAnual = lazy(() => import('./paginas/ResumenAnual').then((m) => ({ default: m.ResumenAnual })))
+const Comparar = lazy(() => import('./paginas/Comparar').then((m) => ({ default: m.Comparar })))
 const Fijos = lazy(() => import('./paginas/Fijos').then((m) => ({ default: m.Fijos })))
 const Importar = lazy(() => import('./paginas/Importar').then((m) => ({ default: m.Importar })))
 const cargando = <p className="py-10 text-center text-sm text-zinc-500">Cargando…</p>
@@ -52,6 +54,8 @@ export function App() {
                 <Route path="informes" element={<Suspense fallback={cargando}><Informes /></Suspense>} />
                 <Route path="informes/categoria/:id" element={<Suspense fallback={cargando}><InformeCategoria /></Suspense>} />
                 <Route path="informes/fijos" element={<Suspense fallback={cargando}><Fijos /></Suspense>} />
+                <Route path="informes/comparar" element={<Suspense fallback={cargando}><Comparar /></Suspense>} />
+                <Route path="informes/anual" element={<Suspense fallback={cargando}><ResumenAnual /></Suspense>} />
                 <Route path="movimientos" element={<Movimientos />} />
                 <Route path="movimientos/importar" element={<Suspense fallback={cargando}><Importar /></Suspense>} />
                 <Route path="movimientos/importaciones" element={<Importaciones />} />

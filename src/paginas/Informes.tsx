@@ -1,4 +1,4 @@
-import { ChartColumn, Check, ChevronRight, Repeat, Sheet, X } from 'lucide-react'
+import { ArrowLeftRight, CalendarRange, ChartColumn, Check, ChevronRight, Repeat, Sheet, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Bar, BarChart, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
@@ -22,6 +22,8 @@ import type { Movimiento } from '../lib/tipos'
 import { textoInforme } from '../lib/analizar'
 import { BotonClaude, HojaClaude } from '../componentes/HojaClaude'
 import { TarjetaDeuda } from '../componentes/TarjetaDeuda'
+import { SeccionAtipicos } from '../componentes/Atipicos'
+import { AhorroYFijo } from '../componentes/AhorroYFijo'
 import { avisosRecurrentes, detectarRecurrentes, resumenFijos } from '../lib/recurrentes'
 import { Baldosa } from '../componentes/Icono'
 
@@ -92,9 +94,14 @@ export function Informes() {
       <Encabezado
         titulo="Informes"
         accion={
-          <Link to="/analisis" className="boton-icono" aria-label="Evolución y cierre anual" title="Evolución y cierre anual">
-            <ChartColumn className="size-[22px]" strokeWidth={1.75} />
-          </Link>
+          <div className="flex gap-1">
+            <Link to="/informes/comparar" className="boton-icono" aria-label="Comparar periodos" title="Comparar periodos">
+              <ArrowLeftRight className="size-[22px]" strokeWidth={1.75} />
+            </Link>
+            <Link to="/analisis" className="boton-icono" aria-label="Evolución y cierre anual" title="Evolución y cierre anual">
+              <ChartColumn className="size-[22px]" strokeWidth={1.75} />
+            </Link>
+          </div>
         }
       />
       <div className="mb-3 grid grid-cols-[1fr_auto] gap-2">
@@ -109,6 +116,16 @@ export function Informes() {
       <div>
         <div className="space-y-4">
           <Totales informe={informe} onVista={(v) => ir({ vista: v })} />
+          {escala === 'anio' && (
+            <Link to={`/informes/anual?anio=${periodo.clave}`} className="lista fila min-h-12 active:bg-zinc-100 dark:active:bg-zinc-800">
+              <Baldosa glifo={CalendarRange} color="#5856D6" tamano="sm" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px]">Resumen del año {periodo.clave}</span>
+                <span className="block text-[12px] text-zinc-500">Lo ahorrado, mejores meses, deuda y capital, en PDF</span>
+              </span>
+              <ChevronRight className="size-4 shrink-0 text-zinc-400" />
+            </Link>
+          )}
           {/* Tres vistas en lugar de una pantalla muy larga (v0.33.0): solo se calcula y pinta la elegida */}
           <Segmentado
             etiqueta="Qué parte del informe ver"
@@ -124,6 +141,7 @@ export function Informes() {
           {ver === 'comercios' && (
             <>
               <SeccionComercios informe={informe} movimientos={informe.movimientos} />
+              {vista === 'gasto' && periodo.escala === 'mes' && <SeccionAtipicos mes={periodo.clave} />}
               {vista === 'gasto' && <SeccionHormiga informe={informe} hoy={hoy} />}
               {vista === 'gasto' && <TarjetaFijos />}
             </>
@@ -131,6 +149,7 @@ export function Informes() {
           {ver === 'evolucion' && (
             <>
               <Evolucion db={db} informe={informe} onPeriodo={(p) => (p.length === 7 && escala === 'anio' ? irAlMes(ir, p) : ir({ p }))} />
+              <AhorroYFijo hasta={periodo.escala === 'mes' ? periodo.clave : periodo.clave < hoy.slice(0, 4) ? `${periodo.clave}-12` : hoy.slice(0, 7)} />
               <SeccionCapital db={db} />
               <TarjetaDeuda className="" />
             </>
