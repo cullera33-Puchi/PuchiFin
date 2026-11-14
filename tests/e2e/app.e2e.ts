@@ -50,8 +50,16 @@ test('arranca, genera datos de prueba y muestra el Extracto', async ({ page }) =
   await page.getByRole('button', { name: 'Listo' }).tap()
   // Los avisos, agrupados
   await page.getByText('Cosas pendientes').tap()
-  await expect(page.getByRole('dialog', { name: 'Pendiente' })).toBeVisible()
-  await page.getByRole('button', { name: 'Listo' }).tap()
+  const pendiente = page.getByRole('dialog', { name: 'Pendiente' })
+  await expect(pendiente).toBeVisible()
+  // Los gastos fuera de lo normal son una fila más, que abre su hoja (v0.37.0)
+  await pendiente.getByRole('button', { name: /fuera de lo normal/ }).tap()
+  const atipicos = page.getByRole('dialog', { name: 'Fuera de lo normal' })
+  await expect(atipicos.getByText(/Lo habitual aquí|Primer gasto aquí/).first()).toBeVisible()
+  await atipicos.getByRole('button', { name: 'Listo' }).tap()
+  await expect(atipicos).toBeHidden()
+  // Ya no hay una fila propia encima: el aviso va dentro de «Cosas pendientes»
+  await expect(page.getByRole('button', { name: /^\d+ gastos? fuera de lo normal/ })).toHaveCount(0)
   // Modo discreto: el ojo de arriba oculta los importes en toda la app
   await page.getByRole('button', { name: 'Ocultar las cifras' }).first().tap()
   await expect(page.getByRole('region', { name: /^Resumen de / }).getByText('•••• €').first()).toBeVisible()
@@ -162,6 +170,32 @@ test('Informes, gastos fijos y PayPal se abren sin errores', async ({ page }) =>
   await expect(page.getByText(/al mes/).first()).toBeVisible()
   await page.goto('/movimientos/paypal')
   await expect(page.getByText(/agrupados por importe/)).toBeVisible()
+  expect(e).toEqual([])
+})
+
+test('importar varios Excel a la vez: se revisan seguidos, se puede saltar uno y el aviso de atípicos va en pendientes', async ({ page }) => {
+  const e = errores(page)
+  await page.goto('/movimientos/importar')
+  await page.locator('input[type="file"][accept*="xlsx"]').setInputFiles([
+    'tests/fixtures/BBVA cuenta principal (prueba).xlsx',
+    'tests/fixtures/BBVA cuenta 2 (prueba).xlsx',
+    'tests/fixtures/BBVA tarjeta (prueba).xlsx',
+  ])
+  await expect(page.getByText(/Fichero 1 de 3/)).toBeVisible()
+  await page.getByRole('button', { name: /^Importar \d+ movimientos$/ }).tap()
+  await expect(page.getByText(/movimientos importados/)).toBeVisible()
+  // Con ficheros por delante, lo primero es seguir; «Importar otro» no sale todavía
+  await expect(page.getByRole('button', { name: 'Importar otro' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Seguir con el siguiente (2 de 3)' }).tap()
+  await expect(page.getByText(/Fichero 2 de 3/)).toBeVisible()
+  // Se puede saltar uno
+  await page.getByRole('button', { name: 'Saltar', exact: true }).tap()
+  await expect(page.getByText(/Fichero 3 de 3/)).toBeVisible()
+  await expect(page.getByText('BBVA tarjeta de crédito')).toBeVisible()
+  await page.getByRole('button', { name: /^Importar \d+ movimientos$/ }).tap()
+  await expect(page.getByText(/movimientos importados/)).toBeVisible()
+  await expect(page.getByRole('button', { name: /Seguir con el siguiente/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Importar otro' })).toBeVisible()
   expect(e).toEqual([])
 })
 

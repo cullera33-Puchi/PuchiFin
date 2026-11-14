@@ -2,6 +2,14 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.37.0. Importar varios ficheros a la vez y atípicos en «Cosas pendientes» (14 de noviembre de 2026)
+
+Los dos retoques propuestos con el rediseño del presupuesto, pedidos por el usuario.
+
+- Importar varios Excel a la vez (`Importar`, `cola`): el selector admite varios ficheros (las dos cuentas y la tarjeta) y se revisan uno detrás de otro, cada uno con su pantalla de revisión y su importación. La revisión indica «Fichero 2 de 3» y permite «Saltar»; tras importar, el botón principal es «Seguir con el siguiente»; si un fichero no trae nada nuevo, el botón de abajo lleva al siguiente; si uno no se puede leer, se ofrece seguir con los que quedan. Cada fichero se compara con los datos ya actualizados por el anterior. Pegar o elegir otros ficheros empieza de nuevo.
+- Los gastos fuera de lo normal pasan a ser una fila de «Cosas pendientes» en el Extracto, que abre su hoja (`HojaAtipicos`, `resumenAtipicos`; `Pendiente` admite una acción además de un enlace). Se quita la fila propia que había encima.
+- Pruebas de navegador de los dos cambios.
+
 ## v0.36.0. Presupuesto rediseñado (14 de noviembre de 2026)
 
 Propuesta aprobada por el usuario, que no estaba conforme con cómo se veía el presupuesto.

@@ -15,6 +15,7 @@ import {
   Sparkles,
   Tag,
   Target,
+  TriangleAlert,
   Upload,
 } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
@@ -24,7 +25,8 @@ import { Encabezado } from '../componentes/Encabezado'
 import { HojaClaude } from '../componentes/HojaClaude'
 import { Baldosa } from '../componentes/Icono'
 import { Hoja, useInterfaz } from '../componentes/Interfaz'
-import { FilaAtipicos } from '../componentes/Atipicos'
+import { HojaAtipicos, resumenAtipicos } from '../componentes/Atipicos'
+import { gastosAtipicos } from '../lib/atipicos'
 import { FilasPatrimonio } from '../componentes/Patrimonio'
 import { opcionesMeses, TiraPeriodos } from '../componentes/TiraPeriodos'
 import { propuestasRecategorizacion } from '../datos/categorizar'
@@ -60,7 +62,9 @@ interface Pendiente {
   titulo: string
   detalle?: string
   cifra?: string
-  a: string
+  /** Pantalla a la que lleva o, si no, lo que abre (una hoja en el propio Extracto) */
+  a?: string
+  fn?: () => void
   glifo: typeof Tag
   color: string
 }
@@ -79,7 +83,11 @@ export function Extracto() {
   const recurrentes = useMemo(() => detectarRecurrentes(db), [db])
   const prevision = useMemo(() => preverCierre(db, mes, hoyIso(), recurrentes), [db, mes, recurrentes])
   const presupuestos = useMemo(() => consumoPresupuestos(db, mes, hoyIso(), recurrentes), [db, mes, recurrentes])
-  const pendientes = usePendientes(mes, e.sinCategoria, recurrentes, presupuestos.length > 0)
+  // Gastos fuera de lo normal: una fila más de «Cosas pendientes», que abre su hoja (v0.36.1)
+  const atipicos = useMemo(() => gastosAtipicos(db, mes), [db, mes])
+  const [verAtipicos, setVerAtipicos] = useState(false)
+  if (!atipicos.length && verAtipicos) setVerAtipicos(false)
+  const pendientes = usePendientes(mes, e.sinCategoria, recurrentes, presupuestos.length > 0, atipicos.length ? { ...resumenAtipicos(atipicos), abrir: () => setVerAtipicos(true) } : null)
   const [menu, setMenu] = useState(false)
   const [discreto, fijarDiscreto] = useDiscreto()
   const [claude, setClaude] = useState(false)
@@ -148,7 +156,6 @@ export function Extracto() {
       ) : (
         <div className="space-y-4">
           <TarjetaMes e={e} mes={mes} prevision={prevision} presupuestos={presupuestos} />
-          <FilaAtipicos mes={mes} />
           <Pendientes lista={pendientes} />
           <Categorias e={e} mes={mes} presupuestos={presupuestos} />
         </div>
@@ -184,6 +191,7 @@ export function Extracto() {
           ))}
         </ul>
       </Hoja>
+      <HojaAtipicos mes={mes} lista={atipicos} abierta={verAtipicos} onCerrar={() => setVerAtipicos(false)} />
       <HojaClaude
         abierta={claude}
         titulo="Analizar con Claude"
@@ -202,7 +210,13 @@ export function Extracto() {
  * Lo que está pendiente, de más a menos urgente: datos de prueba, subir movimientos, exportar, recibos,
  * cierre del mes, cuadre con el banco, mejoras, sin categoría y presupuesto sin definir.
  */
-function usePendientes(mes: string, sinCategoria: number, recurrentes: ReturnType<typeof detectarRecurrentes>, hayPresupuesto: boolean): Pendiente[] {
+function usePendientes(
+  mes: string,
+  sinCategoria: number,
+  recurrentes: ReturnType<typeof detectarRecurrentes>,
+  hayPresupuesto: boolean,
+  atipicos: { titulo: string; detalle: string; abrir: () => void } | null,
+): Pendiente[] {
   const db = useDatos()
   const movsMejora = useMemo(() => propuestasRecategorizacion(db).flatMap((p) => p.movimientos), [db])
   const liquidaciones = useMemo(() => cuadrarLiquidaciones(db), [db])
@@ -225,6 +239,7 @@ function usePendientes(mes: string, sinCategoria: number, recurrentes: ReturnTyp
   const exportacion = avisoExportacion(db)
   const lista: Pendiente[] = []
   if (prueba) lista.push({ clave: 'prueba', titulo: 'Datos de prueba', detalle: plural(prueba, 'movimiento inventado', 'movimientos inventados'), a: '/ajustes/herramientas/prueba', glifo: FlaskConical, color: '#FF9500' })
+  if (atipicos) lista.push({ clave: 'atipicos', titulo: atipicos.titulo, detalle: atipicos.detalle, fn: atipicos.abrir, glifo: TriangleAlert, color: '#FF9500' })
   if (importar)
     lista.push({
       clave: 'importar',
@@ -259,15 +274,32 @@ function usePendientes(mes: string, sinCategoria: number, recurrentes: ReturnTyp
 }
 
 function FilaPendiente({ p, onIr }: { p: Pendiente; onIr?: () => void }) {
-  return (
-    <Link to={p.a} className="fila min-h-12 active:bg-zinc-100 dark:active:bg-zinc-800" onClick={onIr}>
+  const contenido = (
+    <>
       <Baldosa glifo={p.glifo} color={p.color} tamano="sm" />
-      <span className="min-w-0 flex-1">
+      <span className="min-w-0 flex-1 text-left">
         <span className="block text-[15px]">{p.titulo}</span>
         {p.detalle && <span className="block truncate text-[12px] text-zinc-500">{p.detalle}</span>}
       </span>
       {p.cifra && <span className="text-[15px] text-zinc-500 tabular-nums">{p.cifra}</span>}
       <ChevronRight className="size-4 shrink-0 text-zinc-400" />
+    </>
+  )
+  if (!p.a)
+    return (
+      <button
+        className="fila min-h-12 w-full active:bg-zinc-100 dark:active:bg-zinc-800"
+        onClick={() => {
+          onIr?.()
+          p.fn?.()
+        }}
+      >
+        {contenido}
+      </button>
+    )
+  return (
+    <Link to={p.a} className="fila min-h-12 active:bg-zinc-100 dark:active:bg-zinc-800" onClick={onIr}>
+      {contenido}
     </Link>
   )
 }

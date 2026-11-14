@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.37.0",
+    "fecha": "2026-11-14",
+    "cambios": [
+      "Importar: elige varios Excel a la vez (las dos cuentas y la tarjeta) y revísalos seguidos.",
+      "Puedes saltar un fichero; si uno no trae nada nuevo, la app pasa al siguiente.",
+      "Extracto: los gastos fuera de lo normal van ahora dentro de «Cosas pendientes»."
+    ]
+  },
+  {
     "version": "0.36.0",
     "fecha": "2026-11-14",
     "cambios": [

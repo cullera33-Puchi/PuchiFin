@@ -52,6 +52,11 @@ export function Importar() {
   const [verRepetidos, setVerRepetidos] = useState(false)
   const [hecha, setHecha] = useState<{ id: string; nuevos: number; cuenta_id: string } | null>(null)
   const [guardando, setGuardando] = useState(false)
+  // Varios ficheros elegidos a la vez (v0.37.0): se revisan uno detrás de otro
+  const [cola, setCola] = useState<{ pendientes: File[]; total: number }>({ pendientes: [], total: 0 })
+  const quedan = cola.pendientes.length
+  /** «2 de 3»: el fichero que se está viendo */
+  const posicion = cola.total > 1 ? `${cola.total - quedan} de ${cola.total}` : ''
 
   // La propuesta se calcula con los datos del momento de leer el fichero o de cambiar de cuenta
   const [base, setBase] = useState(db)
@@ -88,9 +93,18 @@ export function Importar() {
     setDesactivadas({ para: propuesta, ids: typeof f === 'function' ? f(rechazadas) : f })
 
   const leer = (f: File) => cargar(async () => leerFichero(new Uint8Array(await f.arrayBuffer())))
+  const sinCola = () => setCola({ pendientes: [], total: 0 })
+  /** Pasa al siguiente fichero de los elegidos; el que se estaba viendo se deja */
+  const siguiente = () => {
+    const [f, ...resto] = cola.pendientes
+    if (!f) return
+    setCola({ ...cola, pendientes: resto })
+    return leer(f)
+  }
 
   // Pegar: lo copiado en BBVA (fichero, tabla de la web o texto)
   const pegarDelPortapapeles = async () => {
+    sinCola()
     try {
       if (!navigator.clipboard?.read) throw new Error('sin lectura')
       const items = await navigator.clipboard.read()
@@ -201,11 +215,15 @@ export function Importar() {
         ref={entrada}
         type="file"
         accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+        multiple
         className="hidden"
         onChange={(e) => {
-          const f = e.target.files?.[0]
+          const elegidos = [...(e.target.files ?? [])]
           e.target.value = ''
-          if (f) leer(f)
+          if (!elegidos.length) return
+          setCola({ pendientes: elegidos.slice(1), total: elegidos.length })
+          if (elegidos.length > 1) registrar('info', 'Varios ficheros elegidos para importar', { ficheros: elegidos.length })
+          leer(elegidos[0])
         }}
       />
 
@@ -237,18 +255,25 @@ export function Importar() {
               ))}
             </Link>
           )}
+          {quedan > 0 && (
+            <button className="boton-primario w-full" onClick={siguiente}>
+              Seguir con el siguiente ({cola.total - quedan + 1} de {cola.total})
+            </button>
+          )}
           {pendientesHecha > 0 && (
-            <button className="boton-primario w-full" onClick={() => navegar('/movimientos/categorizar')}>
+            <button className={quedan ? 'boton-secundario w-full' : 'boton-primario w-full'} onClick={() => navegar('/movimientos/categorizar')}>
               Categorizar {plural(pendientesHecha, 'pendiente', 'pendientes')}
             </button>
           )}
           <div className="flex flex-wrap justify-center gap-2">
-            <button className={pendientesHecha > 0 ? 'boton-secundario' : 'boton-primario'} onClick={() => navegar('/movimientos')}>
+            <button className={pendientesHecha > 0 || quedan ? 'boton-secundario' : 'boton-primario'} onClick={() => navegar('/movimientos')}>
               Ver movimientos
             </button>
-            <button className="boton-secundario" onClick={() => entrada.current?.click()}>
-              Importar otro
-            </button>
+            {!quedan && (
+              <button className="boton-secundario" onClick={() => entrada.current?.click()}>
+                Importar otro
+              </button>
+            )}
           </div>
           <button className="boton-texto text-red-600 dark:text-red-500" onClick={deshacer}>
             Deshacer esta importación
@@ -256,15 +281,31 @@ export function Importar() {
         </div>
       )}
 
-      {!lectura && !hecha && (
+      {/* Un fichero de los elegidos no se pudo leer o se dejó: se sigue con los que quedan */}
+      {!lectura && !hecha && quedan > 0 && (
+        <div className="tarjeta mb-4 space-y-3 text-center">
+          <p className="text-[15px]">{quedan === 1 ? 'Queda un fichero de los que elegiste.' : `Quedan ${quedan} ficheros de los que elegiste.`}</p>
+          <div className="flex justify-center gap-2">
+            <button className="boton-primario" onClick={siguiente}>
+              Seguir con el siguiente ({cola.total - quedan + 1} de {cola.total})
+            </button>
+            <button className="boton-secundario" onClick={sinCola}>
+              Dejarlo
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!lectura && !hecha && !quedan && (
         <div className="tarjeta space-y-4 text-center">
           <FileSpreadsheet className="mx-auto size-12 text-[#34C759]" strokeWidth={1.5} />
           <p className="text-[15px]">
-            Descarga el Excel de movimientos en BBVA y elígelo desde Archivos, o cópialo y pégalo aquí. La app reconoce si es de una cuenta o de la tarjeta.
+            Descarga los Excel de movimientos en BBVA y elígelos desde Archivos, o copia uno y pégalo aquí. Puedes elegir varios a la vez (las dos cuentas y la tarjeta): la app
+            reconoce de qué es cada uno y los revisas seguidos.
           </p>
           <div className="grid grid-cols-2 gap-2">
             <button className="boton-primario" onClick={() => entrada.current?.click()}>
-              <FileSpreadsheet className="size-4" strokeWidth={2} /> Elegir fichero
+              <FileSpreadsheet className="size-4" strokeWidth={2} /> Elegir ficheros
             </button>
             <button className="boton-secundario" onClick={pegarDelPortapapeles}>
               <ClipboardPaste className="size-4" strokeWidth={2} /> Pegar
@@ -328,7 +369,7 @@ export function Importar() {
               </Link>
             )}
             <button className="boton-secundario" onClick={() => { setLectura(null); setPegando(false) }}>
-              Cancelar
+              {quedan ? 'Dejar este fichero' : 'Cancelar'}
             </button>
           </div>
         </div>
@@ -342,11 +383,12 @@ export function Importar() {
               <div className="flex-1">
                 <p className="font-semibold">{lectura.plantilla.nombre}</p>
                 <p className="text-xs text-zinc-500">
+                  {posicion ? `Fichero ${posicion}. ` : ''}
                   {propuesta.fecha_desde ? `Del ${formatearFecha(propuesta.fecha_desde)} al ${formatearFecha(propuesta.fecha_hasta!)}` : 'Sin movimientos nuevos'}
                 </p>
               </div>
-              <button className="boton-texto" onClick={() => { setLectura(null); setPegando(false) }}>
-                Cambiar
+              <button className="boton-texto" onClick={() => (quedan ? siguiente() : (setLectura(null), setPegando(false)))}>
+                {quedan ? 'Saltar' : 'Cambiar'}
               </button>
             </div>
             <label className="block">
@@ -537,13 +579,20 @@ export function Importar() {
           </Bloque>
 
           <Flotante>
-            <button
-              className="boton-primario w-full py-3 text-[17px] shadow-lg"
-              disabled={guardando || !propuesta.nuevos.length || propuesta.problemas.length > 0}
-              onClick={importar}
-            >
-              {guardando ? 'Importando…' : propuesta.nuevos.length ? `Importar ${plural(propuesta.nuevos.length, 'movimiento', 'movimientos')}` : 'Nada nuevo que importar'}
-            </button>
+            {!propuesta.nuevos.length && quedan > 0 ? (
+              // Todo estaba ya importado y quedan ficheros: el botón lleva al siguiente
+              <button className="boton-primario w-full py-3 text-[17px] shadow-lg" onClick={siguiente}>
+                Nada nuevo: seguir con el siguiente
+              </button>
+            ) : (
+              <button
+                className="boton-primario w-full py-3 text-[17px] shadow-lg"
+                disabled={guardando || !propuesta.nuevos.length || propuesta.problemas.length > 0}
+                onClick={importar}
+              >
+                {guardando ? 'Importando…' : propuesta.nuevos.length ? `Importar ${plural(propuesta.nuevos.length, 'movimiento', 'movimientos')}` : 'Nada nuevo que importar'}
+              </button>
+            )}
           </Flotante>
         </div>
       )}
