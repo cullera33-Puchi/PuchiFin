@@ -6,6 +6,7 @@ import { ProveedorInterfaz } from './componentes/Interfaz'
 import { ProveedorDatos } from './datos/ProveedorDatos'
 import { Ajustes, PaginaAjuste } from './paginas/ajustes/Ajustes'
 import { Categorias } from './paginas/ajustes/Categorias'
+import { AjustesClaude } from './paginas/ajustes/Claude'
 import { Cuentas } from './paginas/ajustes/Cuentas'
 import { General } from './paginas/ajustes/General'
 import { ApartadoHerramientas, ListaHerramientas } from './paginas/ajustes/Herramientas'
@@ -68,6 +69,7 @@ export function App() {
                 <Route path="ajustes/cuentas" element={<PaginaAjuste titulo="Cuentas"><Cuentas /></PaginaAjuste>} />
                 <Route path="ajustes/categorias" element={<PaginaAjuste titulo="Categorías"><Categorias /></PaginaAjuste>} />
                 <Route path="ajustes/general" element={<PaginaAjuste titulo="General"><General /></PaginaAjuste>} />
+                <Route path="ajustes/claude" element={<PaginaAjuste titulo="Analizar con Claude"><AjustesClaude /></PaginaAjuste>} />
                 <Route path="ajustes/herramientas" element={<PaginaAjuste titulo="Herramientas"><ListaHerramientas /></PaginaAjuste>} />
                 <Route path="ajustes/herramientas/:apartado" element={<ApartadoHerramientas />} />
                 <Route path="*" element={<Navigate to="/" replace />} />

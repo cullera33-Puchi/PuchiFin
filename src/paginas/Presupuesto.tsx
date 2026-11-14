@@ -7,6 +7,7 @@ import { textoPresupuesto } from '../lib/analizar'
 import { Baldosa } from '../componentes/Icono'
 import { guardarExcepcionPresupuesto, guardarPresupuesto } from '../datos/operaciones'
 import { intentar, useDatos } from '../datos/ProveedorDatos'
+import { movimientosDelPeriodo } from '../lib/csvClaude'
 import { hoyIso, mesLargo, sumarMeses } from '../lib/fechas'
 import { formatearRedondo, leerImporteUsuario, plural } from '../lib/formato'
 import { presupuestoAnual, sugerirPresupuestos } from '../lib/presupuesto'
@@ -154,6 +155,7 @@ export function Presupuesto() {
         texto={claude ? textoPresupuesto(db, mes, hoyIso()) : ''}
         archivo="puchifin-presupuesto.txt"
         registro="Analizar presupuesto"
+        detalle={claude ? { movimientos: movimientosDelPeriodo(db, mes), archivo: `puchifin-movimientos-${mes}.csv` } : undefined}
         onCerrar={() => setClaude(false)}
       />
     </>

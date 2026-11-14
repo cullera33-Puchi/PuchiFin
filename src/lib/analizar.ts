@@ -8,6 +8,7 @@ import { calcularExtracto } from './extracto'
 import { mesLargo } from './fechas'
 import { enmascararIdentificativos } from './identificativos'
 import { calcularInforme, type PeriodoInforme } from './informes'
+import { instrucciones, sinConceptos } from './plantillas'
 import type { Plan, Simulacion } from './plan'
 import { consumoPresupuestos, presupuestoAnual } from './presupuesto'
 import type { BaseDatos } from './tipos'
@@ -25,9 +26,7 @@ export function textoExtracto(db: BaseDatos, mes: string, hoy: string): string {
   const lineas = [
     INTRO,
     `Analiza mi mes de ${mesLargo(`${mes}-01`).toLowerCase()}${e.enCurso ? `, en curso (datos hasta el día ${e.diaCorte})` : ''}:`,
-    '1. Qué categorías se desvían de mi media y por qué puede ser.',
-    '2. Si mi tasa de ahorro es razonable y qué la mejoraría.',
-    '3. Tres medidas concretas para el mes que viene, con el ahorro estimado de cada una.',
+    instrucciones(db, 'mes'),
     '',
     `Ingresos ${eur(t.ingresos)}, gastos ${eur(t.gastos)}, ahorro ${eur(t.ahorro)}${t.tasaAhorro !== null ? ` (tasa de ahorro ${pct(t.tasaAhorro)})` : ''}.`,
   ]
@@ -47,13 +46,12 @@ export function textoInforme(db: BaseDatos, periodo: PeriodoInforme, hoy: string
   const inf = calcularInforme(db, periodo, 'gasto', undefined, hoy)
   const nombre = periodo.escala === 'mes' ? mesLargo(`${periodo.clave}-01`).toLowerCase() : `el año ${periodo.clave}`
   const anterior = periodo.escala === 'mes' ? mesLargo(`${inf.anterior.clave}-01`).toLowerCase() : `el año ${inf.anterior.clave}`
-  const comercios = rankingComercios(inf.movimientos, -1, 'importe', 15)
+  // Sin conceptos, no salen los comercios
+  const comercios = sinConceptos(db) ? [] : rankingComercios(inf.movimientos, -1, 'importe', 15)
   const lineas = [
     INTRO,
     `Analiza mis gastos de ${nombre}${inf.enCurso ? ' (en curso; la comparativa usa los mismos días)' : ''} frente a ${anterior}:`,
-    '1. Dónde ha subido o bajado el gasto y qué lo explica.',
-    '2. Comercios en los que gasto más de lo razonable.',
-    '3. Qué recortar, con el ahorro anual estimado de cada medida.',
+    instrucciones(db, 'informe'),
     '',
     `Ingresos ${eur(inf.totales.ingresos)} (antes ${eur(inf.totalesAnteriores.ingresos)}), gastos ${eur(inf.totales.gastos)} (antes ${eur(inf.totalesAnteriores.gastos)}).`,
     '',
@@ -74,9 +72,7 @@ export function textoPresupuesto(db: BaseDatos, mes: string, hoy: string): strin
   const res = [
     INTRO,
     `Revisa mi presupuesto mensual por categoría (${mesLargo(`${mes}-01`).toLowerCase()}):`,
-    '1. Qué categorías tienen un presupuesto poco realista, por arriba o por abajo, frente a lo que gasto.',
-    '2. Cómo repartirías el presupuesto para ahorrar más sin que sea imposible de cumplir.',
-    '3. En qué categorías me desvío de forma repetida y qué hacer.',
+    instrucciones(db, 'presupuesto'),
     '',
     'Este mes (presupuesto, gastado y proyección a fin de mes):',
     ...lineas.map((l) => `- ${l.categoria.nombre}: presupuesto ${eur(l.presupuesto)}, gastado ${eur(l.gastado)}${l.proyeccion !== null ? `, al ritmo actual ${eur(l.proyeccion)}` : ''}`),
@@ -95,9 +91,7 @@ export function textoPlan(db: BaseDatos, plan: Plan, sim: Simulacion | null, sim
   const lineas = [
     INTRO,
     'Tengo una deuda familiar sin intereses que pago cada verano con lo que tengo ahorrado por encima de un colchón. Revisa mi plan:',
-    '1. Si la proyección es realista con mi ahorro mensual.',
-    '2. Cómo adelantar el año en que queda saldada sin quedarme sin colchón.',
-    '3. Qué riesgos ves (gastos anuales, imprevistos) y cómo cubrirlos.',
+    instrucciones(db, 'plan'),
     '',
     `Deuda pendiente: ${eur(plan.deudaPendiente)} (ya pagado ${eur(plan.pagado)}).`,
     `Regla: en ${MES(c.mes_referencia)} (ventana de ${MES(c.ventana_mes_inicio)} a ${MES(c.ventana_mes_fin)}) pago todo lo que supere un colchón de ${eur(c.colchon)} en mi cuenta de ahorro.`,

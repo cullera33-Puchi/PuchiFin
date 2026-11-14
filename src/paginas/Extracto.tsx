@@ -35,6 +35,7 @@ import { avisoExportacion, avisoImportacion } from '../lib/avisos'
 import { mesPorCerrar, pasosCierre } from '../lib/cierre'
 import { ultimaExportacion } from '../lib/copias'
 import { calcularExtracto, categoriaQueMasSube, diferenciaRelevante, mesDe, type Extracto as DatosExtracto } from '../lib/extracto'
+import { movimientosDelPeriodo } from '../lib/csvClaude'
 import { hoyIso, mesLargo } from '../lib/fechas'
 import { formatearFecha, formatearRedondo, plural } from '../lib/formato'
 import { mesEfectivo } from '../lib/imputacion'
@@ -190,6 +191,7 @@ export function Extracto() {
         texto={claude ? textoExtracto(db, mes, hoyIso()) : ''}
         archivo={`puchifin-extracto-${mes}.txt`}
         registro="Analizar extracto"
+        detalle={claude ? { movimientos: movimientosDelPeriodo(db, mes), archivo: `puchifin-movimientos-${mes}.csv` } : undefined}
         onCerrar={() => setClaude(false)}
       />
     </>

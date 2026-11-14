@@ -100,6 +100,11 @@ export function migrar(d: Partial<BaseDatos>): BaseDatos {
   if (desde < 7) datos.categorias = actualizarCatalogo(datos.categorias)
   // Esquema 5 (v0.8.0): versión de la lógica aplicada a lo pendiente (null: se aplica al arrancar)
   if (desde < 5) datos.ajustes = { ...datos.ajustes, version_logica: datos.ajustes.version_logica ?? null }
+  // Esquema 14 (v0.35.0): plantillas de Claude y envío sin conceptos (sin dato, las de la app y con conceptos)
+  if (desde < 14) {
+    const c = (datos.ajustes as Partial<typeof datos.ajustes>).claude
+    datos.ajustes = { ...datos.ajustes, claude: { plantillas: { ...(c?.plantillas ?? {}) }, sin_conceptos: c?.sin_conceptos ?? false } }
+  }
   // Esquema 13 (v0.34.0): tipo_manual opcional en el movimiento (sin dato, el tipo no lo puso el usuario); nada que adaptar
   // Esquema 12 (v0.25.0): bonus anual en cada nómina (sin dato, sin bonus)
   if (desde < 12) datos.ajustes = { ...datos.ajustes, nominas: (datos.ajustes.nominas ?? []).map((n) => ({ ...n, bonus: n.bonus ?? null })) }

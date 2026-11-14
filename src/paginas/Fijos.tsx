@@ -175,6 +175,12 @@ export function Fijos() {
 function HojaOptimizar({ abierta, recurrentes, onCerrar }: { abierta: boolean; recurrentes: Recurrente[]; onCerrar: () => void }) {
   const db = useDatos()
   const texto = useMemo(() => (abierta ? textoOptimizar(db, recurrentes, hoyIso()) : ''), [abierta, db, recurrentes])
+  // Detalle: los cargos de los fijos activos
+  const detalle = useMemo(() => {
+    if (!abierta) return undefined
+    const ids = new Set(recurrentes.filter((r) => r.activo).flatMap((r) => r.ids))
+    return { movimientos: db.movimientos.filter((m) => ids.has(m.id)), archivo: 'puchifin-gastos-fijos.csv' }
+  }, [abierta, db, recurrentes])
   return (
     <HojaClaude
       abierta={abierta}
@@ -183,6 +189,7 @@ function HojaOptimizar({ abierta, recurrentes, onCerrar }: { abierta: boolean; r
       texto={texto}
       archivo="puchifin-gastos-fijos.txt"
       registro="Optimizar con Claude"
+      detalle={detalle}
       onCerrar={onCerrar}
     />
   )

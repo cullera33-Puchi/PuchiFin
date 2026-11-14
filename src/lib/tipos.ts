@@ -161,6 +161,18 @@ export interface Ajustes {
   version_logica: string | null
   /** Nóminas previstas (esquema 11): la del usuario y otras para simular; netas, lo que llega al banco */
   nominas: Nomina[]
+  /** Analizar con Claude (esquema 14): plantillas cambiadas por el usuario y envío sin conceptos */
+  claude: AjustesClaude
+}
+
+/** Vistas con «Analizar con Claude» y su plantilla de instrucciones */
+export type ClavePlantilla = 'mes' | 'informe' | 'presupuesto' | 'recurrentes' | 'plan'
+
+export interface AjustesClaude {
+  /** Solo las que el usuario ha cambiado; las demás usan la de la app */
+  plantillas: Partial<Record<ClavePlantilla, string>>
+  /** Sin conceptos: no salen comercios, solo categorías e importes */
+  sin_conceptos: boolean
 }
 
 export interface PagaExtra {
@@ -184,7 +196,7 @@ export interface Nomina {
   bonus: PagaExtra | null
 }
 
-export const VERSION_ESQUEMA = 13
+export const VERSION_ESQUEMA = 14
 
 export interface BaseDatos {
   esquema: number

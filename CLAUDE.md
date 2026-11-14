@@ -137,6 +137,7 @@ Ordenada por esfuerzo, de menos a más, con prioridad para la usabilidad y el re
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.35.0 (14/11/2026): exportación a Claude completa (apartado 11), pedida por el usuario: detalle en CSV por la hoja de compartir (`src/lib/csvClaude.ts`, `detalle` en `HojaClaude`), plantillas editables por vista (`src/lib/plantillas.ts`, `/ajustes/claude`) y envío sin comercios. Esquema 14 (`ajustes.claude`). El resto de pendientes (estacionalidad, fase 6, validar fases 2 a 4 con datos reales y los datos que faltan por confirmar) queda en segundo plano por decisión del usuario.
 - v0.34.1 (14/11/2026): plantilla de la tarjeta con su Excel real: población recortada separada del comercio (`partirAnchoFijo` con país 0) y deduplicación de lo que llega primero sin liquidar y después liquidado. Publicada el 14/11/2026 a petición del usuario.
 - v0.34.0 (14/11/2026): reporting del análisis: gastos fuera de lo normal (`src/lib/atipicos.ts`), ahorro y gasto fijo mes a mes, comparar periodos (`/informes/comparar`) y resumen del año con PDF (`/informes/anual`); más cálculos guardados por versión de los datos. Queda del análisis la estacionalidad (R6), que el usuario deja para el final.
   - Revisión general del código pedida por el usuario: unos 30 hallazgos de tres revisiones independientes, todos corregidos (detalle en `CHANGELOG.md`). Esquema 13: `tipo_manual` en el movimiento, que protege el tipo puesto a mano de las reglas (`esPendiente` y el emparejamiento de traspasos lo respetan).
@@ -507,8 +508,8 @@ Sin coste: la app no usa la API de Anthropic. Abre Claude con los datos ya prepa
 - **Botón Analizar con Claude** en el extracto mensual, en cada categoría, en presupuestos, en el plan de pagos y en la vista anual.
 - **Resumen por enlace:** abre claude.ai con el prompt ya escrito y el resumen del periodo (totales por categoría, presupuesto y comparativa con la media). Comprobar que el prellenado por enlace sigue disponible. La longitud del enlace limita el volumen, así que no lleva el detalle de movimientos.
 - **Detalle completo:** genera un CSV con los movimientos del periodo y lo envía a la app de Claude con la hoja de compartir de iOS (Web Share API). En escritorio, descarga el CSV y copia el prompt al portapapeles.
-- **Plantillas de prompt** editables en ajustes: análisis del mes, desviaciones de presupuesto, gastos recurrentes y suscripciones, comparativa interanual, plan de pagos.
-- **Datos que salen:** solo los del periodo elegido, ya anonimizados. Opción en ajustes para quitar los conceptos y enviar solo categorías e importes.
+- **Plantillas de prompt** editables en ajustes: análisis del mes, desviaciones de presupuesto, gastos recurrentes y suscripciones, comparativa con el periodo anterior (interanual en la escala de año), plan de pagos (v0.35.0).
+- **Datos que salen:** solo los del periodo elegido, ya anonimizados. Opción en ajustes para quitar los conceptos y enviar solo categorías e importes (v0.35.0). El CSV del detalle (v0.35.0) no lleva notas ni saldos.
 
 ## 12. Experiencia en el móvil (escritorio en pausa)
 

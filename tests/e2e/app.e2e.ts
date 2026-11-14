@@ -263,7 +263,33 @@ test('reporting: fuera de lo normal, comparar periodos y resumen del año', asyn
   expect(e).toEqual([])
 })
 
-for (const esquema of [3, 5, 7, 8, 9, 10, 11, 12]) {
+test('Analizar con Claude: plantilla propia, envío sin comercios y detalle en CSV', async ({ page }) => {
+  const e = errores(page)
+  await conDatosDePrueba(page)
+  await page.goto('/ajustes')
+  await page.getByRole('link', { name: /Analizar con Claude/ }).tap()
+  await page.getByRole('button', { name: /Análisis del mes/ }).tap()
+  const campo = page.getByLabel('Plantilla: Análisis del mes')
+  await campo.fill('1. Dime solo en qué categoría gasto más de la cuenta.')
+  await page.getByRole('button', { name: 'Guardar', exact: true }).tap()
+  await expect(page.getByText('Análisis del mes: guardada')).toBeVisible()
+  await expect(page.getByText('Cambiada')).toBeVisible()
+  await page.getByRole('switch', { name: 'Enviar sin comercios' }).tap()
+  await expect(page.getByRole('switch', { name: 'Enviar sin comercios' })).toHaveAttribute('aria-checked', 'true')
+  // El aviso sale cuando ya está guardado en el dispositivo
+  await expect(page.getByText('Se enviará sin comercios')).toBeVisible()
+  // El Extracto usa la plantilla propia y ofrece el detalle en CSV
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Más opciones del extracto' }).tap()
+  await page.getByRole('button', { name: 'Analizar con Claude' }).tap()
+  await expect(page.getByText(/Dime solo en qué categoría gasto más/)).toBeVisible()
+  await expect(page.getByText(/Solo salen categorías e importes, sin comercios/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Enviar con el detalle' })).toBeVisible()
+  await expect(page.getByText(/Añade un CSV con \d+ movimientos \(fecha, cuenta, categoría/)).toBeVisible()
+  expect(e).toEqual([])
+})
+
+for (const esquema of [3, 5, 7, 8, 9, 10, 11, 12, 13]) {
   test(`importa un archivo del esquema ${esquema} y lo enseña igual`, async ({ page }) => {
     const e = errores(page)
     await page.goto('/ajustes/herramientas/archivo')

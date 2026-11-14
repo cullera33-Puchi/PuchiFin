@@ -8,6 +8,7 @@ import { opcionesAnios, opcionesMeses, TiraPeriodos } from '../componentes/TiraP
 import { Hoja, Segmentado, useInterfaz } from '../componentes/Interfaz'
 import { DetalleMovimiento } from '../componentes/movimientos'
 import { useDatos } from '../datos/ProveedorDatos'
+import { movimientosDelPeriodo } from '../lib/csvClaude'
 import { diaLargo, hoyIso, MESES, mesLargo } from '../lib/fechas'
 import { formatearRedondo, plural } from '../lib/formato'
 import { calcularInforme, moverPeriodo, periodoDeFecha, porcionesGrafico, type Escala, type Informe, type PeriodoInforme, type Vista } from '../lib/informes'
@@ -164,6 +165,7 @@ export function Informes() {
         texto={claude ? textoInforme(db, periodo, hoy) : ''}
         archivo={`puchifin-informe-${periodo.clave}.txt`}
         registro="Analizar informe"
+        detalle={claude ? { movimientos: movimientosDelPeriodo(db, periodo.clave), archivo: `puchifin-movimientos-${periodo.clave}.csv` } : undefined}
         onCerrar={() => setClaude(false)}
       />
     </>

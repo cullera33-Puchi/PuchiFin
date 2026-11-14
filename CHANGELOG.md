@@ -2,6 +2,15 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.35.0. Exportación a Claude completa (14 de noviembre de 2026)
+
+Lo que faltaba del apartado 11, pedido por el usuario.
+
+- Detalle completo (`src/lib/csvClaude.ts`): «Enviar con el detalle» en la hoja de Analizar con Claude manda un CSV con los movimientos de la vista (fecha, mes en que cuenta, cuenta, concepto, categoría, subcategoría, tipo e importe) junto con el texto, por la hoja de compartir; el texto se copia antes por si la app de destino no lo recoge. Sin hoja de compartir, descarga el CSV. Sin notas ni saldos; cualquier número identificativo se vuelve a enmascarar. Extracto y Presupuesto, el mes; Informes, el mes o el año; Plan de pagos, los doce meses completos anteriores; Gastos fijos, los cargos de los fijos activos.
+- Plantillas editables (`src/lib/plantillas.ts`, Ajustes, Analizar con Claude, `/ajustes/claude`): análisis del mes, comparativa con el periodo anterior, desviaciones de presupuesto, gastos recurrentes y suscripciones, y plan de pagos. Solo se guarda lo que cambia el usuario; vacía o igual que la de la app, vuelve a la de la app. La cabecera con el periodo y los datos los pone siempre la app. Hasta 2.000 caracteres y sin datos identificativos (`guardarPlantillaClaude`, también en `comprobarBaseDatos`).
+- Enviar sin comercios (`fijarSinConceptos`): el texto no lleva los comercios (informes, gastos hormiga) y los fijos salen por su categoría; el CSV va sin la columna Concepto.
+- Esquema 14: `ajustes.claude` (`plantillas` y `sin_conceptos`), con su paso en `migrar()` y archivo de prueba del esquema 13. General conserva este ajuste al guardar.
+
 ## v0.34.1. Excel real de la tarjeta de crédito (14 de noviembre de 2026)
 
 Formato confirmado con un Excel real del usuario (no se guarda en el repositorio): «Informe BBVA» con la cabecera en la fila 5 y las columnas Fecha, Concepto, Movimiento, Importe y Divisa. Sin saldo, compras en negativo, Movimiento vacío o con la categoría de BBVA.

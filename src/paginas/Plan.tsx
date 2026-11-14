@@ -12,6 +12,7 @@ import { SelectorCategoria } from '../componentes/movimientos'
 import { guardarCompromiso } from '../datos/operaciones'
 import { useDatos } from '../datos/ProveedorDatos'
 import { textoPlan } from '../lib/analizar'
+import { movimientosUltimoAno } from '../lib/csvClaude'
 import { hoyIso, MESES } from '../lib/fechas'
 import { formatearFecha, formatearRedondo, leerImporteUsuario } from '../lib/formato'
 import { useSimulacion } from '../componentes/simulacion'
@@ -89,6 +90,7 @@ export function Plan() {
           texto={claude ? textoPlan(db, r.plan, sim, simulado) : ''}
           archivo="puchifin-plan-de-pagos.txt"
           registro="Analizar plan de pagos"
+          detalle={claude ? { movimientos: movimientosUltimoAno(db, hoyIso()), archivo: 'puchifin-movimientos-ultimo-ano.csv' } : undefined}
           onCerrar={() => setClaude(false)}
         />
       )}

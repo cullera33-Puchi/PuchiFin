@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.35.0",
+    "fecha": "2026-11-14",
+    "cambios": [
+      "Analizar con Claude: «Enviar con el detalle» añade un CSV con los movimientos del periodo.",
+      "Ajustes, Analizar con Claude: cambia lo que se le pide a Claude en cada vista.",
+      "Opción de enviar sin comercios: Claude recibe solo categorías e importes."
+    ]
+  },
+  {
     "version": "0.34.1",
     "fecha": "2026-11-14",
     "cambios": [

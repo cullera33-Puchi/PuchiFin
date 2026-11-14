@@ -6,11 +6,13 @@
  */
 import { reglasPredeterminadas } from '../importacion/reglas'
 import { NOMBRE_TIPO, detectarIdentificativos, validarAlias } from '../lib/identificativos'
+import { MAX_PLANTILLA, PLANTILLAS } from '../lib/plantillas'
 import {
   VERSION_ESQUEMA,
   type Ajustes,
   type BaseDatos,
   type Categoria,
+  type ClavePlantilla,
   type Cuenta,
   type Naturaleza,
   type PagaExtra,
@@ -83,6 +85,7 @@ export const AJUSTES_POR_DEFECTO: Ajustes = {
   dias_fin_de_mes: 5,
   version_logica: null,
   nominas: [],
+  claude: { plantillas: {}, sin_conceptos: false },
 }
 
 /** Primer arranque: ajustes, las cuatro cuentas por alias, el catálogo y la deuda familiar */
@@ -446,6 +449,28 @@ export function guardarAjustes(db: BaseDatos, cambios: Partial<Ajustes>): BaseDa
   return { ...db, ajustes: a }
 }
 
+/**
+ * Cambia la plantilla de «Analizar con Claude» de una vista. Vacía o igual que la de la app: se vuelve a
+ * usar la de la app. Sin datos identificativos, que saldrían de la app al enviarla
+ */
+export function guardarPlantillaClaude(db: BaseDatos, clave: ClavePlantilla, texto: string | null): BaseDatos {
+  if (!PLANTILLAS[clave]) throw new ErrorDatos('Plantilla desconocida')
+  const t = (texto ?? '').replace(/\r\n/g, '\n').trim()
+  if (t.length > MAX_PLANTILLA) throw new ErrorDatos(`La plantilla admite un máximo de ${MAX_PLANTILLA} caracteres`)
+  exigirSinIdentificativos('Plantilla', t)
+  const actual = db.ajustes.claude ?? { plantillas: {}, sin_conceptos: false }
+  const plantillas = { ...actual.plantillas }
+  if (!t || t === PLANTILLAS[clave].porDefecto) delete plantillas[clave]
+  else plantillas[clave] = t
+  return { ...db, ajustes: { ...db.ajustes, claude: { ...actual, plantillas } } }
+}
+
+/** Enviar a Claude sin conceptos (solo categorías e importes) o con ellos */
+export function fijarSinConceptos(db: BaseDatos, sin: boolean): BaseDatos {
+  const actual = db.ajustes.claude ?? { plantillas: {}, sin_conceptos: false }
+  return { ...db, ajustes: { ...db.ajustes, claude: { ...actual, sin_conceptos: sin } } }
+}
+
 // ---------------------------------------------------------------------------
 // Importaciones y datos de prueba
 // ---------------------------------------------------------------------------
@@ -632,6 +657,7 @@ export function comprobarBaseDatos(db: BaseDatos): string[] {
   })
   db.compromisos.forEach((c) => texto('Compromiso', c.nombre))
   db.eventos_previstos.forEach((e) => texto(`Evento previsto del ${e.fecha}`, e.concepto))
+  Object.values(db.ajustes.claude?.plantillas ?? {}).forEach((t) => texto('Plantilla de Claude', t))
   db.ajustes.alias_terceros.forEach((a) => {
     texto('Alias de terceros', a.alias)
     a.patrones.forEach((p) => texto('Alias de terceros', p))

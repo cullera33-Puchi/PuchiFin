@@ -1,4 +1,4 @@
-import { Briefcase, CalendarClock, ChevronRight, HandCoins, Landmark, SlidersHorizontal, Tags, Target, Wand2, Wrench } from 'lucide-react'
+import { Briefcase, CalendarClock, ChevronRight, HandCoins, Landmark, SlidersHorizontal, Sparkles, Tags, Target, Wand2, Wrench } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { BarraNavegacion, Encabezado } from '../../componentes/Encabezado'
@@ -48,6 +48,7 @@ export function Ajustes() {
       titulo: 'App',
       opciones: [
         { a: '/ajustes/general', texto: 'General', glifo: SlidersHorizontal, color: '#8E8E93' },
+        { a: '/ajustes/claude', texto: 'Analizar con Claude', glifo: Sparkles, color: '#FF9500', detalle: db.ajustes.claude?.sin_conceptos ? 'Sin comercios' : undefined },
         { a: '/ajustes/herramientas', texto: 'Copias, archivo y herramientas', glifo: Wrench, color: '#8E8E93' },
       ],
     },
