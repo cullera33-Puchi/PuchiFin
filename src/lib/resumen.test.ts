@@ -217,11 +217,20 @@ describe('periodo en curso', () => {
   })
 
   it('el resumen en curso no cuenta lo posterior del mes anterior ni las semanas futuras', () => {
-    const movs = [mov('2026-10-05', -100, 'ali'), mov('2026-10-25', -900, 'ali'), mov('2026-11-03', -120, 'ali')]
+    // Datos importados hasta el día 13 (un ingreso ese día)
+    const movs = [mov('2026-10-05', -100, 'ali'), mov('2026-10-25', -900, 'ali'), mov('2026-11-03', -120, 'ali'), mov('2026-11-13', 50, null)]
     const r = calcularResumen(periodoMes('2026-11-01'), movs, CATEGORIAS, 10, '2026-11-13')
     expect(r.totalesAnterior.gastos).toBe(100)
     expect(r.semanas.map((x) => x.periodo.inicio)).toEqual(['2026-11-01', '2026-11-02', '2026-11-09'])
     expect(textoEnCurso(r)).toBe('Mes en curso: datos hasta el 13 de noviembre. La comparación es con los mismos días de octubre.')
     expect(indicadores(r)[1].comparacion.texto).toBe('20,0 % más que en octubre (del 1 al 13)')
+  })
+
+  it('con los datos atrasados, compara hasta el último movimiento importado, no hasta hoy', () => {
+    const movs = [mov('2026-10-02', -100, 'ali'), mov('2026-10-08', -900, 'ali'), mov('2026-11-03', -120, 'ali')]
+    const r = calcularResumen(periodoMes('2026-11-01'), movs, CATEGORIAS, 10, '2026-11-13')
+    // Del 1 al 3 de octubre: solo los 100 € del día 2
+    expect(r.totalesAnterior.gastos).toBe(100)
+    expect(r.anterior.fin).toBe('2026-10-03')
   })
 })

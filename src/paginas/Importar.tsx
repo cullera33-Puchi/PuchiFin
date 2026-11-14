@@ -299,6 +299,41 @@ export function Importar() {
         </div>
       )}
 
+      {/* Sin cuenta a la que asignar el fichero (por ejemplo, ninguna tarjeta activa): se explica y se ofrece salida */}
+      {lectura && !propuesta && !calculo.error && (
+        <div className="tarjeta space-y-3 text-center">
+          <FileSpreadsheet className="mx-auto size-12 text-zinc-400" strokeWidth={1.5} />
+          <p className="font-semibold">{lectura.plantilla.nombre}</p>
+          {cuentasPosibles.length ? (
+            <label className="block text-left">
+              <span className="etiqueta">¿De qué cuenta es?</span>
+              <select className="campo" value="" onChange={(e) => setCuentaId(e.target.value || null)}>
+                <option value="">Elige la cuenta</option>
+                {cuentasPosibles.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.alias}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <p className="text-[15px] text-zinc-600 dark:text-zinc-400">
+              No hay ninguna {lectura.plantilla.tipo_cuenta === 'tarjeta_credito' ? 'tarjeta' : 'cuenta'} activa a la que asignar estos movimientos. Dala de alta o actívala en Ajustes, Cuentas.
+            </p>
+          )}
+          <div className="flex justify-center gap-2">
+            {!cuentasPosibles.length && (
+              <Link to="/ajustes/cuentas" className="boton-primario">
+                Ir a Cuentas
+              </Link>
+            )}
+            <button className="boton-secundario" onClick={() => { setLectura(null); setPegando(false) }}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
       {lectura && propuesta && (
         <div className="space-y-5 pb-20">
           <div className="tarjeta space-y-3">

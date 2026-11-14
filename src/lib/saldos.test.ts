@@ -50,3 +50,18 @@ describe('cuadrarCuenta', () => {
     expect(cuadrarCuenta([mov('2026-10-01', -5, null)])).toMatchObject({ conSaldo: false, cuadra: true })
   })
 })
+
+describe('cadena con un saldo que vuelve a una cifra ya vista', () => {
+  it('una compra y su devolución el mismo día no parten la cadena, en cualquier orden', () => {
+    const filas = () => [
+      mov('2026-10-01', -100, 1000, 'INICIO'),
+      mov('2026-10-02', -50, 950, 'COMPRA'),
+      mov('2026-10-02', 50, 1000, 'DEVOLUCION'),
+      mov('2026-10-02', -30, 970, 'CAFE'),
+    ]
+    for (const lista of [filas(), filas().reverse(), [filas()[0], filas()[3], filas()[2], filas()[1]]]) {
+      const c = cuadrarCuenta(lista)
+      expect(c).toMatchObject({ cuadra: true, saldoBanco: 970, huecos: [] })
+    }
+  })
+})

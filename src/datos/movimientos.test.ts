@@ -68,6 +68,9 @@ describe('fuera del extracto', () => {
     expect(() => alternarFuera(db, traspaso.id)).toThrow(/traspaso/i)
     const vuelta = marcarFuera(r, [gasto.id, ingreso.id], false)
     expect(vuelta.movimientos.find((x) => x.id === gasto.id)!.tipo).toBe('normal')
+    // Lo marcado a mano queda como decisión del usuario: las reglas no lo vuelven a cambiar
+    expect(vuelta.movimientos.find((x) => x.id === gasto.id)!.tipo_manual).toBe(true)
+    expect(r.movimientos.find((x) => x.id === traspaso.id)!.tipo_manual).toBeUndefined()
     expect(cambiarTipo(vuelta, [gasto.id], 'pago_deuda').movimientos.find((x) => x.id === gasto.id)!.tipo).toBe('pago_deuda')
   })
 

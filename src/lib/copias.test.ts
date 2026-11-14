@@ -26,4 +26,9 @@ describe('copiasSobrantes', () => {
     const lista = [...Array.from({ length: 7 }, (_, i) => meta(i + 1, 'diaria')), meta(1, 'manual'), meta(2, 'antes de importar')]
     expect(copiasSobrantes(lista)).toEqual([])
   })
+
+  it('las manuales no se borran solas; las de antes de importar, solo a partir de 10', () => {
+    const lista = [...Array.from({ length: 12 }, (_, i) => meta(i + 1, 'manual')), ...Array.from({ length: 11 }, (_, i) => meta(i + 1, 'antes de importar'))]
+    expect(copiasSobrantes(lista)).toEqual(['1-antes de importar'])
+  })
 })

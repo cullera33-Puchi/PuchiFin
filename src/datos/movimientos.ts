@@ -91,7 +91,7 @@ export function cambiarTipo(db: BaseDatos, ids: string[], tipo: TipoMovimiento):
   const set = exigirMovimientos(db, ids)
   return {
     ...db,
-    movimientos: db.movimientos.map((m) => (set.has(m.id) ? { ...m, tipo, reembolso_cerrado: tipo === 'gasto_empleado' ? m.reembolso_cerrado : false } : m)),
+    movimientos: db.movimientos.map((m) => (set.has(m.id) ? { ...m, tipo, tipo_manual: true, reembolso_cerrado: tipo === 'gasto_empleado' ? m.reembolso_cerrado : false } : m)),
     conciliaciones: db.conciliaciones.filter(
       (c) => !((set.has(c.gasto_id) && tipo !== 'gasto_empleado') || (set.has(c.reembolso_id) && tipo !== 'reembolso_empresa')),
     ),
@@ -132,7 +132,7 @@ export function marcarFuera(db: BaseDatos, ids: string[], fuera: boolean): BaseD
     ...db,
     movimientos: db.movimientos.map((m) => {
       if (!set.has(m.id) || (m.tipo !== 'normal' && !estaFuera(m))) return m
-      return { ...m, tipo: fuera ? tipoFuera(m) : 'normal' }
+      return { ...m, tipo: fuera ? tipoFuera(m) : 'normal', tipo_manual: true }
     }),
   }
 }

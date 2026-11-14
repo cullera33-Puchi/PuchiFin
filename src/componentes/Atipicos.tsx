@@ -42,6 +42,8 @@ export function FilaAtipicos({ mes }: { mes: string }) {
   useEffect(() => {
     if (abierta) registrar('info', 'Gastos fuera de lo normal: abiertos', { gastos: lista.length })
   }, [abierta]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Si la lista se vacía con la hoja abierta, se cierra (y no se vuelve a abrir sola al reaparecer)
+  if (!lista.length && abierta) setAbierta(false)
   if (!lista.length) return null
   const total = lista.reduce((s, a) => s - a.movimiento.importe, 0)
   return (

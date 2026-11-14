@@ -5,6 +5,7 @@
  * - Nombres de terceros: el alias de la lista de ajustes si coincide con un patrón; si no, se quita.
  */
 import terceros from './plantillas/terceros.json'
+import { enmascararIdentificativos } from '../lib/identificativos'
 import type { AliasTercero } from '../lib/tipos'
 
 /** Series de 8 o más dígitos (o enmascarados con X o *), con o sin código de país, separadas por espacios o guiones */
@@ -106,5 +107,8 @@ export function quitarNombres(texto: string, alias: AliasTercero[]): string {
 
 /** Concepto anonimizado: números enmascarados y terceros con alias o sin nombre */
 export function anonimizarConcepto(texto: string, alias: AliasTercero[]): string {
-  return quitarNombres(aplicarAlias(enmascararNumeros(texto.replace(/\s+/g, ' ').trim()), alias), alias)
+  const limpio = quitarNombres(aplicarAlias(enmascararNumeros(texto.replace(/\s+/g, ' ').trim()), alias), alias)
+  // Último paso: lo que la verificación final reconocería (IBAN extranjeros compactos, cuentas con puntos)
+  // se enmascara aquí, para que la importación no se bloquee por algo que se puede limpiar
+  return enmascararIdentificativos(limpio)
 }

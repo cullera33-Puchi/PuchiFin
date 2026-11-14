@@ -380,6 +380,8 @@ export function DetalleMovimiento({ id, onCerrar }: { id: string | null; onCerra
   const [estadoNota, setEstadoNota] = useState<'' | 'guardando' | 'guardada'>('')
   const elegir = useElegirCategoria(m ? [m.id] : [], setCorreccion)
   const textoNota = m && nota?.id === m.id ? nota.texto : (m?.nota ?? '')
+  // Si se deja la nota como estaba, no hay nada que guardar: no se queda en «Guardando…»
+  const estadoVisible = estadoNota === 'guardando' && textoNota === (m?.nota ?? '') ? '' : estadoNota
 
   // La nota se guarda sola al dejar de escribir
   useEffect(() => {
@@ -449,7 +451,7 @@ export function DetalleMovimiento({ id, onCerrar }: { id: string | null; onCerra
             <div className="mb-1.5 flex items-baseline justify-between px-4">
               <span className="text-[13px] text-zinc-500 uppercase">Nota</span>
               <span className="text-[13px] text-zinc-500" aria-live="polite">
-                {estadoNota === 'guardando' ? 'Guardando…' : estadoNota === 'guardada' ? 'Guardada' : ''}
+                {estadoVisible === 'guardando' ? 'Guardando…' : estadoVisible === 'guardada' ? 'Guardada' : ''}
               </span>
             </div>
             <textarea

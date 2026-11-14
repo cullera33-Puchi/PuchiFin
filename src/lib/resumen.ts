@@ -188,7 +188,11 @@ export function calcularResumen(
   topGastos = 10,
   hoy?: string,
 ): Resumen {
-  const { anterior, enCurso, corte } = periodoComparable(periodo, hoy)
+  // «A estas alturas»: hasta el último movimiento importado si cae dentro del periodo (v0.34.0)
+  let ultima = ''
+  if (hoy) for (const m of movs) if (m.fecha_operacion <= hoy && m.fecha_operacion > ultima) ultima = m.fecha_operacion
+  const referencia = ultima && ultima >= periodo.inicio && ultima <= periodo.fin && hoy && hoy >= periodo.inicio && hoy < periodo.fin ? ultima : hoy
+  const { anterior, enCurso, corte } = periodoComparable(periodo, referencia)
   const porId = new Map(categorias.map((c) => [c.id, c]))
   const actuales = movs
     .filter((m) => enPeriodo(m, periodo))

@@ -97,6 +97,8 @@ export interface Movimiento {
   revisado_empleado: boolean
   /** Liquidación de la tarjeta que no cuadra y el usuario ha dado por buena (esquema 9) */
   cuadre_confirmado?: boolean
+  /** El tipo lo ha puesto el usuario (esquema 13): las reglas no lo vuelven a cambiar */
+  tipo_manual?: boolean
   created_at: string
 }
 
@@ -182,7 +184,7 @@ export interface Nomina {
   bonus: PagaExtra | null
 }
 
-export const VERSION_ESQUEMA = 12
+export const VERSION_ESQUEMA = 13
 
 export interface BaseDatos {
   esquema: number

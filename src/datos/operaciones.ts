@@ -240,7 +240,13 @@ export function fusionarCategoria(db: BaseDatos, origen: string, destino: string
     if (objetivo === p.categoria_id) continue
     const existente = [...presupuestos.values()].find((x) => x.categoria_id === objetivo)
     if (existente) {
-      existente.importe_mensual = Math.round((existente.importe_mensual + p.importe_mensual) * 100) / 100
+      // Los meses especiales de cualquiera de los dos suman con el importe del otro en ese mes
+      const r2 = (n: number) => Math.round(n * 100) / 100
+      const meses = new Set([...Object.keys(existente.excepciones ?? {}), ...Object.keys(p.excepciones ?? {})])
+      const excepciones: Record<string, number> = {}
+      for (const mes of meses) excepciones[mes] = r2((existente.excepciones?.[mes] ?? existente.importe_mensual) + (p.excepciones?.[mes] ?? p.importe_mensual))
+      existente.importe_mensual = r2(existente.importe_mensual + p.importe_mensual)
+      existente.excepciones = excepciones
       presupuestos.delete(p.id)
     } else p.categoria_id = objetivo
   }
@@ -640,6 +646,7 @@ export function comprobarBaseDatos(db: BaseDatos): string[] {
     texto(lugar, m.concepto_limpio)
     texto(lugar, m.concepto_normalizado)
     texto(`${lugar}, nota`, m.nota)
+    texto(`${lugar}, población`, m.poblacion)
     if (!cuentas.has(m.cuenta_id)) problemas.push(`${lugar}: su cuenta no existe`)
     if (m.categoria_id && !porId.has(m.categoria_id)) problemas.push(`${lugar}: su categoría no existe`)
     const k = claveMovimiento(m)

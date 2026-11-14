@@ -155,3 +155,14 @@ describe('nóminas previstas', () => {
     expect(() => nomina(db0, 'ES9121000418450200051332', 1000)).toThrow(ErrorDatos)
   })
 })
+
+describe('pago ya hecho en la ventana', () => {
+  it('si este verano ya se pagó en junio, julio no lleva otro pago previsto', () => {
+    const db = crear(20000)
+    db.movimientos.push(mov('2027-06-10', -4000, null, { cuenta_id: db.cuentas[1].id, tipo: 'pago_deuda' }))
+    db.movimientos.push(mov('2027-06-15', 10, null, { cuenta_id: db.cuentas[1].id, tipo: 'traspaso_interno', saldo: 5000 }))
+    const p = calcularPlan(db, '2027-06-15').plan!
+    expect(p.pagos.some((x) => x.anio === 2027)).toBe(false)
+    expect(p.pagos[0].anio).toBe(2028)
+  })
+})

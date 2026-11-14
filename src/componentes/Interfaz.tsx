@@ -175,6 +175,8 @@ function useCicloHoja(abierta: boolean) {
     setSaliendo(false)
   }
   if (!abierta && montada && !saliendo) setSaliendo(true)
+  // Vuelve a abrirse mientras sale: se cancela la salida (si no, se desmontaría estando abierta)
+  if (abierta && montada && saliendo) setSaliendo(false)
   useEffect(() => {
     if (!abierta) return
     abiertaEn.current = Date.now()
@@ -271,6 +273,12 @@ export function Hoja({
     let actual = 0
     let vel: Velocidad | null = null
     const empezar = (e: TouchEvent) => {
+      // Un segundo dedo a mitad del arrastre lo anula: la hoja vuelve a su sitio
+      if (activo) {
+        actual = 0
+        setArrastrando(false)
+        setDy(0)
+      }
       y0 = null
       activo = false
       if (e.touches.length !== 1 || el.scrollTop > 0 || (e.target as HTMLElement).closest('textarea, input, select')) return
@@ -355,7 +363,7 @@ export function Hoja({
           className="cursor-grab border-b border-zinc-200 dark:border-zinc-800"
           style={{ touchAction: 'none' }}
           onPointerDown={(e) => {
-            if ((e.target as HTMLElement).closest('button')) return
+            if ((e.target as HTMLElement).closest('button') || inicio.current) return
             inicio.current = { y: e.clientY, id: e.pointerId, vel: crearVelocidad(e.clientY, e.timeStamp) }
             setArrastrando(true)
             e.currentTarget.setPointerCapture(e.pointerId)
@@ -366,6 +374,8 @@ export function Hoja({
             setDy(Math.max(0, e.clientY - inicio.current.y))
           }}
           onPointerUp={(e) => {
+            // El dedo que se levanta tiene que ser el que arrastra
+            if (inicio.current && inicio.current.id !== e.pointerId) return
             const s = inicio.current
             inicio.current = null
             setArrastrando(false)

@@ -273,6 +273,8 @@ function FilaPendiente({ p, onIr }: { p: Pendiente; onIr?: () => void }) {
 /** Un aviso se ve tal cual; varios, en una sola fila que abre la lista */
 function Pendientes({ lista }: { lista: Pendiente[] }) {
   const [abierta, setAbierta] = useState(false)
+  // Con uno o ninguno ya no hay hoja: se cierra para que no se reabra sola cuando vuelva a haber varios
+  if (lista.length < 2 && abierta) setAbierta(false)
   if (!lista.length) return null
   if (lista.length === 1)
     return (

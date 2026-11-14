@@ -70,7 +70,10 @@ export function cuadrarCuenta(movimientos: Movimiento[]): CuadreCuenta {
         const d = Date.parse(e.m.fecha_operacion) - Date.parse(actual.m.fecha_operacion)
         return d < 0 ? -d * 2 : d // mejor hacia delante
       }
-      actual = siguientes.sort((a, b) => dist(a) - dist(b))[0]
+      // Antes que la fecha, que tenga continuación: si el saldo vuelve a una cifra ya vista (una compra y su
+      // devolución), el que no sigue a ninguna parte se deja para el final y la cadena no se parte (v0.34.0)
+      const sigue = (e: (typeof eslabones)[number]) => ((porAntes.get(e.despues) ?? []).some((x) => x !== e && !visitados.has(x)) ? 0 : 1)
+      actual = siguientes.sort((a, b) => sigue(a) - sigue(b) || dist(a) - dist(b))[0]
       visitados.add(actual)
       tramo.push(actual)
     }

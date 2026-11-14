@@ -46,11 +46,19 @@ export function formatearMes(anyoMes: string): string {
 }
 
 /** Importe escrito por el usuario ("1.234,56", "12,5", "30"); null si está vacío o no es válido */
-export function leerImporteUsuario(texto: string): number | null {
-  const t = texto.trim().replace(/\s|€/g, '')
+export function leerImporteUsuario(texto: string, conSigno = false): number | null {
+  const bruto = texto.trim().replace(/\s|€/g, '')
+  // El signo solo se conserva donde un importe puede ser negativo (el saldo de una cuenta en descubierto)
+  const negativo = /^[-−]/.test(bruto)
+  const t = bruto.replace(/^[-−+]/, '')
   if (!t) return null
-  const n = Number(/,/.test(t) ? t.replace(/\./g, '').replace(',', '.') : t)
-  return Number.isFinite(n) ? Math.round(Math.abs(n) * 100) / 100 : null
+  // Con coma, la coma es el decimal y los puntos separan miles. Sin coma, «15.000» o «1.500.000» son miles
+  // (en España nadie escribe 15.000 queriendo decir quince); «12.5» sigue siendo decimal
+  const sinComa = /^\d{1,3}(\.\d{3})+$/.test(t) ? t.replace(/\./g, '') : t
+  const n = Number(/,/.test(t) ? t.replace(/\./g, '').replace(',', '.') : sinComa)
+  if (!Number.isFinite(n)) return null
+  const valor = Math.round(Math.abs(n) * 100) / 100
+  return conSigno && negativo ? -valor : valor
 }
 
 /** «1 movimiento», «3 movimientos» */

@@ -277,6 +277,8 @@ export function calcularPlan(db: BaseDatos, hoy: string, sim: Simulacion = SIN_S
   const esMesDePago = (mes: string) => {
     const n = numMes(mes)
     if (mes === mesDatos) return n >= compromiso.mes_referencia && n <= compromiso.ventana_mes_fin && !pagadoEnVentana(Number(mes.slice(0, 4)))
+    // El verano de este año, si ya se pagó dentro de la ventana, no lleva otro pago previsto
+    if (mes.slice(0, 4) === mesDatos.slice(0, 4) && pagadoEnVentana(Number(mes.slice(0, 4)))) return false
     return n === compromiso.mes_referencia
   }
 

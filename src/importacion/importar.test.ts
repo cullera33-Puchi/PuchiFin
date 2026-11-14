@@ -232,6 +232,14 @@ describe('importación completa con los Excel de prueba', () => {
     expect(() => deshacerImportacion(sin, imp.id)).toThrow(/ya está deshecha/)
   })
 
+  it('no deja deshacer una importación si hay otra posterior de la misma cuenta con las mismas fechas', () => {
+    const imp = db.importaciones.find((i) => i.cuenta_id === db.cuentas[1].id)!
+    const otra = { ...imp, id: 'posterior', movimientos_nuevos: 0, modificados: [] }
+    const con = { ...db, importaciones: [...db.importaciones, otra] }
+    expect(() => deshacerImportacion(con, imp.id)).toThrow(/posterior/)
+    expect(() => deshacerImportacion(con, 'posterior')).not.toThrow()
+  })
+
   it('bloquea la importación si queda un dato identificativo', () => {
     const p = proponer(db, leerFichero(fichero('tarjeta')), db.cuentas[0].id) // otra cuenta: todo nuevo
     p.nuevos[0].concepto_original = 'PAGO ES91 2100 0418 4502 0005 1332'

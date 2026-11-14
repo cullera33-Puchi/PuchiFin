@@ -55,18 +55,26 @@ async function escribirDisco(datos: BaseDatos): Promise<void> {
       db.close()
       rechazar(tx.error)
     }
+    // Un aborto sin error (por ejemplo, sin espacio al confirmar) también termina la espera
+    tx.onabort = () => {
+      db.close()
+      rechazar(tx.error ?? new Error('Transacción abortada'))
+    }
   })
 }
 
-/** Guarda en orden: cada escritura espera a la anterior */
+/**
+ * Guarda en orden: cada escritura espera a la anterior. Un fallo no bloquea las siguientes (v0.34.0: antes,
+ * la cola quedaba rechazada para siempre y nada más se guardaba hasta cerrar la app)
+ */
 function guardar(datos: BaseDatos): Promise<void> {
-  cola = cola
+  const esta = cola
+    .catch(() => {})
     .then(() => escribirDisco(datos))
-    .catch((e) => {
-      registrar('error', `No se pudieron guardar los datos: ${(e as Error)?.message ?? e}`)
-      throw e
-    })
-  return cola
+  cola = esta.catch((e) => {
+    registrar('error', `No se pudieron guardar los datos: ${(e as Error)?.message ?? e}`)
+  })
+  return esta
 }
 
 /**

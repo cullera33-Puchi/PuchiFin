@@ -44,11 +44,28 @@ export function Categorizar() {
   const acciones = useAcciones(regla)
   // Últimas categorías elegidas en esta sesión: salen primero en los chips de un toque
   const [recientes, setRecientes] = useState<string[]>([])
-  const aplicarGrupo = (ids: string[], categoria: string) => {
-    setRecientes((r) => [categoria, ...r.filter((x) => x !== categoria)].slice(0, 6))
-    return acciones.aplicarGrupo(ids, categoria)
+  // Lo que se quitó de un grupo ya aplicado vuelve a verse como un grupo normal, con sus movimientos
+  const soltarExcluidos = (ids: string[]) => {
+    const aplicados = new Set(ids)
+    const claves = grupos.filter((g) => g.movimientos.some((m) => aplicados.has(m.id))).map(claveGrupo)
+    setExcluidos((x) => {
+      if (!claves.some((k) => x.has(k))) return x
+      const n = new Map(x)
+      claves.forEach((k) => n.delete(k))
+      return n
+    })
   }
-  const aplicarVarios = acciones.aplicarVarios
+  const aplicarGrupo = async (ids: string[], categoria: string) => {
+    setRecientes((r) => [categoria, ...r.filter((x) => x !== categoria)].slice(0, 6))
+    const r = await acciones.aplicarGrupo(ids, categoria)
+    soltarExcluidos(ids)
+    return r
+  }
+  const aplicarVarios = async (lotes: { ids: string[]; categoria: string }[], total: number) => {
+    const r = await acciones.aplicarVarios(lotes, total)
+    soltarExcluidos(lotes.flatMap((l) => l.ids))
+    return r
+  }
   const rapidas = useMemo(() => ({ gasto: categoriasRapidas(db, 'gasto', recientes, 5), ingreso: categoriasRapidas(db, 'ingreso', recientes, 5) }), [db, recientes])
 
   const pendientes = grupos.reduce((s, g) => s + g.movimientos.length, 0)
@@ -58,7 +75,7 @@ export function Categorizar() {
     const fuera = excluidos.get(claveGrupo(g))
     return g.movimientos.filter((m) => !fuera?.has(m.id)).map((m) => m.id)
   }
-  const seguras = visibles.filter((g) => g.sugerencia && g.sugerencia.confianza >= UMBRAL_SEGURA)
+  const seguras = visibles.filter((g) => g.sugerencia && g.sugerencia.confianza >= UMBRAL_SEGURA && idsDe(g).length > 0)
   const movSeguras = seguras.reduce((s, g) => s + idsDe(g).length, 0)
 
   const aceptarSeguras = async () => {

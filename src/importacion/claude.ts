@@ -148,7 +148,9 @@ export function importarReglas(db: BaseDatos, lineas: LineaRegla[]): { db: BaseD
   const creada = new Date().toISOString()
   for (const l of validas) {
     exigirSinIdentificativos('Regla', l.clave)
-    const existente = reglas.find((r) => r.origen === 'manual' && r.tipo_patron === l.modo && normalizarConcepto(r.patron) === l.clave)
+    const existente = reglas.find(
+      (r) => r.origen === 'manual' && r.tipo_patron === l.modo && r.importe_min === null && r.importe_max === null && normalizarConcepto(r.patron) === l.clave,
+    )
     if (existente) {
       if (existente.categoria_id !== l.categoria_id || existente.tipo_movimiento !== l.tipo || !existente.activa) {
         reglas = reglas.map((r) => (r.id === existente.id ? { ...r, categoria_id: l.categoria_id, tipo_movimiento: l.tipo, activa: true } : r))

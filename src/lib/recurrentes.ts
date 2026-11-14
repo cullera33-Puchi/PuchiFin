@@ -137,7 +137,7 @@ function calcularRecurrentes(db: BaseDatos): Recurrente[] {
     res.push({
       clave,
       comercio: base || ultimoMov.concepto_normalizado,
-      nombre: esPasarela(base) ? `${nombrePasarela(base)} de ${ahora.toFixed(2).replace('.', ',')} €` : ultimoMov.concepto_limpio,
+      nombre: esPasarela(base) ? `${nombrePasarela(base)} de ${formatearImporte(ahora)}` : ultimoMov.concepto_limpio,
       categoria_id: ultimoMov.categoria_id,
       periodicidad,
       importe: redondear(ahora),

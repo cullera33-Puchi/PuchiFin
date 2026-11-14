@@ -12,6 +12,8 @@ import {
   crearCategoria,
   datosIniciales,
   fusionarCategoria,
+  guardarExcepcionPresupuesto,
+  guardarPresupuesto,
   guardarAjustes,
   guardarCuenta,
 } from './operaciones'
@@ -95,6 +97,15 @@ describe('categorías', () => {
     expect(r.categorias.filter((c) => c.nombre === 'Farmacia' && c.padre_id === salud.id)).toHaveLength(1)
     expect(r.movimientos.find((m) => m.id === unMov)!.categoria_id).toBe(cat(r, 'Farmacia', 'Salud').id)
     expect(comprobarBaseDatos(r)).toEqual([])
+  })
+
+  it('al fusionar, los presupuestos suman también sus meses especiales', () => {
+    let a = guardarPresupuesto(db, cat(db, 'Ocio').id, 100)
+    a = guardarPresupuesto(a, cat(a, 'Viajes').id, 200)
+    a = guardarExcepcionPresupuesto(a, cat(a, 'Viajes').id, '2027-08', 1000)
+    const r = fusionarCategoria(a, cat(a, 'Viajes').id, cat(a, 'Ocio').id)
+    expect(r.presupuestos).toHaveLength(1)
+    expect(r.presupuestos[0]).toMatchObject({ importe_mensual: 300, excepciones: { '2027-08': 1100 } })
   })
 
   it('no fusiona una categoría en una de sus subcategorías', () => {

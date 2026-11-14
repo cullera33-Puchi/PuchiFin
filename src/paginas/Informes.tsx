@@ -244,6 +244,13 @@ function PanelQuesito({
   elegida?: string | null
 }) {
   const [marcada, setMarcada] = useState<number | null>(null)
+  // Otro periodo u otra vista: la porción marcada ya no es la misma categoría
+  const claveVista = `${informe.periodo.escala}|${informe.periodo.clave}|${informe.vista}`
+  const [vistaMarcada, setVistaMarcada] = useState(claveVista)
+  if (vistaMarcada !== claveVista) {
+    setVistaMarcada(claveVista)
+    setMarcada(null)
+  }
   const grafico = porcionesGrafico(informe.porciones)
   const nombre = informe.vista === 'gasto' ? 'Gastos' : 'Ingresos'
   if (!informe.porciones.length) {
@@ -366,6 +373,7 @@ function SeccionComercios({ informe, movimientos }: { informe: Informe; movimien
   const [abierto, setAbierto] = useState<LineaComercio | null>(null)
   const [orden, setOrden] = useState<'importe' | 'veces'>('importe')
   const lista = useMemo(() => rankingComercios(movimientos, informe.vista === 'gasto' ? -1 : 1, orden), [movimientos, informe.vista, orden])
+  if (lista.length < 2 && abierto) setAbierto(null)
   if (lista.length < 2) return null
   return (
     <section className="tarjeta">

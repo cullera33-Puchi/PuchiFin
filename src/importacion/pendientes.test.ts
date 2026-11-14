@@ -36,6 +36,13 @@ describe('mejoras de una versión nueva sobre los datos que ya hay', () => {
     expect(r).toMatchObject({ categorizados: 1, traspasos: 1 })
   })
 
+  it('un traspaso que el usuario devolvió a Normal no vuelve a ser traspaso', () => {
+    const devuelto = mov('Traspaso a cuenta', -300, { tipo_manual: true })
+    const r = aplicarReglasAPendientes({ ...db0, movimientos: [devuelto] })
+    expect(r.db.movimientos[0].tipo).toBe('normal')
+    expect(r.traspasos).toBe(0)
+  })
+
   it('pone al día las reglas de la app sin reactivar las desactivadas ni perder lo aprendido', () => {
     const viejas = db.reglas.map((r) =>
       r.nombre === 'Liquidación de tarjeta' ? { ...r, patron: 'antiguo', activa: false, descartes: 2 } : r,

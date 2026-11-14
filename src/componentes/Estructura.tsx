@@ -125,8 +125,8 @@ function Bienvenida() {
   const gestos = [
     { icono: EyeOff, color: '#5856D6', texto: 'Desliza un movimiento hacia la derecha para que no cuente: un gasto de empleado o un reembolso.' },
     { icono: Tag, color: '#FF9500', texto: 'Desliza hacia la izquierda para cambiar su categoría.' },
-    { icono: ChevronsLeftRight, color: '#007AFF', texto: 'Desliza a los lados para cambiar de mes en el Extracto e Informes, o de pestaña fuera de las listas. Mantén pulsado un movimiento para ver sus opciones.' },
-    { icono: ArrowLeft, color: '#8E8E93', texto: 'Desde el borde izquierdo, vuelves a la pantalla anterior. Las hojas se cierran arrastrándolas hacia abajo.' },
+    { icono: ChevronsLeftRight, color: '#007AFF', texto: 'Mantén pulsado un movimiento para ver sus opciones. El mes se elige en la tira de meses y la pestaña, en la barra de abajo.' },
+    { icono: ArrowLeft, color: '#8E8E93', texto: 'Deslizando hacia la derecha vuelves a la pantalla anterior. Las hojas se cierran arrastrándolas hacia abajo.' },
   ]
   return (
     <Hoja

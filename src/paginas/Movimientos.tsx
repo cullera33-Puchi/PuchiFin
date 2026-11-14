@@ -106,8 +106,9 @@ export function Movimientos() {
   if (paramsAplicados !== claveParams) {
     setParamsAplicados(claveParams)
     if (params.get('q') !== null || params.get('mes') !== null || params.get('min') !== null) {
-      if (params.get('q') !== null) setBusqueda(params.get('q')!)
-      setFiltros((f) => ({ ...f, mes: params.get('mes'), min: numero(params.get('min')), max: numero(params.get('max')) }))
+      // Búsqueda nueva desde cero: los filtros que hubiera no se mezclan con ella
+      setBusqueda(params.get('q') ?? '')
+      setFiltros({ ...SIN_FILTROS, mes: params.get('mes'), min: numero(params.get('min')), max: numero(params.get('max')) })
       setLimite(PAGINA)
     }
   }
@@ -174,6 +175,9 @@ export function Movimientos() {
   const filtrado = !!consulta || hayFiltros(filtros)
 
   const chips: { texto: string; quitar: () => void }[] = []
+  // Una cuenta que ya no sale en los botones (desactivada) también se ve como filtro y se puede quitar
+  if (filtros.cuenta && !cuentasFiltro.some((c) => c.id === filtros.cuenta))
+    chips.push({ texto: db.cuentas.find((c) => c.id === filtros.cuenta)?.alias ?? 'Cuenta', quitar: () => setFiltros({ ...filtros, cuenta: null }) })
   if (filtros.categoria) chips.push({ texto: nombreCategoria(db, filtros.categoria), quitar: () => setFiltros({ ...filtros, categoria: undefined }) })
   if (filtros.tipo) chips.push({ texto: NOMBRE_TIPO_MOVIMIENTO[filtros.tipo], quitar: () => setFiltros({ ...filtros, tipo: null }) })
   if (filtros.mes) chips.push({ texto: mesLargo(`${filtros.mes}-01`), quitar: () => setFiltros({ ...filtros, mes: null }) })
@@ -253,7 +257,13 @@ export function Movimientos() {
               }}
             />
             {busqueda && (
-              <button aria-label="Borrar búsqueda" onClick={() => setBusqueda('')}>
+              <button
+                aria-label="Borrar búsqueda"
+                onClick={() => {
+                  setBusqueda('')
+                  if (params.get('q')) setParams({}, { replace: true })
+                }}
+              >
                 <X className="size-4 text-zinc-500" />
               </button>
             )}
@@ -380,25 +390,25 @@ export function Movimientos() {
       {seleccion && (
         <Flotante>
         <div className="flex items-center gap-1 rounded-2xl border border-white/60 bg-white/90 p-2 shadow-lg backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/90">
-          <button className="boton-texto px-2" onClick={() => setSeleccion(seleccion.size === lista.length ? new Set() : new Set(lista.map((m) => m.id)))}>
-            {seleccion.size === lista.length ? 'Ninguno' : 'Todos'}
+          <button className="boton-texto px-2" onClick={() => setSeleccion(elegidos.length === lista.length ? new Set() : new Set(lista.map((m) => m.id)))}>
+            {elegidos.length === lista.length ? 'Ninguno' : 'Todos'}
           </button>
-          <span className="flex-1 text-center text-[13px] text-zinc-500">{plural(seleccion.size, 'seleccionado', 'seleccionados')}</span>
-          <button className="boton-icono" aria-label="Categoría" disabled={!seleccion.size} onClick={() => setSelectorBloque(true)}>
+          <span className="flex-1 text-center text-[13px] text-zinc-500">{plural(elegidos.length, 'seleccionado', 'seleccionados')}</span>
+          <button className="boton-icono" aria-label="Categoría" disabled={!elegidos.length} onClick={() => setSelectorBloque(true)}>
             <Tag className="size-5" strokeWidth={1.75} />
           </button>
           <button
             className="boton-icono"
             aria-label="Que no cuenten"
-            disabled={!seleccion.size}
+            disabled={!elegidos.length}
             onClick={async () => {
-              const ids = [...seleccion]
+              const ids = elegidos.map((m) => m.id)
               if (await hacer((d) => marcarFuera(d, ids, true), `${plural(ids.length, 'movimiento', 'movimientos')} fuera del extracto`)) setSeleccion(new Set())
             }}
           >
             <EyeOff className="size-5" strokeWidth={1.75} />
           </button>
-          <button className="boton-texto px-2" disabled={!seleccion.size} onClick={() => setTipoBloque(true)}>
+          <button className="boton-texto px-2" disabled={!elegidos.length} onClick={() => setTipoBloque(true)}>
             Tipo
           </button>
         </div>
@@ -423,14 +433,15 @@ export function Movimientos() {
           setSeleccion(new Set())
         }}
       />
-      <Hoja abierta={tipoBloque} titulo={`Tipo de ${plural(seleccion?.size ?? 0, 'movimiento', 'movimientos')}`} onCerrar={() => setTipoBloque(false)}>
+      <Hoja abierta={tipoBloque} titulo={`Tipo de ${plural(elegidos.length, 'movimiento', 'movimientos')}`} onCerrar={() => setTipoBloque(false)}>
         <div className="lista divide-y divide-zinc-200/70 border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
           {(Object.keys(NOMBRE_TIPO_MOVIMIENTO) as TipoMovimiento[]).map((t) => (
             <button
               key={t}
               className="fila w-full"
               onClick={async () => {
-                const ids = [...(seleccion ?? [])]
+                // Solo los seleccionados que se ven: lo que quedó oculto por un filtro no se toca
+                const ids = elegidos.map((m) => m.id)
                 setTipoBloque(false)
                 if (await hacer((d) => cambiarTipo(d, ids, t), `${plural(ids.length, 'movimiento', 'movimientos')}: ${NOMBRE_TIPO_MOVIMIENTO[t]}`)) setSeleccion(new Set())
               }}
@@ -451,6 +462,16 @@ function HojaFiltros({ abierta, filtros, onCerrar, onAplicar }: { abierta: boole
   const [selector, setSelector] = useState(false)
   const [min, setMin] = useState('')
   const [max, setMax] = useState('')
+  // Al abrir, el borrador parte de los filtros aplicados (sin restos de una edición sin aplicar)
+  const [estabaAbierta, setEstabaAbierta] = useState(false)
+  if (abierta !== estabaAbierta) {
+    setEstabaAbierta(abierta)
+    if (abierta) {
+      setF(filtros)
+      setMin(filtros.min !== null ? String(filtros.min).replace('.', ',') : '')
+      setMax(filtros.max !== null ? String(filtros.max).replace('.', ',') : '')
+    }
+  }
   const meses = [...new Set(db.movimientos.map(mesEfectivo))].sort().reverse()
   const abrir = abierta && !selector
 

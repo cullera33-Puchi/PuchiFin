@@ -18,6 +18,9 @@ import { categoriasAprendidas, clasificar, REGLAS_RETIRADAS, reglasPredeterminad
 /** Pendiente de categorizar: Normal, sin categoría y sin decisión del usuario */
 export const esPendiente = (m: Movimiento) => m.tipo === 'normal' && !m.categoria_id && m.origen_categoria === null
 
+/** Pendiente y con el tipo sin tocar por el usuario: las reglas pueden cambiar también el tipo */
+const tipoLibre = (m: Movimiento) => !m.tipo_manual
+
 /** Pone al día las reglas de la app (origen «sistema») con las de esta versión y quita las retiradas */
 export function sincronizarReglasApp(db: BaseDatos): { db: BaseDatos; nuevas: number; actualizadas: number } {
   const base = reglasPredeterminadas(db.categorias)
@@ -71,7 +74,8 @@ export function aplicarReglasAPendientes(db: BaseDatos): { db: BaseDatos; catego
     // Cambian el tipo sin pedir confirmación: traspasos y liquidación de la tarjeta (reglas de la app) y
     // cualquier regla de tipo que haya creado o importado el usuario
     const manual = c.regla_id ? db.reglas.find((r) => r.id === c.regla_id)?.origen === 'manual' : false
-    if (c.tipo === 'traspaso_interno' || (c.tipo !== 'normal' && manual)) {
+    // Si el usuario ya decidió el tipo (por ejemplo, devolvió un traspaso a Normal), solo se categoriza
+    if (tipoLibre(m) && (c.tipo === 'traspaso_interno' || (c.tipo !== 'normal' && manual))) {
       traspasos++
       return { ...m, tipo: c.tipo, regla_id: c.regla_id, categoria_id: c.categoria_id ?? m.categoria_id }
     }

@@ -40,12 +40,19 @@ export function suscribirCopias(f: () => void): () => void {
 }
 const avisarCambio = () => oyentes.forEach((f) => f())
 
+/** Día local (no UTC) de una fecha y hora ISO: la copia de madrugada es del día que se ve en el iPhone */
+function diaLocal(iso: string): string {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? iso.slice(0, 10) : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export function metaDe(archivo: ArchivoPuchiFin, tipo: TipoCopia, creada = new Date().toISOString()): MetaCopia {
+  const dia = diaLocal(creada)
   return {
-    clave: tipo === 'diaria' ? `${creada.slice(0, 10)}#diaria` : `${creada}#${tipo}`,
+    clave: tipo === 'diaria' ? `${dia}#diaria` : `${creada}#${tipo}`,
     tipo,
     creada,
-    dia: creada.slice(0, 10),
+    dia,
     version: archivo.version_app,
     ...resumenArchivo(archivo),
   }
@@ -55,7 +62,8 @@ export function metaDe(archivo: ArchivoPuchiFin, tipo: TipoCopia, creada = new D
 export function copiasSobrantes(lista: MetaCopia[]): string[] {
   const orden = [...lista].sort((a, b) => b.creada.localeCompare(a.creada))
   const diarias = orden.filter((m) => m.tipo === 'diaria').slice(MAX_DIARIAS)
-  const otras = orden.filter((m) => m.tipo !== 'diaria').slice(MAX_OTRAS)
+  // Las manuales las hace y las borra el usuario: no se rotan
+  const otras = orden.filter((m) => m.tipo !== 'diaria' && m.tipo !== 'manual').slice(MAX_OTRAS)
   return [...diarias, ...otras].map((m) => m.clave)
 }
 
@@ -87,6 +95,10 @@ async function transaccion<T>(modo: IDBTransactionMode, fn: (copias: IDBObjectSt
     tx.onerror = () => {
       db.close()
       rechazar(tx.error)
+    }
+    tx.onabort = () => {
+      db.close()
+      rechazar(tx.error ?? new Error('Transacción abortada'))
     }
   })
 }
@@ -150,7 +162,8 @@ export async function hacerCopia(tipo: TipoCopia): Promise<MetaCopia> {
 export async function copiaDiaria(): Promise<MetaCopia | null> {
   try {
     if (localStorage.getItem(CLAVE_SALTAR) === hoyIso()) return null
-    const hoy = new Date().toISOString().slice(0, 10)
+    // El mismo día local que «saltar la de hoy» (v0.34.0: antes, el día UTC)
+    const hoy = hoyIso()
     if ((await listarCopias()).some((m) => m.tipo === 'diaria' && m.dia === hoy)) return null
     return await hacerCopia('diaria')
   } catch (e) {

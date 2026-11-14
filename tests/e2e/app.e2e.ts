@@ -263,7 +263,7 @@ test('reporting: fuera de lo normal, comparar periodos y resumen del año', asyn
   expect(e).toEqual([])
 })
 
-for (const esquema of [3, 5, 7, 8, 9, 10, 11]) {
+for (const esquema of [3, 5, 7, 8, 9, 10, 11, 12]) {
   test(`importa un archivo del esquema ${esquema} y lo enseña igual`, async ({ page }) => {
     const e = errores(page)
     await page.goto('/ajustes/herramientas/archivo')

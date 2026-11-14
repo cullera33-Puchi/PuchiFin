@@ -29,3 +29,24 @@ describe('fechas', () => {
     expect(formatearMes('2026-11')).toBe('noviembre de 2026')
   })
 })
+
+describe('importes escritos con punto de miles', () => {
+  it('«15.000» son quince mil; «12.5» sigue siendo decimal', async () => {
+    const { leerImporteUsuario } = await import('./formato')
+    expect(leerImporteUsuario('15.000')).toBe(15000)
+    expect(leerImporteUsuario('1.500.000')).toBe(1500000)
+    expect(leerImporteUsuario('1.500')).toBe(1500)
+    expect(leerImporteUsuario('15.000,50')).toBe(15000.5)
+    expect(leerImporteUsuario('12.5')).toBe(12.5)
+    expect(leerImporteUsuario('12,5')).toBe(12.5)
+    expect(leerImporteUsuario('1234.56')).toBe(1234.56)
+  })
+
+  it('el signo solo se conserva cuando se pide (saldo en descubierto)', async () => {
+    const { leerImporteUsuario } = await import('./formato')
+    expect(leerImporteUsuario('-1.234,56')).toBe(1234.56)
+    expect(leerImporteUsuario('-1.234,56', true)).toBe(-1234.56)
+    expect(leerImporteUsuario('-15.000', true)).toBe(-15000)
+    expect(leerImporteUsuario('250', true)).toBe(250)
+  })
+})

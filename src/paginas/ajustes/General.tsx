@@ -1,5 +1,5 @@
 import { Plus, X } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Aviso } from '../../componentes/Encabezado'
 import { Interruptor, Segmentado } from '../../componentes/Interfaz'
 import { useDiscreto } from '../../componentes/discreto'
@@ -9,10 +9,30 @@ import { guardarAjustes } from '../../datos/operaciones'
 import { intentar, useDatos } from '../../datos/ProveedorDatos'
 import type { Ajustes } from '../../lib/tipos'
 
+/**
+ * Borrador sin guardar al desmontar la pantalla. Activar el modo discreto vuelve a montar el contenido de la
+ * app: si la pantalla vuelve enseguida y con los mismos ajustes de base, recupera lo que se estaba escribiendo
+ */
+let borradorPendiente: { base: Ajustes; ajustes: Ajustes; hasta: number } | null = null
+
 export function General() {
   const db = useDatos()
   // Borrador local: se guarda al pulsar «Guardar ajustes»
-  const [ajustes, setAjustes] = useState<Ajustes>(() => structuredClone(db.ajustes))
+  const [ajustes, setAjustes] = useState<Ajustes>(() => {
+    const b = borradorPendiente
+    borradorPendiente = null
+    return b && b.base === db.ajustes && Date.now() < b.hasta ? b.ajustes : structuredClone(db.ajustes)
+  })
+  const ultimo = useRef({ base: db.ajustes, ajustes })
+  useEffect(() => {
+    ultimo.current = { base: db.ajustes, ajustes }
+  }, [db.ajustes, ajustes])
+  useEffect(
+    () => () => {
+      borradorPendiente = { ...ultimo.current, hasta: Date.now() + 1000 }
+    },
+    [],
+  )
   const [nuevoAlias, setNuevoAlias] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [guardado, setGuardado] = useState(false)

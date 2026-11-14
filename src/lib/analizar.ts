@@ -43,7 +43,8 @@ export function textoExtracto(db: BaseDatos, mes: string, hoy: string): string {
 
 /** Informe de un mes o un año: gasto o ingreso por categoría frente al periodo anterior y los comercios que más pesan */
 export function textoInforme(db: BaseDatos, periodo: PeriodoInforme, hoy: string): string {
-  const inf = calcularInforme(db, periodo, 'gasto', null, hoy)
+  // undefined: todas las categorías (null sería solo lo que no tiene categoría)
+  const inf = calcularInforme(db, periodo, 'gasto', undefined, hoy)
   const nombre = periodo.escala === 'mes' ? mesLargo(`${periodo.clave}-01`).toLowerCase() : `el año ${periodo.clave}`
   const anterior = periodo.escala === 'mes' ? mesLargo(`${inf.anterior.clave}-01`).toLowerCase() : `el año ${inf.anterior.clave}`
   const comercios = rankingComercios(inf.movimientos, -1, 'importe', 15)

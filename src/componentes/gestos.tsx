@@ -384,6 +384,15 @@ export function useVolverDesdeBorde(pantalla: RefObject<HTMLElement | null>, som
     }
 
     const alEmpezar = (e: TouchEvent) => {
+      // Un segundo dedo a mitad del gesto lo anula: la pantalla vuelve a su sitio y no se queda a medias
+      if (inicio?.horizontal) {
+        cancelAnimationFrame(fotograma)
+        fotograma = 0
+        actual = 0
+        pintar(0, CURVA)
+        window.clearTimeout(temporizador)
+        temporizador = window.setTimeout(() => preparar(false), 300)
+      }
       inicio = null
       const t = e.touches[0]
       if (e.touches.length !== 1) return

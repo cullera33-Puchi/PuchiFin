@@ -63,4 +63,8 @@ describe('anonimizarConcepto', () => {
     expect(r).toContain('Empresa')
     expect(contieneIdentificativo(r)).toBe(false)
   })
+
+  it('enmascara también IBAN extranjeros compactos y cuentas con puntos', () => {
+    for (const t of ['TRANSF A DE89370400440532013000 ALQUILER', 'RECIBO CTA 2100.0418.45.0200051332']) expect(contieneIdentificativo(anonimizarConcepto(t, ALIAS))).toBe(false)
+  })
 })

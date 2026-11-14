@@ -10,7 +10,7 @@ import { sumarDias } from '../lib/fechas'
 import { finDeMes, mesSiguiente } from '../lib/imputacion'
 import { detectarIdentificativos, NOMBRE_TIPO } from '../lib/identificativos'
 import type { BaseDatos, Cuenta, Importacion, Movimiento, TipoMovimiento } from '../lib/tipos'
-import { anonimizarConcepto, aplicarAlias, conservarDesde } from './anonimizar'
+import { anonimizarConcepto, aplicarAlias, conservarDesde, enmascararNumeros } from './anonimizar'
 import { cuadrarLiquidaciones } from '../lib/tarjeta'
 import type { FilaBruta, Lectura } from './lector'
 import { categoriasAprendidas, clasificar, type Sugerencia } from './reglas'
@@ -157,8 +157,10 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
   // de cómo se limpie el concepto; después, por concepto, para lo que no trae saldo (tarjeta).
   const guardados = new Map<string, Movimiento[]>()
   const ocurrencias = new Map<string, number>()
+  // Los datos de prueba no cuentan como ya importados: si no, una fila real igual se descartaría
+  const prueba = new Set(db.importaciones.filter((i) => i.origen === 'datos_prueba').map((i) => i.id))
   for (const m of db.movimientos) {
-    if (m.cuenta_id !== cuenta_id) continue
+    if (m.cuenta_id !== cuenta_id || (m.importacion_id && prueba.has(m.importacion_id))) continue
     const k = `${m.fecha_operacion}|${m.importe}`
     anadirA(guardados, k, m)
     const kc = `${k}|${m.concepto_normalizado}`
@@ -214,7 +216,7 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
       nota: null,
       reembolso_cerrado: false,
       mes_imputacion: c.mes_siguiente && finDeMes(f.fecha_operacion, db.ajustes.dias_fin_de_mes) ? mesSiguiente(f.fecha_operacion) : null,
-      poblacion: f.poblacion,
+      poblacion: f.poblacion ? enmascararNumeros(f.poblacion) : null,
       revisado_empleado: false,
       created_at: creado,
       sugerencia: c.sugerencia,
@@ -235,6 +237,7 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
           bancarias.has(x.cuenta_id) &&
           x.importe === -m.importe &&
           // Lo que categorizaste a mano no se toca: no se empareja
+          !x.tipo_manual &&
           ((x.tipo === 'normal' && x.origen_categoria !== 'manual') || x.tipo === 'traspaso_interno') &&
           ES_TRASPASO.test(x.concepto_normalizado) &&
           x.fecha_operacion >= sumarDias(m.fecha_operacion, -3) &&
@@ -279,7 +282,7 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
   // Verificación final (regla 3)
   const problemas: Propuesta['problemas'] = []
   for (const m of nuevos) {
-    for (const t of [m.concepto_original, m.concepto_limpio]) {
+    for (const t of [m.concepto_original, m.concepto_limpio, m.poblacion]) {
       const h = detectarIdentificativos(t)
       if (h.length) {
         problemas.push({ fila: m.fila, texto: `Fila ${m.fila}: contiene un ${NOMBRE_TIPO[h[0].tipo]} (${h[0].muestra})` })
@@ -388,6 +391,19 @@ export function deshacerImportacion(db: BaseDatos, id: string): BaseDatos {
   const imp = db.importaciones.find((i) => i.id === id)
   if (!imp) throw new ErrorDatos('Importación no encontrada')
   if (imp.estado === 'deshecha') throw new ErrorDatos('La importación ya está deshecha')
+  // Una importación posterior de la misma cuenta que se solapa en fechas se deduplicó contra esta:
+  // deshacer esta dejaría un hueco. Primero hay que deshacer la posterior
+  const posicion = db.importaciones.indexOf(imp)
+  const posterior = db.importaciones.find(
+    (i, n) =>
+      n > posicion &&
+      i.estado === 'confirmada' &&
+      i.origen !== 'datos_prueba' &&
+      i.cuenta_id === imp.cuenta_id &&
+      (i.fecha_desde ?? '') <= (imp.fecha_hasta ?? '9999') &&
+      (i.fecha_hasta ?? '9999') >= (imp.fecha_desde ?? ''),
+  )
+  if (posterior) throw new ErrorDatos('Hay una importación posterior de esta cuenta con las mismas fechas. Deshaz antes esa')
   const quitar = new Set(db.movimientos.filter((m) => m.importacion_id === id).map((m) => m.id))
   const previos = new Map(imp.modificados.map((x) => [x.id, x]))
   return {

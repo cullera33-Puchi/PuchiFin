@@ -55,8 +55,12 @@ async function aplicarVersion(): Promise<string | null> {
   if (db.ajustes.version_logica === APP_VERSION) return null
   try {
     if (db.movimientos.length) await hacerCopia('antes de actualizar')
-    const r = actualizarLogica(db, APP_VERSION)
-    await cambiar(() => r.db)
+    // Sobre los datos del momento de guardar: si algo cambió durante la copia, no se pierde
+    let r!: ReturnType<typeof actualizarLogica>
+    await cambiar((actual) => {
+      r = actualizarLogica(actual, APP_VERSION)
+      return r.db
+    })
     registrar('info', `Lógica de la v${APP_VERSION} aplicada a lo pendiente`, {
       reglasNuevas: r.reglasNuevas,
       reglasActualizadas: r.reglasActualizadas,

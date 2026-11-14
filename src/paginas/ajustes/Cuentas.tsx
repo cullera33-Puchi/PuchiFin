@@ -279,7 +279,7 @@ function HojaSaldo({ cuenta, onCerrar }: { cuenta: Cuenta; onCerrar: () => void 
 
   const comprobar = async (e: FormEvent) => {
     e.preventDefault()
-    const importe = leerImporteUsuario(texto)
+    const importe = leerImporteUsuario(texto, true)
     if (importe === null) return setError('Escribe el saldo que ves en la app de BBVA, por ejemplo 1.234,56')
     const err = await intentar((d) => confirmarSaldo(d, cuenta.id, importe, cuadre.saldoApp!, hoyIso()))
     if (err) return setError(err)

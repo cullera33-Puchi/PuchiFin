@@ -3,6 +3,7 @@
  * con el periodo anterior. Mismas reglas que el Extracto: solo computan los movimientos de tipo Normal,
  * cada uno en su mes efectivo (fin de mes), y una devolución en una categoría de gasto resta gasto.
  */
+import { fechaDeLosDatos } from './extracto'
 import { sumarMeses } from './fechas'
 import { fechaEfectiva } from './imputacion'
 import { calcularTotales, type Totales } from './resumen'
@@ -57,14 +58,14 @@ export interface Informe {
 }
 
 /** Recorte del periodo anterior cuando el actual está en curso: mismos días (mes) o misma fecha (año) */
-function corteAnterior(p: PeriodoInforme, hoy: string | undefined): { enCurso: boolean; corte: (fecha: string) => boolean } {
+function corteAnterior(p: PeriodoInforme, hoy: string | undefined, referencia: string | undefined): { enCurso: boolean; corte: (fecha: string) => boolean } {
   const enCurso = !!hoy && hoy.startsWith(p.clave)
-  if (!enCurso) return { enCurso, corte: () => true }
+  if (!enCurso || !referencia) return { enCurso, corte: () => true }
   if (p.escala === 'mes') {
-    const dia = hoy!.slice(8, 10)
+    const dia = referencia.slice(8, 10)
     return { enCurso, corte: (f) => f.slice(8, 10) <= dia }
   }
-  const mesDia = hoy!.slice(5, 10)
+  const mesDia = referencia.slice(5, 10)
   return { enCurso, corte: (f) => f.slice(5, 10) <= mesDia }
 }
 
@@ -86,7 +87,9 @@ export function calcularInforme(db: BaseDatos, periodo: PeriodoInforme, vista: V
   }
   const signo = vista === 'gasto' ? -1 : 1
   const anterior = moverPeriodo(periodo, -1)
-  const { enCurso, corte } = corteAnterior(periodo, hoy)
+  // «A estas alturas»: hasta el último dato importado si cae dentro del periodo, como el Extracto (v0.34.0)
+  const datos = hoy ? fechaDeLosDatos(db, hoy) : undefined
+  const { enCurso, corte } = corteAnterior(periodo, hoy, datos && datos.startsWith(periodo.clave) ? datos : hoy)
 
   const delPeriodo = (p: PeriodoInforme, recorte: (f: string) => boolean) =>
     db.movimientos.filter((m) => {
