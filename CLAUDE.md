@@ -97,7 +97,6 @@ Resumen semanal y mensual, con vista previa en pantalla y PDF para compartir (po
 
 - Formato del Excel de la tarjeta de crédito: el resumen de un año (13/11/2026) muestra que la columna Movimiento trae la categoría de BBVA y que el pago llega como «Rebut mes anterior»; falta confirmar columnas y signo con un Excel. El de cuenta está confirmado con un Excel real del 13/11/2026 («Informe BBVA»: Fecha valor, Fecha, Concepto, Movimiento, Importe, Divisa, Disponible, Divisa, Observaciones). Para la tarjeta se supone el mismo sin Disponible; falta un Excel real (columnas y signo de las compras).
 - Bizum: la columna Movimiento trae el mensaje («Recibido: …», «ENVIADO: …», «COMPRA: …»), que se conserva aplicando los alias. Confirmar si en algún caso trae el nombre de la persona y debe quitarse.
-- Si la deuda familiar tiene intereses y si el colchón se mide sobre el saldo conjunto de las dos cuentas (afecta a la fase 4).
 - Entidad de cada cuenta y cuenta desde la que se paga la hipoteca.
 - El repositorio es público. No contiene datos personales. El usuario lo deja pendiente. Ojo: GitHub Pages en un repositorio privado exige un plan de pago de GitHub; si se hace privado, habría que publicar en otro servicio gratuito (por ejemplo, Vercel).
 
@@ -123,7 +122,7 @@ Ordenada por esfuerzo, de menos a más, con prioridad para la usabilidad y el re
 | 14 (hecha, v0.22.0) | Optimizar con Claude: prompt preparado con fijos, recurrentes y hormiga, por enlace o archivo. Sin API ni coste | Reporting | Medio |
 | 15 (hecha, v0.22.0) | Pruebas de navegador (Playwright) en GitHub antes de publicar, con archivos de cada esquema anterior | Técnica | Medio |
 | 16 (hecha, v0.22.0) | Cambiar de pestaña deslizando y recolocación animada de las listas (guía 4.1 y 5) | Usabilidad | Medio |
-| 17 | Fase 4: plan de pagos de la deuda familiar con simulación y «Analizar con Claude» en el resto de vistas | Reporting | Alto |
+| 17 | Fase 4: plan de pagos de la deuda familiar con simulación y «Analizar con Claude» en el resto de vistas (definido el 14/11/2026, apartado 10) | Reporting | Alto |
 | 18 | Fase 5: estacionalidad y gastos atípicos | Reporting | Alto |
 | 19 | Fase 6: Face ID e importación de PDF. Las notificaciones exigen un servidor de envío, fuera del alcance sin coste | Usabilidad | Alto |
 | Decisión | Repositorio privado (exige otro alojamiento gratuito) | Técnica | Pendiente del usuario |
@@ -450,10 +449,10 @@ La app proyecta el ahorro mes a mes, calcula cuánto se podrá transferir cada v
 | Parámetro | Valor inicial |
 | --- | --- |
 | Deuda pendiente | Importe a 1 de octubre de 2026, se introduce en la app (no va en el repositorio) |
-| Intereses | Sin intereses (pendiente de confirmar) |
-| Colchón de ahorro | Importe que se introduce en la app, sobre el saldo conjunto de las dos cuentas (pendiente de confirmar) |
-| Ventana de pago | Junio a agosto, con julio como mes de referencia para la proyección |
-| Importe del pago | Todo el saldo que supere el colchón en la fecha de pago |
+| Intereses | Sin intereses (confirmado por el usuario el 14/11/2026) |
+| Colchón de ahorro | Importe que se introduce en la app, sobre el saldo de la Cuenta 2, la de ahorro (decisión del usuario del 14/11/2026). La cuenta principal queda para el día a día |
+| Ventana de pago | Junio a agosto, con julio como mes de referencia para la proyección (confirmado el 14/11/2026) |
+| Importe del pago | Todo el saldo de la Cuenta 2 que supere el colchón en la fecha de pago (confirmado el 14/11/2026) |
 
 **Registro de los pagos**
 
@@ -463,12 +462,14 @@ La app proyecta el ahorro mes a mes, calcula cuánto se podrá transferir cada v
 
 **Proyección del ahorro**
 
-1. Saldo de partida: saldo conjunto de las dos cuentas, menos lo pendiente de liquidar en la tarjeta.
+Supuesto (14/11/2026): el ahorro de cada mes acaba en la Cuenta 2 con los traspasos habituales, y la cuenta principal mantiene su nivel. Por eso se proyecta el ahorro total y se suma al saldo de la Cuenta 2; el pago sale de la Cuenta 2.
+
+1. Saldo de partida: saldo de la Cuenta 2 según el banco.
 2. Más los gastos de empleado pendientes de reembolso, si el usuario los indica (la app ya no los calcula).
 3. Más los ingresos previstos de cada mes: media de nóminas y pagas extra en su mes.
 4. Menos los gastos previstos: presupuesto por categoría o, si no lo hay, la media de la categoría.
 5. Menos los gastos puntuales conocidos, registrados como eventos previstos (IBI, seguros anuales, vacaciones, colegio).
-6. Resultado en el mes de pago: saldo proyectado menos el colchón, igual al pago previsto.
+6. Resultado en el mes de pago: saldo proyectado de la Cuenta 2 menos el colchón, igual al pago previsto (nunca negativo ni mayor que la deuda pendiente).
 
 **Qué muestra la app**
 
@@ -524,6 +525,6 @@ La v1 trabaja solo con BBVA desde octubre de 2026 y queda completa al cerrar la 
 - [x] Excel de cuenta de BBVA para fijar la plantilla (recibido el 13/11/2026).
 - [ ] Excel de la tarjeta de crédito de BBVA para fijar su plantilla.
 - [x] Transferencia de reembolso: ya no hace falta, el usuario marca los reembolsos a mano (v0.15.0).
-- [ ] Confirmar si la deuda familiar tiene intereses y si el colchón se mide sobre el saldo conjunto.
+- [x] Deuda familiar sin intereses; colchón sobre la Cuenta 2; pago de todo lo que lo supere, de junio a agosto con julio de referencia (14/11/2026).
 - [ ] Confirmar la entidad de cada cuenta y de la hipoteca, y desde qué cuenta se paga la cuota.
 - [ ] Comprobar que claude.ai sigue admitiendo el prompt prellenado por enlace.
