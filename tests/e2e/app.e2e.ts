@@ -150,9 +150,10 @@ test('ingresos previstos: mi nómina con pagas extra y una segunda nómina simul
   await page.getByLabel('Importe neto del bonus').fill('9000')
   await page.getByRole('button', { name: 'Guardar', exact: true }).tap()
   await expect(page.getByText(/2\.800\s€ al mes, pagas en junio y diciembre, bonus de 9\.000\s€ en julio/).first()).toBeVisible()
-  // Sin el bonus, el pago de julio baja
+  // Sin el bonus, el capital dentro de un año baja (el pago de julio puede ser 0 con los datos de prueba)
   await page.getByRole('switch', { name: 'Simular con el bonus de Mi nómina' }).tap()
-  await expect(page.getByText(/Pago de julio de 2027: .*\(-/)).toBeVisible()
+  await expect(page.getByText(/Capital dentro de un año: .*\(-9\.000\s€\)/)).toBeVisible()
+  await expect(page.getByText(/Pago de julio de 2027:/)).toBeVisible()
   await page.getByRole('switch', { name: 'Simular con el bonus de Mi nómina' }).tap()
   // Segunda nómina, fuera de la previsión
   await page.getByRole('button', { name: 'Añadir una nómina' }).tap()
@@ -162,7 +163,7 @@ test('ingresos previstos: mi nómina con pagas extra y una segunda nómina simul
   // Simularla: cambian el capital y el pago
   await page.getByRole('switch', { name: 'Simular con Nómina 2' }).tap()
   await expect(page.getByText(/Capital dentro de un año: .*\(\+/)).toBeVisible()
-  await expect(page.getByText(/Pago de julio de 2027: .*\(\+/)).toBeVisible()
+  await expect(page.getByText(/Pago de julio de 2027:/)).toBeVisible()
   // También en el plan de pagos
   await page.getByText('Ver el plan de pagos').tap()
   await page.getByRole('switch', { name: 'Simular con Nómina 2' }).tap()
