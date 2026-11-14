@@ -6,10 +6,14 @@
 import { sumarDias, sumarMeses } from './fechas'
 import { mesEfectivo } from './imputacion'
 import { fijoYVariable, type Recurrente } from './recurrentes'
+import { fechaDeLosDatos } from './extracto'
 import { calcularTotales } from './resumen'
 import type { BaseDatos } from './tipos'
 
 const redondear = (n: number) => Math.round(n * 100) / 100
+/** Primer mes con datos: casi siempre incompleto (el primer Excel empieza a mitad de mes) */
+export const primerMes = (db: BaseDatos) => db.movimientos.reduce((min, m) => (mesEfectivo(m) < min ? mesEfectivo(m) : min), '9999-99')
+
 const diasDelMes = (mes: string) => Number(sumarDias(sumarMeses(`${mes}-01`, 1), -1).slice(8, 10))
 
 export interface Prevision {
@@ -23,12 +27,16 @@ export interface Prevision {
   diasRestantes: number
   /** Gasto medio de los meses anteriores completos (hasta 3), para comparar */
   media: number | null
+  /** Fecha del último dato importado: la previsión cuenta desde ahí */
+  hasta: string
 }
 
 export function preverCierre(db: BaseDatos, mes: string, hoy: string, recurrentes: Recurrente[]): Prevision | null {
   if (hoy.slice(0, 7) !== mes) return null
   const totalDias = diasDelMes(mes)
-  const dia = Number(hoy.slice(8, 10))
+  // Hasta el último dato importado: los días sin importar se prevén como los que quedan
+  const hasta = fechaDeLosDatos(db, hoy)
+  const dia = hasta.startsWith(mes) ? Number(hasta.slice(8, 10)) : 0
   const diasRestantes = totalDias - dia
   const delMes = db.movimientos.filter((m) => mesEfectivo(m) === mes)
   const gastado = calcularTotales(delMes, db.categorias).gastos
@@ -39,14 +47,16 @@ export function preverCierre(db: BaseDatos, mes: string, hoy: string, recurrente
   const porId = new Map(db.movimientos.map((m) => [m.id, m]))
   const fin = `${mes}-${String(totalDias).padStart(2, '0')}`
   const pendientes = recurrentes.filter((r) => {
-    if (!r.activo || r.proxima <= hoy || r.proxima > fin || r.ultima.startsWith(mes)) return false
+    if (!r.activo || r.proxima <= hasta || r.proxima > fin || r.ultima.startsWith(mes)) return false
     const ultimo = porId.get(r.ids[r.ids.length - 1])
     return !ultimo?.mes_imputacion
   })
   const recibos = redondear(pendientes.reduce((s, r) => s + r.importe, 0))
 
-  // Ritmo del gasto variable: media diaria de hasta 3 meses anteriores completos con datos
-  const previos = [1, 2, 3].map((i) => sumarMeses(`${mes}-01`, -i).slice(0, 7)).filter((p) => db.movimientos.some((m) => mesEfectivo(m) === p))
+  // Ritmo del gasto variable: media diaria de hasta 3 meses anteriores completos (el primer mes importado
+  // suele empezar a mitad y no cuenta)
+  const primero = primerMes(db)
+  const previos = [1, 2, 3].map((i) => sumarMeses(`${mes}-01`, -i).slice(0, 7)).filter((p) => p > primero && db.movimientos.some((m) => mesEfectivo(m) === p))
   let porDia = dia ? variableHoy / dia : 0
   let media: number | null = null
   if (previos.length) {
@@ -59,5 +69,5 @@ export function preverCierre(db: BaseDatos, mes: string, hoy: string, recurrente
     media = redondear(datos.reduce((s, d) => s + d.gastos, 0) / datos.length)
   }
   const variable = redondear(porDia * diasRestantes)
-  return { gastado, pendientes, recibos, variable, total: redondear(gastado + recibos + variable), diasRestantes, media }
+  return { gastado, pendientes, recibos, variable, total: redondear(gastado + recibos + variable), diasRestantes, media, hasta }
 }

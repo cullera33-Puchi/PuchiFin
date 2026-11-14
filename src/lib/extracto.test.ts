@@ -45,3 +45,17 @@ describe('el mismo mes del año anterior', () => {
     expect(calcularExtracto(db, '2025-12').haceUnAno).toBeNull()
   })
 })
+
+describe('frase y datos atrasados', () => {
+  it('«Sin categoría» no es la categoría que más sube', () => {
+    const e = extracto({ categorias: [linea('Sin categoría', 900, 100), linea('Ocio', 200, 100)] })
+    e.categorias[0].id = null
+    expect(frase(e, 'noviembre')).toContain('Lo que más sube: Ocio')
+  })
+
+  it('a estas alturas del mes se mide hasta el último dato importado', () => {
+    const db0 = datosIniciales()
+    const d = { ...db0, ...generarDatosPrueba({ cuentas: db0.cuentas, categorias: db0.categorias, desde: '2026-08-01', hasta: '2026-11-05' }) }
+    expect(calcularExtracto(d, '2026-11', '2026-11-14').diaCorte).toBe(5)
+  })
+})

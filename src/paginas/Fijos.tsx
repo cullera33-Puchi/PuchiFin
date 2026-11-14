@@ -6,7 +6,7 @@ import { Baldosa } from '../componentes/Icono'
 import { Hoja, useInterfaz } from '../componentes/Interfaz'
 import { useDatos } from '../datos/ProveedorDatos'
 import { compartirArchivo, copiarTexto } from '../lib/compartir'
-import { claveComercio } from '../lib/conceptos'
+import { esPasarela } from '../lib/conceptos'
 import { hoyIso } from '../lib/fechas'
 import { formatearFecha, formatearImporte, plural } from '../lib/formato'
 import { mesEfectivo } from '../lib/imputacion'
@@ -43,7 +43,9 @@ export function Fijos() {
   const [verBajas, setVerBajas] = useState(false)
   const [optimizar, setOptimizar] = useState(false)
   const bajas = recurrentes.filter((x) => !x.activo)
-  const abrir = (x: Recurrente) => navegar(`/movimientos?q=${encodeURIComponent(claveComercio(x.nombre) || x.clave)}`)
+  // En PayPal, los cargos de ese importe
+  const abrir = (x: Recurrente) =>
+    navegar(`/movimientos?q=${encodeURIComponent(x.comercio)}${esPasarela(x.comercio) ? `&min=${x.importe}&max=${x.importe}` : ''}`)
 
   return (
     <>

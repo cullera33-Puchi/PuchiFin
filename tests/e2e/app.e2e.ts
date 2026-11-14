@@ -72,6 +72,10 @@ test('deslizar una fila muestra sus acciones y mantenerla pulsada abre el menú'
   await page.waitForTimeout(700)
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
   await expect(page.getByRole('button', { name: 'Ver los del mismo comercio' })).toBeVisible()
+  // Desde la propia pestaña Movimientos: la búsqueda se aplica y encuentra el comercio
+  await page.getByRole('button', { name: 'Ver los del mismo comercio' }).click()
+  await expect(page.getByPlaceholder('Buscar concepto o nota')).not.toHaveValue('')
+  await expect(page.getByText(/^[1-9]\d* movimientos?\./)).toBeVisible()
   expect(e).toEqual([])
 })
 

@@ -34,3 +34,10 @@ describe('cierre de mes guiado', () => {
     expect(mesPorCerrar('2026-11-11')).toBeNull()
   })
 })
+
+describe('cierre: el primer mes con tarjeta', () => {
+  it('un cargo que paga compras anteriores a lo importado no deja el paso pendiente para siempre', () => {
+    // Septiembre: el cargo del día 3 paga compras de agosto, que no están importadas
+    expect(pasosCierre(db, '2026-09').find((p) => p.clave === 'liquidacion')?.hecho).toBe(true)
+  })
+})

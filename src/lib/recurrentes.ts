@@ -32,6 +32,8 @@ export const NOMBRE_PERIODICIDAD: Record<Periodicidad, string> = {
 
 export interface Recurrente {
   clave: string
+  /** Clave del comercio sin el importe (para buscarlo en Movimientos) */
+  comercio: string
   nombre: string
   categoria_id: string | null
   periodicidad: Periodicidad
@@ -49,7 +51,7 @@ export interface Recurrente {
   proxima: string
   /** Sigue activo: el último cargo no es de hace más de dos periodos (con los datos importados) */
   activo: boolean
-  /** Subida del último cargo frente al anterior (si sube más de un 2 % y al menos 0,50 €) */
+  /** Subida del último cargo frente al anterior (solo en importes fijos, si sube más de un 2 % y al menos 0,50 €) */
   subida: { antes: number; ahora: number; fecha: string } | null
   ids: string[]
 }
@@ -126,11 +128,14 @@ export function detectarRecurrentes(db: BaseDatos): Recurrente[] {
     const activo = dias(ultima, ref) <= periodo.dias * 2
     const ahora = importes[importes.length - 1]
     const antes = importes[importes.length - 2]
-    const subida = ahora > antes * 1.02 && ahora - antes >= 0.5 ? { antes: redondear(antes), ahora: redondear(ahora), fecha: ultima } : null
+    // En un recibo de importe variable (luz, agua) cada factura cambia: no es una subida de precio
+    const esVariable = desviacion / media > 0.08
+    const subida = !esVariable && ahora > antes * 1.02 && ahora - antes >= 0.5 ? { antes: redondear(antes), ahora: redondear(ahora), fecha: ultima } : null
     const ultimoMov = orden[orden.length - 1]
     const base = claveComercio(ultimoMov.concepto_limpio)
     res.push({
       clave,
+      comercio: base || ultimoMov.concepto_normalizado,
       nombre: esPasarela(base) ? `${nombrePasarela(base)} de ${ahora.toFixed(2).replace('.', ',')} €` : ultimoMov.concepto_limpio,
       categoria_id: ultimoMov.categoria_id,
       periodicidad,

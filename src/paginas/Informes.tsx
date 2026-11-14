@@ -328,7 +328,12 @@ function mesesDelPeriodo(p: PeriodoInforme, hoy: string): number {
 /** Gastos hormiga: compras pequeñas y frecuentes, su total y lo que suman en un año */
 function SeccionHormiga({ informe, hoy }: { informe: Informe; hoy: string }) {
   const navegar = useNavigate()
-  const h = useMemo(() => gastosHormiga(informe.movimientos, mesesDelPeriodo(informe.periodo, hoy)), [informe, hoy])
+  // En un año, los meses con datos (un año con datos solo desde octubre son tres meses, no doce)
+  const meses = useMemo(() => {
+    const m = mesesDelPeriodo(informe.periodo, hoy)
+    return informe.periodo.escala === 'anio' ? Math.max(1, Math.min(m, new Set(informe.movimientos.map(mesEfectivo)).size)) : m
+  }, [informe, hoy])
+  const h = useMemo(() => gastosHormiga(informe.movimientos, meses), [informe, meses])
   if (!h) return null
   return (
     <section className="tarjeta">

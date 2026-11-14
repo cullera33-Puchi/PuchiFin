@@ -64,9 +64,21 @@ export interface Extracto {
   haceUnAno: Totales | null
 }
 
+/**
+ * Hasta dónde llegan los datos: la fecha del último movimiento importado, sin pasar de hoy. Las
+ * comparaciones «a estas alturas del mes» se hacen hasta ahí: si el Excel es de hace unos días, los días
+ * sin importar no cuentan como días sin gasto.
+ */
+export function fechaDeLosDatos(db: BaseDatos, hoy: string): string {
+  let ultima = ''
+  for (const m of db.movimientos) if (m.fecha_operacion <= hoy && m.fecha_operacion > ultima) ultima = m.fecha_operacion
+  return ultima || hoy
+}
+
 export function calcularExtracto(db: BaseDatos, mes: string, hoy?: string): Extracto {
   const enCurso = !!hoy && mesDe(hoy) === mes
-  const diaCorte = enCurso ? Number(hoy!.slice(8, 10)) : null
+  const corte = hoy ? fechaDeLosDatos(db, hoy) : null
+  const diaCorte = enCurso ? Number((corte!.startsWith(mes) ? corte! : hoy!).slice(8, 10)) : null
   const delPeriodo = (p: string) => db.movimientos.filter((m) => mesEfectivo(m) === p && (diaCorte === null || Number(fechaEfectiva(m).slice(8, 10)) <= diaCorte))
   const delMes = db.movimientos.filter((m) => mesEfectivo(m) === mes)
   const totales = calcularTotales(delMes, db.categorias)
@@ -191,9 +203,9 @@ export function fraseDelMes(e: Extracto, nombreMes: string): string | null {
     const cuando = e.enCurso ? ' a estas alturas del mes' : ''
     partes[0] += Math.abs(v) < 0.05 ? `, en línea con tu media${cuando}` : `, un ${Math.round(Math.abs(v) * 100)} % ${v > 0 ? 'más' : 'menos'} que tu media${cuando}`
   }
-  // La categoría que más sube frente a su media (al menos 30 € y un 15 %)
+  // La categoría que más sube frente a su media (al menos 30 € y un 15 %); lo pendiente de categorizar no cuenta
   const sube = e.categorias
-    .filter((c) => c.media !== null && c.importe - c.media >= Math.max(30, c.media * 0.15))
+    .filter((c) => c.id !== null && c.media !== null && c.importe - c.media >= Math.max(30, c.media * 0.15))
     .sort((a, b) => b.importe - b.media! - (a.importe - a.media!))[0]
   if (sube) partes.push(`Lo que más sube: ${sube.nombre}, ${eur(sube.importe - sube.media!)} por encima de lo habitual`)
   if (t.ingresos > 0) partes.push(t.ahorro >= 0 ? `Ahorras ${eur(t.ahorro)}` : `Gastas ${eur(-t.ahorro)} más de lo que ingresas`)

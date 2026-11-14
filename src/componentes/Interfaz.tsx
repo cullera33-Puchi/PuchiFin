@@ -223,6 +223,7 @@ export function Hoja({
   const cerrarRef = useRef(onCerrar)
   // Respaldo: si un campo tiene el foco y no se detecta el teclado, la hoja pasa arriba (guía 6.4)
   const [arriba, setArriba] = useState(false)
+  if (!abierta && arriba) setArriba(false)
   useEffect(() => {
     const el = cuerpo.current
     if (!el || !abierta) return

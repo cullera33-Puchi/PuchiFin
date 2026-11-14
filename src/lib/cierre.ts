@@ -3,13 +3,13 @@
  * por qué y dónde se resuelve. Todo se calcula con los datos; no se guarda nada.
  */
 import { esPendiente } from '../importacion/pendientes'
-import { gruposPasarela, propuestasRecategorizacion } from '../datos/categorizar'
+import { gruposPasarela, propuestasRecategorizacion, type GrupoPasarela } from '../datos/categorizar'
 import { sumarDias, sumarMeses } from './fechas'
 import { formatearFecha } from './formato'
 import { mesEfectivo } from './imputacion'
 import { cuadrarCuenta } from './saldos'
-import { cuadrarLiquidaciones } from './tarjeta'
-import type { BaseDatos } from './tipos'
+import { cuadrarLiquidaciones, type CuadreLiquidacion } from './tarjeta'
+import type { BaseDatos, Movimiento } from './tipos'
 
 export interface PasoCierre {
   clave: string
@@ -24,7 +24,14 @@ export const finDelMes = (mes: string) => sumarDias(sumarMeses(`${mes}-01`, 1), 
 
 const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`
 
-export function pasosCierre(db: BaseDatos, mes: string, ultimaExportacion: string | null = null): PasoCierre[] {
+/** Cálculos que el Extracto ya tiene hechos, para no repetirlos al pasar de un mes a otro */
+export interface PrevioCierre {
+  liquidaciones?: CuadreLiquidacion[]
+  mejoras?: Movimiento[]
+  pasarela?: GrupoPasarela[]
+}
+
+export function pasosCierre(db: BaseDatos, mes: string, ultimaExportacion: string | null = null, previo: PrevioCierre = {}): PasoCierre[] {
   const fin = finDelMes(mes)
   const pasos: PasoCierre[] = []
 
@@ -58,9 +65,10 @@ export function pasosCierre(db: BaseDatos, mes: string, ultimaExportacion: strin
   }
 
   // 3. Liquidación de la tarjeta cargada este mes
-  const liquidaciones = cuadrarLiquidaciones(db).filter((l) => l.movimiento.fecha_operacion.startsWith(mes))
+  const liquidaciones = (previo.liquidaciones ?? cuadrarLiquidaciones(db)).filter((l) => l.movimiento.fecha_operacion.startsWith(mes))
   if (liquidaciones.length) {
-    const malas = liquidaciones.filter((l) => l.estado !== 'cuadra' && l.estado !== 'confirmada')
+    // Un cargo que paga compras anteriores a lo importado de la tarjeta no se puede cuadrar: no cuenta como pendiente
+    const malas = liquidaciones.filter((l) => l.estado !== 'cuadra' && l.estado !== 'confirmada' && l.estado !== 'anterior_al_inicio')
     pasos.push({
       clave: 'liquidacion',
       titulo: 'Liquidación de la tarjeta',
@@ -81,7 +89,7 @@ export function pasosCierre(db: BaseDatos, mes: string, ultimaExportacion: strin
   })
 
   // 5. PayPal repartido (si hubo cargos de PayPal)
-  const pasarela = gruposPasarela(db)
+  const pasarela = previo.pasarela ?? gruposPasarela(db)
   const paypal = pasarela.flatMap((g) => g.movimientos).filter((m) => mesEfectivo(m) === mes)
   if (paypal.length) {
     const porRevisar = pasarela.flatMap((g) => g.porRevisar).filter((m) => mesEfectivo(m) === mes).length
@@ -95,7 +103,7 @@ export function pasosCierre(db: BaseDatos, mes: string, ultimaExportacion: strin
   }
 
   // 6. Mejoras de categoría propuestas (si las hay en el mes)
-  const mejoras = propuestasRecategorizacion(db).flatMap((p) => p.movimientos).filter((m) => mesEfectivo(m) === mes).length
+  const mejoras = (previo.mejoras ?? propuestasRecategorizacion(db).flatMap((p) => p.movimientos)).filter((m) => mesEfectivo(m) === mes).length
   if (mejoras)
     pasos.push({ clave: 'mejoras', titulo: 'Mejoras de categoría', detalle: `${plural(mejoras, 'propuesta', 'propuestas')} por revisar`, hecho: false, enlace: '/movimientos/categorizar' })
 

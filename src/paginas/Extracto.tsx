@@ -21,7 +21,7 @@ import { hoyIso, mesLargo, sumarMeses } from '../lib/fechas'
 import { formatearFecha, formatearImporte, formatearRedondo, plural } from '../lib/formato'
 import { porcentaje, textoComparacion, type Tono } from '../lib/resumen'
 import { cuadrarCuenta } from '../lib/saldos'
-import { propuestasRecategorizacion } from '../datos/categorizar'
+import { gruposPasarela, propuestasRecategorizacion } from '../datos/categorizar'
 import { cuadrarLiquidaciones } from '../lib/tarjeta'
 
 const TONO: Record<Tono, string> = {
@@ -38,19 +38,26 @@ export function Extracto() {
   const mes = params.get('mes') ?? mesDe(hoyIso())
   const e = useMemo(() => calcularExtracto(db, mes, hoyIso()), [db, mes])
   const prueba = contarDatosPrueba(db)
-  const mejoras = useMemo(() => propuestasRecategorizacion(db).reduce((s, p) => s + p.movimientos.length, 0), [db])
+  // Una vez por cambio de datos: se reutilizan en los avisos y en el cierre de mes
+  const movsMejora = useMemo(() => propuestasRecategorizacion(db).flatMap((p) => p.movimientos), [db])
+  const mejoras = movsMejora.length
+  const liquidaciones = useMemo(() => cuadrarLiquidaciones(db), [db])
+  const pasarela = useMemo(() => gruposPasarela(db), [db])
   const descuadradas = useMemo(
     () =>
       db.cuentas.filter((c) => c.activa && c.tipo === 'cuenta' && !cuadrarCuenta(db.movimientos.filter((x) => x.cuenta_id === c.id)).cuadra).length +
-      cuadrarLiquidaciones(db).filter((l) => l.estado === 'no_cuadra' || l.estado === 'sin_tarjeta').length,
-    [db],
+      liquidaciones.filter((l) => l.estado === 'no_cuadra' || l.estado === 'sin_tarjeta').length,
+    [db, liquidaciones],
   )
   const aviso = avisoExportacion(db)
   const importar = useMemo(() => avisoImportacion(db), [db])
   // Cierre de mes: el mes que se ve si ya pasó, o el anterior en los primeros días del mes
   const actual = mesDe(hoyIso())
   const mesCierre = mes < actual ? mes : mesPorCerrar(hoyIso())
-  const cierre = useMemo(() => (mesCierre && db.movimientos.length ? pasosCierre(db, mesCierre, ultimaExportacion()) : null), [db, mesCierre])
+  const cierre = useMemo(
+    () => (mesCierre && db.movimientos.length ? pasosCierre(db, mesCierre, ultimaExportacion(), { liquidaciones, mejoras: movsMejora, pasarela }) : null),
+    [db, mesCierre, liquidaciones, movsMejora, pasarela],
+  )
   const cierreHechos = cierre ? cierre.filter((p) => p.hecho).length : 0
   const recurrentes = useMemo(() => detectarRecurrentes(db), [db])
   const avisosFijos = useMemo(() => avisosRecurrentes(db, recurrentes), [db, recurrentes])
@@ -179,7 +186,8 @@ export function Extracto() {
                 <h3 className="text-[13px] font-medium text-zinc-500 uppercase">Previsión a final de mes</h3>
                 <p className="mt-0.5 text-[22px] leading-tight font-bold tabular-nums">Unos {formatearRedondo(prevision.total)} de gasto</p>
                 <p className="mt-1 text-[13px] text-zinc-500">
-                  Llevas {formatearRedondo(prevision.gastado)}. Faltan {prevision.pendientes.length ? `recibos por ${formatearRedondo(prevision.recibos)} y ` : ''}unos{' '}
+                  Llevas {formatearRedondo(prevision.gastado)}
+                  {prevision.hasta < hoyIso() ? ` con los datos hasta el ${formatearFecha(prevision.hasta).slice(0, 5)}` : ''}. Faltan {prevision.pendientes.length ? `recibos por ${formatearRedondo(prevision.recibos)} y ` : ''}unos{' '}
                   {formatearRedondo(prevision.variable)} de gasto variable en los {prevision.diasRestantes} días que quedan, a tu ritmo habitual.
                   {prevision.media !== null && ` Tu media mensual: ${formatearRedondo(prevision.media)}.`}
                 </p>

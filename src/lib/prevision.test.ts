@@ -30,3 +30,14 @@ describe('previsión de cierre de mes', () => {
     expect(preverCierre(db, '2026-10', '2026-11-13', rec)).toBeNull()
   })
 })
+
+describe('previsión con los datos atrasados', () => {
+  it('cuenta desde el último dato importado, no desde hoy', () => {
+    const hasta5 = { ...db, movimientos: db.movimientos.filter((m) => m.fecha_operacion <= '2026-11-05') }
+    const p = preverCierre(hasta5, '2026-11', '2026-11-14', detectarRecurrentes(hasta5))!
+    expect(p.hasta).toBe('2026-11-05')
+    expect(p.diasRestantes).toBe(25)
+    // Los recibos previstos entre el 6 y el 14 siguen pendientes (la fibra del 15 también)
+    expect(p.pendientes.some((r) => r.nombre.toLowerCase().includes('energia'))).toBe(true)
+  })
+})

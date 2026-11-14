@@ -65,7 +65,14 @@ export function calcularPosicion(db: BaseDatos, meses = 12): Posicion | null {
   const lista: string[] = []
   for (let m = mesAnterior(actual), i = 0; i < meses - 1; i++, m = mesAnterior(m)) lista.unshift(m)
   const liquidaciones = cuadrarLiquidaciones(db)
+  // Desde el mes en que ya hay datos de todas las cuentas y tarjetas: antes, una cuenta que aún no
+  // estaba importada haría parecer ahorro todo su saldo al aparecer
+  const primeras = [...cuentas.map((c) => c.cuenta.id), ...tarjetas.map((t) => t.cuenta.id)].map((id) =>
+    (porCuenta.get(id) ?? []).reduce((min, m) => (m.fecha_operacion < min ? m.fecha_operacion : min), '9999-99-99'),
+  )
+  const desde = primeras.reduce((max, f) => (f > max ? f : max), '').slice(0, 7)
   const cierres = lista
+    .filter((mes) => mes >= desde)
     .map((mes) => {
       const dia = finDeMes(mes)
       const saldos = cuentas.map((c) => saldoA(porCuenta.get(c.cuenta.id) ?? [], dia)).filter((x): x is number => x !== null)

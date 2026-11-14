@@ -6,6 +6,8 @@
  */
 import { sumarDias, sumarMeses } from './fechas'
 import { mesEfectivo } from './imputacion'
+import { fechaDeLosDatos } from './extracto'
+import { primerMes } from './prevision'
 import type { BaseDatos, Categoria } from './tipos'
 
 const redondear = (n: number) => Math.round(n * 100) / 100
@@ -31,8 +33,10 @@ function gastoDe(db: BaseDatos, mes: string, c: Categoria): number {
 
 export function consumoPresupuestos(db: BaseDatos, mes: string, hoy: string): LineaPresupuesto[] {
   const umbral = (db.ajustes.umbral_aviso_presupuesto ?? 80) / 100
-  const enCurso = hoy.slice(0, 7) === mes
-  const dia = Number(hoy.slice(8, 10))
+  // El ritmo se mide hasta el último dato importado
+  const hasta = fechaDeLosDatos(db, hoy)
+  const enCurso = hoy.slice(0, 7) === mes && hasta.startsWith(mes)
+  const dia = Number(hasta.slice(8, 10))
   const diasMes = Number(sumarDias(sumarMeses(`${mes}-01`, 1), -1).slice(8, 10))
   const res: LineaPresupuesto[] = []
   for (const p of db.presupuestos) {
@@ -48,9 +52,10 @@ export function consumoPresupuestos(db: BaseDatos, mes: string, hoy: string): Li
   return res.sort((a, b) => b.gastado / b.presupuesto - a.gastado / a.presupuesto)
 }
 
-/** Propuesta de presupuesto: la media de los 3 meses anteriores con datos, redondeada a 10 € */
+/** Propuesta de presupuesto: la media de los 3 meses anteriores completos, redondeada a 10 € */
 export function sugerirPresupuestos(db: BaseDatos, mes: string): Map<string, number> {
-  const previos = [1, 2, 3].map((i) => sumarMeses(`${mes}-01`, -i).slice(0, 7)).filter((p) => db.movimientos.some((m) => mesEfectivo(m) === p))
+  const primero = primerMes(db)
+  const previos = [1, 2, 3].map((i) => sumarMeses(`${mes}-01`, -i).slice(0, 7)).filter((p) => p > primero && db.movimientos.some((m) => mesEfectivo(m) === p))
   const res = new Map<string, number>()
   if (!previos.length) return res
   for (const c of db.categorias.filter((x) => !x.padre_id && x.activa && x.naturaleza === 'gasto')) {

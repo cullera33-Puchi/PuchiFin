@@ -12,7 +12,17 @@ Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario
 - Teclado (guía 6.4): `--kb` con `visualViewport`, la hoja sube y se limita en altura; si no se detecta el teclado en 1,2 s, la hoja pasa arriba. El campo enfocado queda a la vista.
 - Pruebas de navegador: `@playwright/test` 1.63.0, `playwright.config.ts` (iPhone 13 con Chromium), `tests/e2e/app.e2e.ts` (arranque, pestañas, gestos, pantallas nuevas y archivos de los esquemas 3, 5, 7 y 8 de `tests/fixtures/archivos`). En `pruebas.yml` y en `publicar.yml` antes de publicar.
 - Optimización: `clasificar` con reglas ordenadas en caché por lista y patrones normalizados en caché; `anadirA` para agrupar sin copiar listas (cuadre con el banco, categorizar, recurrentes, posición, importación); `ConClaude` se carga al abrir Herramientas, con lo que SheetJS sale del arranque (paquete principal de 928 a 423 KB). Cierre de mes de 35 a 11 ms y posición de 14 a 7 ms con 1.000 movimientos.
-- Pruebas: 370 tests unitarios y 8 recorridos de navegador.
+- Revisión de código (independiente) y correcciones:
+  - Cierre de mes: una liquidación «anterior al inicio» (paga compras de antes de lo importado) ya no deja el paso pendiente para siempre. El cierre reutiliza liquidaciones, mejoras y PayPal que el Extracto ya tiene calculados.
+  - Con los datos atrasados, la previsión, la frase del mes («a estas alturas») y la proyección del presupuesto miden hasta el último dato importado (`fechaDeLosDatos`), no hasta hoy. La previsión lo dice («con los datos hasta el…»).
+  - La media de la previsión y la propuesta de presupuesto no usan el primer mes importado, casi siempre incompleto (`primerMes`).
+  - Capital mes a mes: solo desde que hay datos de todas las cuentas y tarjetas; antes, una cuenta importada más tarde parecía ahorro.
+  - Sin avisos de «subida» en recibos de importe variable (luz, agua).
+  - «Lo que más sube» no puede ser «Sin categoría».
+  - Movimientos busca también por la clave del comercio (los enlaces «del mismo comercio» desde Informes, Fijos y el menú encuentran lo que buscan) y aplica una búsqueda nueva aunque ya esté abierta; en PayPal, por importe (`min` y `max`). Campo `comercio` en `Recurrente`.
+  - Gastos hormiga en un año con pocos meses de datos: cuenta los meses con datos.
+  - Pulsación larga: el gesto termina al abrirse el menú (la fila no queda a medio deslizar). La hoja vuelve abajo al cerrarse aunque un campo tuviera el foco.
+- Pruebas: 374 tests unitarios y 8 recorridos de navegador.
 
 ## v0.21.0. Mejoras de esfuerzo bajo de la hoja de ruta: reporting y usabilidad (13 de noviembre de 2026)
 

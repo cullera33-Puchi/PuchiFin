@@ -177,6 +177,8 @@ export function FilaDeslizable({
               temporizador.current = null
               if (movido.current || !inicio.current) return
               largo.current = true
+              // El gesto termina aquí: mover el dedo mientras se abre el menú no desliza la fila
+              inicio.current = null
               vibrar()
               onPulsacionLarga()
             }, 500)

@@ -13,7 +13,7 @@ import { obtenerDatos } from '../datos/almacen'
 import { useDatos } from '../datos/ProveedorDatos'
 import { aplicarReglasAPendientes } from '../importacion/pendientes'
 import { gruposPasarela, propuestasRecategorizacion } from '../datos/categorizar'
-import { normalizarConcepto } from '../lib/conceptos'
+import { claveComercio, normalizarConcepto } from '../lib/conceptos'
 import { diaLargo, mesLargo } from '../lib/fechas'
 import { formatearImporte, leerImporteUsuario, plural } from '../lib/formato'
 import { NOMBRE_TIPO_MOVIMIENTO, type Movimiento, type TipoMovimiento } from '../lib/tipos'
@@ -54,8 +54,16 @@ export function Movimientos() {
   const [params, setParams] = useSearchParams()
   // Se puede llegar con una búsqueda hecha (desde Informes: un comercio y un mes)
   const [busqueda, setBusqueda] = useState(() => params.get('q') ?? '')
-  const [filtros, setFiltros] = useState<Filtros>(() => ({ ...SIN_FILTROS, categoria: params.get('sin') ? null : undefined, mes: params.get('mes') }))
+  const numero = (v: string | null) => (v ? Number(v) : null)
+  const [filtros, setFiltros] = useState<Filtros>(() => ({
+    ...SIN_FILTROS,
+    categoria: params.get('sin') ? null : undefined,
+    mes: params.get('mes'),
+    min: numero(params.get('min')),
+    max: numero(params.get('max')),
+  }))
   const [buscando, setBuscando] = useState(false)
+
   const campo = useRef<HTMLInputElement>(null)
   const cancelarBusqueda = () => {
     setBusqueda('')
@@ -66,6 +74,17 @@ export function Movimientos() {
   const cuentasFiltro = db.cuentas.filter((c) => c.activa && c.tipo !== 'hipoteca' && db.movimientos.some((m) => m.cuenta_id === c.id))
   const [verFiltros, setVerFiltros] = useState(false)
   const [limite, setLimite] = useState(PAGINA)
+  // Si se llega con otra búsqueda estando ya en Movimientos («Ver los del mismo comercio»), se aplica
+  const claveParams = ['q', 'mes', 'min', 'max'].map((k) => params.get(k)).join('|')
+  const [paramsAplicados, setParamsAplicados] = useState(claveParams)
+  if (paramsAplicados !== claveParams) {
+    setParamsAplicados(claveParams)
+    if (params.get('q') !== null || params.get('mes') !== null || params.get('min') !== null) {
+      if (params.get('q') !== null) setBusqueda(params.get('q')!)
+      setFiltros((f) => ({ ...f, mes: params.get('mes'), min: numero(params.get('min')), max: numero(params.get('max')) }))
+      setLimite(PAGINA)
+    }
+  }
   const [seleccion, setSeleccion] = useState<Set<string> | null>(null)
   const [detalle, setDetalle] = useState<string | null>(null)
   const [selectorBloque, setSelectorBloque] = useState(false)
@@ -81,10 +100,12 @@ export function Movimientos() {
     return mapa
   }, [db.categorias])
 
+  // Clave de comercio de cada movimiento: los enlaces «del mismo comercio» buscan por ella
+  const claves = useMemo(() => new Map(db.movimientos.map((m) => [m.id, claveComercio(m.concepto_limpio)])), [db.movimientos])
   const lista = useMemo(() => {
     const q = normalizarConcepto(busqueda)
     return db.movimientos.filter((m) => {
-      if (q && !m.concepto_normalizado.includes(q) && !normalizarConcepto(m.nota ?? '').includes(q)) return false
+      if (q && !m.concepto_normalizado.includes(q) && !claves.get(m.id)?.includes(q) && !normalizarConcepto(m.nota ?? '').includes(q)) return false
       if (filtros.cuenta && m.cuenta_id !== filtros.cuenta) return false
       if (filtros.categoria === null && (m.categoria_id || m.tipo !== 'normal')) return false
       if (filtros.categoria && !hijas.get(filtros.categoria)?.has(m.categoria_id ?? '')) return false
@@ -94,7 +115,7 @@ export function Movimientos() {
       if (filtros.max !== null && Math.abs(m.importe) > filtros.max) return false
       return true
     })
-  }, [db.movimientos, busqueda, filtros, hijas])
+  }, [db.movimientos, busqueda, filtros, hijas, claves])
 
   const grupos = useMemo(() => porDia(lista.slice().sort((a, b) => b.fecha_operacion.localeCompare(a.fecha_operacion)).slice(0, limite)), [lista, limite])
   const total = Math.round(lista.reduce((s, m) => s + (m.tipo === 'normal' ? m.importe : 0), 0) * 100) / 100
