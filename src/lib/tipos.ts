@@ -196,6 +196,29 @@ export interface Ajustes {
   prevision: AjustesPrevision
   /** Inmuebles y otros activos para el patrimonio (esquema 16) */
   bienes: Bien[]
+  /** Supuestos para comprar una vivienda y vender o alquilar la actual (esquema 16, v0.42.0) */
+  inversion: AjustesInversion
+}
+
+export interface AjustesInversion {
+  /** Cuotas de hipoteca que el banco admite sobre los ingresos netos, en porcentaje */
+  esfuerzo_max: number
+  /** Parte del alquiler que el banco cuenta como ingreso, en porcentaje */
+  alquiler_banco: number
+  /** Bruto anual de la pareja: para su IRPF del alquiler y, sin nómina suya, para sus ingresos */
+  bruto_pareja: number
+  /** Revalorización anual de las viviendas para las proyecciones, en porcentaje */
+  revalorizacion: number
+  /** Gastos de venta de una vivienda (inmobiliaria, plusvalía municipal y cancelación), en porcentaje */
+  gastos_venta: number
+  /** Parte de la vivienda actual que es del usuario, en porcentaje (el resto, de la pareja) */
+  propiedad_pct: number
+  /** Reducción del rendimiento neto del alquiler de vivienda en el IRPF, en porcentaje */
+  reduccion_alquiler: number
+  /** Lo que costó la vivienda actual con sus gastos (para la ganancia y la amortización); null si no se sabe */
+  coste_vivienda: number | null
+  /** Parte del valor que es construcción, sin el suelo (recibo del IBI), en porcentaje */
+  construccion_pct: number
 }
 
 /** Vistas con «Analizar con Claude» y su plantilla de instrucciones */

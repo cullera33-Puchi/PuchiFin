@@ -39,7 +39,7 @@ export function cuotaDe(capital: number, interes: number, meses: number): number
 export const cuotaPrestamo = (p: Prestamo) => cuotaDe(p.capital, p.interes, p.plazo_meses)
 
 /** Capital pendiente tras «k» cuotas pagadas desde la fecha del préstamo */
-function pendienteTras(p: Prestamo, k: number): number {
+export function pendienteTras(p: Prestamo, k: number): number {
   if (k >= p.plazo_meses) return 0
   const r = p.interes / 1200
   const cuota = cuotaPrestamo(p)

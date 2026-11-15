@@ -18,7 +18,8 @@ import { fechaDeLosDatos, gastoPorCategoria } from './extracto'
 import { MESES, sumarDias, sumarMeses } from './fechas'
 import { mesEfectivo } from './imputacion'
 import { mesDeNomina, type AjusteNomina } from './nomina'
-import { cuotaDe, cuotaPrestamo, cuotasHipotecaEn, finPrestamo } from './patrimonio'
+import { cuotaDe, cuotaPrestamo, cuotasHipotecaEn, finPrestamo, pendientePrestamo, valorBien } from './patrimonio'
+import { actualDe, alquilerAnual, calcularVenta, hipotecaActual, inversionDe, precioPrevisto, viviendaHabitual, type AlquilerAnual, type Venta, type ViviendaActual } from './vivienda'
 import { estadoEventos } from './previstos'
 import { primerMes } from './prevision'
 import { calcularTotales } from './resumen'
@@ -51,6 +52,10 @@ export interface Simulacion {
   sinCrecimiento?: boolean
   /** Comprar una vivienda (v0.41.0) */
   compra?: CompraVivienda | null
+  /** No pagar la deuda familiar el año de la compra, para tener la entrada (v0.42.0) */
+  pausarPago?: boolean
+  /** Contar la nómina de la pareja: la que no cuenta en la previsión o, sin ella, su bruto (v0.42.0) */
+  pareja?: boolean
 }
 
 /** Compra de una vivienda para simular su efecto en el plan y en el patrimonio */
@@ -69,6 +74,8 @@ export interface CompraVivienda {
   /** Alquiler que se cobra al mes, si es para alquilar */
   alquiler_mes: number
   uso: 'alquilar' | 'segunda' | 'vivir'
+  /** Si es para vivir: qué se hace con la vivienda actual (v0.42.0) */
+  actual?: ViviendaActual | null
 }
 
 /** Cifras de la compra: entrada, gastos de compra, lo que sale de la cuenta, préstamo y cuota */
@@ -79,13 +86,90 @@ export function cifrasCompra(c: CompraVivienda) {
   return { entrada, gastos, desembolso: redondear(entrada + gastos), prestamo, cuota: cuotaDe(prestamo, c.interes, Math.round(c.anios * 12)) }
 }
 
-/** Lo que la compra suma (en positivo) a los gastos y a los ingresos de un mes: desde el siguiente al de la compra */
-function compraEnMes(sim: Simulacion, mes: string): { gasto: number; ingreso: number } {
+/** Dinero neto de la venta de la vivienda actual en una compra (0 si no se vende) */
+function ventaDe(db: BaseDatos, c: CompraVivienda): number {
+  const a = actualDe(c)
+  return a?.destino === 'vender' ? calcularVenta(db, a.precio_venta, c.mes, c.precio).neto : 0
+}
+
+/** Meses que la vivienda actual está alquilada en un año: desde el siguiente al de la compra */
+const mesesAlquiladaEn = (mesCompra: string, anio: number) => (anio < Number(mesCompra.slice(0, 4)) ? 0 : anio === Number(mesCompra.slice(0, 4)) ? 12 - numMes(mesCompra) : 12)
+
+/** Alquiler neto de IRPF de la vivienda actual en un mes (el IRPF se aparta cada mes) */
+function alquilerNetoMes(db: BaseDatos, a: ViviendaActual, mesCompra: string, mes: string, ajuste: AjusteNomina): number {
+  const anio = Number(mes.slice(0, 4))
+  const meses = mesesAlquiladaEn(mesCompra, anio)
+  return meses > 0 ? alquilerAnual(db, a, anio, ajuste, meses).neto / meses : 0
+}
+
+/**
+ * Lo que la compra suma a los gastos y a los ingresos de un mes, desde el siguiente al de la compra: la
+ * cuota y los gastos de la nueva, su alquiler si es para alquilar, el alquiler neto de la actual si se
+ * alquila y, si se vende, la cuota de la hipoteca actual que deja de pagarse (en negativo)
+ */
+function compraEnMes(db: BaseDatos, sim: Simulacion, mes: string, ajuste: AjusteNomina): { gasto: number; ingreso: number } {
   const c = sim.compra
   if (!c || mes <= c.mes) return { gasto: 0, ingreso: 0 }
   const { cuota } = cifrasCompra(c)
   const finCuota = sumarMeses(`${c.mes}-01`, Math.round(c.anios * 12)).slice(0, 7)
-  return { gasto: (mes <= finCuota ? cuota : 0) + c.gastos_mes, ingreso: c.uso === 'alquilar' ? c.alquiler_mes : 0 }
+  let gasto = (mes <= finCuota ? cuota : 0) + c.gastos_mes
+  let ingreso = c.uso === 'alquilar' ? c.alquiler_mes : 0
+  const a = actualDe(c)
+  if (a?.destino === 'vender') {
+    const p = hipotecaActual(db)
+    if (p && mes <= finPrestamo(p)) gasto -= cuotaPrestamo(p)
+  }
+  if (a?.destino === 'alquilar') ingreso += alquilerNetoMes(db, a, c.mes, mes, ajuste)
+  return { gasto, ingreso }
+}
+
+// Con la nómina de la pareja: la que no cuenta en la previsión o, sin ella, una con su bruto
+const cacheParejas = new WeakMap<BaseDatos, BaseDatos>()
+function conPareja(db: BaseDatos): BaseDatos {
+  const guardada = cacheParejas.get(db)
+  if (guardada) return guardada
+  const nominas = db.ajustes.nominas ?? []
+  let r = db
+  if (!nominas.some((n) => !n.incluida)) {
+    const inv = inversionDe(db)
+    const mia = nominas.find((n) => n.incluida && n.bruto)
+    const pareja: Nomina = {
+      id: 'pareja',
+      nombre: 'Pareja',
+      neto_mensual: 0,
+      pagas: [],
+      desde: null,
+      hasta: null,
+      incluida: false,
+      bonus: null,
+      bruto: {
+        fijo_anual: inv.bruto_pareja,
+        pagas: 12,
+        meses_extra: [],
+        bonus_objetivo: 0,
+        bonus_consecucion: 100,
+        bonus_mes: 8,
+        flexible_mes: 0,
+        especie_mes: 0,
+        subida_anual: 0,
+        subida_mes: 1,
+        vigente_desde: '2000-01',
+        hijos: mia?.bruto?.hijos ?? [],
+        tipo_actual: null,
+      },
+    }
+    r = inv.bruto_pareja > 0 ? { ...db, ajustes: { ...db.ajustes, nominas: [...nominas, pareja] } } : db
+  }
+  cacheParejas.set(db, r)
+  return r
+}
+
+/** Los datos y la simulación con la pareja, si la simulación la cuenta: sus nóminas se suman */
+function conLaPareja(db: BaseDatos, sim: Simulacion): [BaseDatos, Simulacion] {
+  if (!sim.pareja) return [db, sim]
+  const d = conPareja(db)
+  const fuera = (d.ajustes.nominas ?? []).filter((n) => !n.incluida)
+  return [d, { ...sim, nominas: { ...(sim.nominas ?? {}), ...Object.fromEntries(fuera.map((n) => [n.id, true])) } }]
 }
 
 /** Inflación anual del gasto que aplica: la guardada, la de la simulación o ninguna */
@@ -173,6 +257,7 @@ export const haySimulacion = (db: BaseDatos, sim: Simulacion) =>
   sim.inflacion !== undefined ||
   !!sim.sinCrecimiento ||
   !!sim.compra ||
+  !!sim.pareja ||
   simulaNominas(db, sim)
 
 /** Nóminas que cuentan: las incluidas, con lo que cambie la simulación */
@@ -215,6 +300,17 @@ export interface Plan {
   serie: PuntoCapital[]
   /** Con una compra en la simulación: lo que pide y si llega el dinero */
   compra: ResultadoCompra | null
+  /** Mes a mes, unos once años como mínimo: saldo de la cuenta de ahorro antes y después del pago, y deuda tras él */
+  trayectoria: PuntoPlan[]
+  /** Capital de hoy (cuentas menos lo pendiente de la tarjeta) */
+  capitalHoy: number
+}
+
+export interface PuntoPlan {
+  mes: string
+  antes: number
+  saldo: number
+  deuda: number
 }
 
 export interface ResultadoCompra {
@@ -230,8 +326,16 @@ export interface ResultadoCompra {
   falta: number
   /** Lo que queda por encima del colchón después de la compra (negativo: se come el colchón) */
   sobreColchon: number
-  /** Cuotas de hipoteca (la actual y la nueva) sobre las nóminas netas del año siguiente a la compra, en tanto por uno */
+  /** Venta de la vivienda actual, si se vende */
+  venta: Venta | null
+  /** Alquiler de la vivienda actual en el primer año entero, si se alquila */
+  alquiler: AlquilerAnual | null
+  /** Cuotas de hipoteca al mes después de la compra: la nueva y la actual, si no se vende */
+  cuotas: number
+  /** Cuotas sobre lo que cuenta el banco (nóminas netas y una parte del alquiler), en tanto por uno */
   esfuerzo: number | null
+  /** Esfuerzo máximo de los supuestos, en tanto por uno */
+  esfuerzoMax: number
 }
 
 export interface PuntoCapital {
@@ -350,7 +454,7 @@ function modelo(db: BaseDatos, stats: Map<string, Estadistica>, base: string, si
       })
       .filter((x) => x.importe > 0)
     // El alquiler de la vivienda que se simula comprar, con los otros ingresos
-    return { nominas, otros: historico(mes) + compraEnMes(sim, mes).ingreso, historicos: historico(mes) }
+    return { nominas, otros: historico(mes) + compraEnMes(db, sim, mes, ajuste).ingreso, historicos: historico(mes) }
   }
   const ingresos = (mes: string) => {
     const d = desglose(mes)
@@ -371,7 +475,7 @@ function modelo(db: BaseDatos, stats: Map<string, Estadistica>, base: string, si
     // La hipoteca que ya se paga deja de pagarse tras su última cuota; la de la compra simulada, se suma
     let terminadas = 0
     for (const p of prestamos) if (mes > finPrestamo(p)) terminadas += cuotaPrestamo(p)
-    return Math.max(0, total - terminadas) + compraEnMes(sim, mes).gasto
+    return Math.max(0, Math.max(0, total - terminadas) + compraEnMes(db, sim, mes, ajuste).gasto)
   }
   const gastos = (mes: string) => gastoDe(mes, true)
   return {
@@ -401,7 +505,8 @@ function pagosDeDeuda(db: BaseDatos, c: Compromiso) {
   return { pagado, pagosReales: [...porAnio].map(([anio, importe]) => ({ anio, importe })).sort((a, b) => a.anio - b.anio) }
 }
 
-export function calcularPlan(db: BaseDatos, hoy: string, sim: Simulacion = SIN_SIMULACION): ResultadoPlan {
+export function calcularPlan(datosOriginales: BaseDatos, hoy: string, simulacion: Simulacion = SIN_SIMULACION): ResultadoPlan {
+  const [db, sim] = conLaPareja(datosOriginales, simulacion)
   const compromiso = db.compromisos.find((c) => c.activo)
   if (!compromiso) return { plan: null, falta: 'sin_compromiso' }
   if (!(compromiso.deuda_inicial > 0)) return { plan: null, falta: 'sin_deuda' }
@@ -438,6 +543,8 @@ export function calcularPlan(db: BaseDatos, hoy: string, sim: Simulacion = SIN_S
     if (mes === mesDatos) return n >= compromiso.mes_referencia && n <= compromiso.ventana_mes_fin && !pagadoEnVentana(Number(mes.slice(0, 4)))
     // El verano de este año, si ya se pagó dentro de la ventana, no lleva otro pago previsto
     if (mes.slice(0, 4) === mesDatos.slice(0, 4) && pagadoEnVentana(Number(mes.slice(0, 4)))) return false
+    // El año de la compra, si se pausa el pago para tener la entrada
+    if (sim.compra && sim.pausarPago && mes.slice(0, 4) === sim.compra.mes.slice(0, 4)) return false
     return n === compromiso.mes_referencia
   }
 
@@ -445,12 +552,14 @@ export function calcularPlan(db: BaseDatos, hoy: string, sim: Simulacion = SIN_S
   let saldo = cuadre.saldoBanco
   let deuda = deudaPendiente
   let resultadoCompra: ResultadoCompra | null = null
+  const trayectoria: PuntoPlan[] = []
+  const inv = inversionDe(db)
   const pagos: PagoPrevisto[] = []
   const capitalHoy = capitalDeHoy(db) ?? cuadre.saldoBanco
   const serie: PuntoCapital[] = []
   let mes = mesDatos
-  // Hasta saldarla y, como mínimo, dos años para ver el capital
-  for (let i = 0; i < 30 * 12 && (deuda > 0 || i <= 24); i++, mes = siguienteMes(mes)) {
+  // Hasta saldarla y, como mínimo, once años: dos para ver el capital y diez para comparar el patrimonio
+  for (let i = 0; i < 30 * 12 && (deuda > 0 || i <= 132); i++, mes = siguienteMes(mes)) {
     // Del mes de los datos, solo los días que quedan (el saldo de la cuenta sigue igual hasta su último dato)
     const parte = i === 0 ? (diasDelMes(mes) - Number(datos.slice(8, 10))) / diasDelMes(mes) : 1
     const ahorro = mod.ahorro(mes) * Math.max(0, parte) + (puntuales.get(mes) ?? 0)
@@ -458,22 +567,35 @@ export function calcularPlan(db: BaseDatos, hoy: string, sim: Simulacion = SIN_S
     // La compra de la simulación: entrada y gastos salen de la cuenta de ahorro ese mes, antes del pago
     if (sim.compra && mes === sim.compra.mes) {
       const c = cifrasCompra(sim.compra)
+      const a = actualDe(sim.compra)
       const saldoAntes = redondear(saldo)
-      saldo -= c.desembolso
+      // Si se vende la actual, el dinero neto de la venta entra el mismo mes y va a la compra
+      const venta = a?.destino === 'vender' ? calcularVenta(db, a.precio_venta, mes, sim.compra.precio) : null
+      saldo += (venta?.neto ?? 0) - c.desembolso
       const siguientes = Array.from({ length: 12 }, (_, j) => sumarMeses(`${mes}-01`, j + 1).slice(0, 7))
-      // Las nóminas previstas del año siguiente; sin ninguna dada de alta, la nómina media del historial
+      // Las nóminas previstas del año siguiente
       const previstas = siguientes.reduce((s, m) => s + mod.desglose(m).nominas.reduce((t, x) => t + x.importe, 0), 0) / 12
-      const neto = previstas > 0 ? previstas : mod.real.nomina
-      const cuotas = cuotasHipotecaEn(db, siguientes[0]) + c.cuota
+      // Sin ninguna nómina guardada que cuente, la del historial más las que se simulan
+      const neto = mod.reemplaza ? previstas : mod.real.nomina + previstas
+      // El banco cuenta una parte del alquiler: el de la nueva si es para alquilar y el de la actual si se alquila
+      const alquileres = (sim.compra.uso === 'alquilar' ? sim.compra.alquiler_mes : 0) + (a?.destino === 'alquilar' ? (a.alquiler_mes * (12 - a.meses_vacia)) / 12 : 0)
+      const ingresosBanco = neto + (alquileres * inv.alquiler_banco) / 100
+      const cuotas = (a?.destino === 'vender' ? 0 : cuotasHipotecaEn(db, siguientes[0])) + c.cuota
+      const anioSiguiente = Number(siguientes[11].slice(0, 4))
       resultadoCompra = {
         mes,
         ...c,
         saldoAntes,
-        falta: redondear(Math.max(0, c.desembolso - saldoAntes)),
-        sobreColchon: redondear(saldoAntes - c.desembolso - colchon),
-        esfuerzo: neto > 0 ? cuotas / neto : null,
+        venta,
+        alquiler: a?.destino === 'alquilar' ? alquilerAnual(db, a, anioSiguiente, ajusteNominas(db, sim)) : null,
+        falta: redondear(Math.max(0, c.desembolso - saldoAntes - (venta?.neto ?? 0))),
+        sobreColchon: redondear(saldoAntes + (venta?.neto ?? 0) - c.desembolso - colchon),
+        cuotas: redondear(cuotas),
+        esfuerzo: ingresosBanco > 0 ? cuotas / ingresosBanco : null,
+        esfuerzoMax: inv.esfuerzo_max / 100,
       }
     }
+    const antes = saldo
     if (deuda > 0 && esMesDePago(mes)) {
       const pago = redondear(Math.min(deuda, Math.max(0, saldo - colchon)))
       deuda = redondear(deuda - pago)
@@ -481,6 +603,7 @@ export function calcularPlan(db: BaseDatos, hoy: string, sim: Simulacion = SIN_S
       pagos.push({ anio: Number(mes.slice(0, 4)), mes, saldo: redondear(saldo + pago), pago, deudaTras: deuda })
     }
     if (i <= 24) serie.push({ mes, saldo: redondear(saldo), capital: redondear(capitalHoy + saldo - cuadre.saldoBanco) })
+    trayectoria.push({ mes, antes: redondear(antes), saldo: redondear(saldo), deuda })
   }
   return {
     falta: null,
@@ -498,6 +621,8 @@ export function calcularPlan(db: BaseDatos, hoy: string, sim: Simulacion = SIN_S
       mesesBase: mod.meses,
       serie,
       compra: resultadoCompra,
+      trayectoria,
+      capitalHoy,
     },
   }
 }
@@ -514,7 +639,12 @@ export interface MesIngresos {
  * Previsión de ingresos de los 12 próximos meses (desde el siguiente al de los datos) y capital previsto,
  * sin pagos de deuda: el de hoy más el ahorro previsto de cada mes. Null sin un mes cerrado de datos.
  */
-export function preverIngresos(db: BaseDatos, hoy: string, sim: Simulacion = SIN_SIMULACION): { meses: MesIngresos[]; ahorroMensual: number; capitalHoy: number | null; capital12: number | null; mediaNomina: number | null } | null {
+export function preverIngresos(
+  datosOriginales: BaseDatos,
+  hoy: string,
+  simulacion: Simulacion = SIN_SIMULACION,
+): { meses: MesIngresos[]; ahorroMensual: number; capitalHoy: number | null; capital12: number | null; mediaNomina: number | null } | null {
+  const [db, sim] = conLaPareja(datosOriginales, simulacion)
   const stats = estadisticas(db)
   const datos = fechaDeLosDatos(db, hoy)
   const mesDatos = datos.slice(0, 7)
@@ -548,7 +678,7 @@ export function preverIngresos(db: BaseDatos, hoy: string, sim: Simulacion = SIN
               mod.ahorro(mesDatos) * Math.max(0, resto) +
               (puntuales.get(mesDatos) ?? 0) +
               suma12 -
-              (sim.compra && meses.some((m) => m.mes === sim.compra!.mes) ? cifrasCompra(sim.compra).desembolso : 0),
+              (sim.compra && meses.some((m) => m.mes === sim.compra!.mes) ? cifrasCompra(sim.compra).desembolso - ventaDe(db, sim.compra) : 0),
           ),
     mediaNomina: conNomina.length ? redondear(conNomina.reduce((s, m) => s + stats.get(m)!.nomina, 0) / conNomina.length) : null,
   }
@@ -581,7 +711,8 @@ export interface Comprobacion {
  * De dónde sale el ahorro previsto (v0.40.0): las medias de los 12 próximos meses frente a las de los
  * meses cerrados, y lo que conviene revisar si la previsión se aleja del historial. Null sin un mes cerrado.
  */
-export function comprobarPrevision(db: BaseDatos, hoy: string, sim: Simulacion = SIN_SIMULACION): Comprobacion | null {
+export function comprobarPrevision(datosOriginales: BaseDatos, hoy: string, simulacion: Simulacion = SIN_SIMULACION): Comprobacion | null {
+  const [db, sim] = conLaPareja(datosOriginales, simulacion)
   const stats = estadisticas(db)
   const mesDatos = fechaDeLosDatos(db, hoy).slice(0, 7)
   const mod = modelo(db, stats, mesDatos, sim)
@@ -671,7 +802,8 @@ export interface AnioPrevisto {
  * Evolución por años naturales (v0.40.0), desde el de los datos: bruto, retención y neto de las nóminas
  * y, en los años siguientes, otros ingresos, gasto y ahorro previstos. Con el mismo modelo que el plan.
  */
-export function evolucionAnual(db: BaseDatos, hoy: string, sim: Simulacion = SIN_SIMULACION, anios = 6): AnioPrevisto[] | null {
+export function evolucionAnual(datosOriginales: BaseDatos, hoy: string, simulacion: Simulacion = SIN_SIMULACION, anios = 6): AnioPrevisto[] | null {
+  const [db, sim] = conLaPareja(datosOriginales, simulacion)
   const stats = estadisticas(db)
   const mesDatos = fechaDeLosDatos(db, hoy).slice(0, 7)
   const mod = modelo(db, stats, mesDatos, sim)
@@ -746,3 +878,177 @@ function calcularEfecto(db: BaseDatos, hoy: string): { mes: string; real: number
 
 // Una vez por versión de los datos y día (v0.34.0): el Extracto, Informes y el plan lo comparten
 export const efectoMesCerrado = porVersionYClave(calcularEfecto)
+
+// ---------------------------------------------------------------------------
+// ¿Cuánto puedo comprar? y vender o alquilar la vivienda actual (v0.42.0)
+// ---------------------------------------------------------------------------
+
+/** Lo que se puede pedir prestado con una cuota, un tipo fijo y un plazo */
+function prestamoCon(cuota: number, interes: number, meses: number): number {
+  if (!(cuota > 0) || !(meses > 0)) return 0
+  const r = interes / 1200
+  return redondear(r === 0 ? cuota * meses : (cuota * (1 - (1 + r) ** -meses)) / r)
+}
+
+export type Limite = 'entrada' | 'cuota'
+
+export interface PrecioMaximo {
+  /** Dinero para entrada y gastos: lo que hay por encima del colchón y, si se vende, la venta */
+  efectivo: number
+  precio: number
+  limite: Limite
+}
+
+export interface FilaCapacidad {
+  mes: string
+  /** Lo que cuenta el banco al mes: nóminas netas y una parte del alquiler */
+  ingresosBanco: number
+  /** Cuota máxima con el esfuerzo de los supuestos, ya descontada la hipoteca actual si se mantiene */
+  cuotaMax: number
+  pagando: PrecioMaximo
+  pausando: PrecioMaximo
+  /** Precio máximo pausando el pago, con un 35 % de esfuerzo */
+  precio35: number
+}
+
+export interface Capacidad {
+  filas: FilaCapacidad[]
+  entrada_pct: number
+  gastos_pct: number
+  interes: number
+  anios: number
+  esfuerzo: number
+  /** Se vende y no hay vivienda habitual con valor: no se sabe lo que deja la venta */
+  sinVivienda: boolean
+}
+
+/**
+ * Precio máximo de una vivienda comprada cada año en el mes de la compra simulada (o el del pago de la
+ * deuda), pagando ese año la deuda o pausando ese pago. Lo limita lo primero que se alcance: el dinero para
+ * la entrada y los gastos, o la cuota máxima que admite el banco con el esfuerzo de los supuestos.
+ */
+export function capacidadCompra(datos: BaseDatos, hoy: string, sim: Simulacion, opciones: { pareja: boolean; destino: ViviendaActual['destino'] }): Capacidad | null {
+  const simBase: Simulacion = { ...sim, compra: null, pausarPago: false, pareja: opciones.pareja }
+  const plan = calcularPlan(datos, hoy, simBase).plan
+  if (!plan) return null
+  const [db, s] = conLaPareja(datos, simBase)
+  const mesDatos = fechaDeLosDatos(db, hoy).slice(0, 7)
+  const mod = modelo(db, estadisticas(db), mesDatos, s)
+  const c = sim.compra
+  const inv = inversionDe(db)
+  const p = { entrada: c?.entrada_pct ?? 20, gastos: c?.gastos_pct ?? 12, interes: c?.interes ?? 3, anios: c?.anios ?? 25 }
+  const mesDelAnio = String(c ? numMes(c.mes) : plan.compromiso.mes_referencia).padStart(2, '0')
+  const a = c?.actual
+  const alquiler = opciones.destino === 'alquilar' ? ((a?.alquiler_mes ?? 0) * (12 - (a?.meses_vacia ?? 0))) / 12 : 0
+  const hipoteca = hipotecaActual(db)
+  const sinVivienda = opciones.destino === 'vender' && !viviendaHabitual(db)
+  const e = p.entrada / 100
+  const g = p.gastos / 100
+  const filas: FilaCapacidad[] = []
+  for (let anio = Number(mesDatos.slice(0, 4)); filas.length < 6 && anio < Number(mesDatos.slice(0, 4)) + 12; anio++) {
+    const mes = `${anio}-${mesDelAnio}`
+    if (mes <= mesDatos) continue
+    const t = plan.trayectoria.find((x) => x.mes === mes)
+    if (!t) break
+    const siguientes = Array.from({ length: 12 }, (_, j) => sumarMeses(`${mes}-01`, j + 1).slice(0, 7))
+    const previstas = siguientes.reduce((sum, m) => sum + mod.desglose(m).nominas.reduce((x, n) => x + n.importe, 0), 0) / 12
+    const ingresosBanco = redondear((mod.reemplaza ? previstas : mod.real.nomina + previstas) + (alquiler * inv.alquiler_banco) / 100)
+    const existentes = opciones.destino === 'vender' || !hipoteca || siguientes[0] > finPrestamo(hipoteca) ? 0 : cuotaPrestamo(hipoteca)
+    // Si se vende: el precio previsto de la vivienda habitual; reinvertido en la nueva, la ganancia queda exenta
+    const venta = opciones.destino === 'vender' && !sinVivienda ? calcularVenta(db, precioPrevisto(db, mes), mes, Infinity).neto : 0
+    const cuotaCon = (esfuerzo: number) => Math.max(0, esfuerzo * ingresosBanco - existentes)
+    const maximo = (efectivo: number, esfuerzo: number): PrecioMaximo => {
+      const disponible = Math.max(0, efectivo)
+      const porEntrada = e + g > 0 ? disponible / (e + g) : Infinity
+      const porCuota = (disponible + prestamoCon(cuotaCon(esfuerzo), p.interes, Math.round(p.anios * 12))) / (1 + g)
+      return { efectivo: redondear(efectivo), precio: Math.floor(Math.min(porEntrada, porCuota) / 1000) * 1000, limite: porEntrada <= porCuota ? 'entrada' : 'cuota' }
+    }
+    // Pausar: el pago de ese año, si ya se habría hecho, se queda en la cuenta
+    const pagoDelAnio = plan.pagos.find((x) => x.anio === anio && x.mes <= mes)?.pago ?? 0
+    const colchon = plan.compromiso.colchon
+    const pagando = t.saldo - colchon + venta
+    const pausando = pagando + pagoDelAnio
+    filas.push({
+      mes,
+      ingresosBanco,
+      cuotaMax: redondear(cuotaCon(inv.esfuerzo_max / 100)),
+      pagando: maximo(pagando, inv.esfuerzo_max / 100),
+      pausando: maximo(pausando, inv.esfuerzo_max / 100),
+      precio35: maximo(pausando, 0.35).precio,
+    })
+  }
+  return { filas, entrada_pct: p.entrada, gastos_pct: p.gastos, interes: p.interes, anios: p.anios, esfuerzo: inv.esfuerzo_max, sinVivienda }
+}
+
+export interface ResultadoDestino {
+  destino: 'vender' | 'alquilar'
+  /** Ahorros que hacen falta para la compra (negativo: la venta deja dinero de más) */
+  ahorros: number
+  /** Lo que falta en la cuenta de ahorro (0 si llega) */
+  falta: number
+  /** Cuotas de hipoteca al mes después de la compra */
+  cuotas: number
+  /** Alquiler neto al mes de la vivienda actual, después de gastos e IRPF */
+  alquilerNeto: number
+  /** Ahorro medio al mes en el año siguiente a la compra */
+  ahorroMensual: number
+  esfuerzo: number | null
+  saldadaEn: number | null
+  /** Patrimonio neto previsto dentro de 5 y de 10 años */
+  patrimonio5: number | null
+  patrimonio10: number | null
+}
+
+/** Patrimonio neto previsto en un mes con la compra: liquidez, viviendas revalorizadas, otros activos y deudas */
+function patrimonioPrevisto(db: BaseDatos, plan: Plan, c: CompraVivienda, hoy: string, mes: string): number | null {
+  const t = plan.trayectoria.find((x) => x.mes === mes)
+  if (!t) return null
+  const inv = inversionDe(db)
+  const sube = (anios: number) => (1 + inv.revalorizacion / 100) ** Math.max(0, anios)
+  const aniosEntre = (desde: string, hasta: string) => ((Number(hasta.slice(0, 4)) - Number(desde.slice(0, 4))) * 12 + Number(hasta.slice(5, 7)) - Number(desde.slice(5, 7))) / 12
+  const vendida = actualDe(c)?.destino === 'vender' && mes >= c.mes
+  let bienes = 0
+  for (const b of db.ajustes.bienes ?? []) {
+    if (vendida && b.habitual) continue
+    const valor = valorBien(b, hoy)
+    bienes += b.tipo === 'inmueble' ? valor * sube(aniosEntre(hoy.slice(0, 7), mes)) : valor
+  }
+  if (mes >= c.mes) bienes += c.precio * sube(aniosEntre(c.mes, mes))
+  const actual = hipotecaActual(db)
+  const fecha = `${mes}-28`
+  const hipotecas =
+    (actual && !vendida ? pendientePrestamo(actual, fecha) : 0) +
+    (mes >= c.mes ? pendientePrestamo({ capital: cifrasCompra(c).prestamo, fecha: `${c.mes}-01`, interes: c.interes, plazo_meses: Math.round(c.anios * 12) }, fecha) : 0)
+  return Math.round(plan.capitalHoy + t.saldo - plan.saldo + bienes - hipotecas - t.deuda)
+}
+
+/** Comprar para vivir y vender o alquilar la actual: las dos opciones con la misma compra */
+export function compararDestinos(db: BaseDatos, hoy: string, sim: Simulacion): ResultadoDestino[] | null {
+  const c = sim.compra
+  if (!c || c.uso !== 'vivir') return null
+  const mesDatos = fechaDeLosDatos(db, hoy).slice(0, 7)
+  const base: ViviendaActual = c.actual ?? { destino: 'mantener', precio_venta: 0, alquiler_mes: 0, meses_vacia: 1, gastos_anio: 0 }
+  const resultados: ResultadoDestino[] = []
+  for (const destino of ['vender', 'alquilar'] as const) {
+    const compra = { ...c, actual: { ...base, destino } }
+    const plan = calcularPlan(db, hoy, { ...sim, compra }).plan
+    const r = plan?.compra
+    if (!plan || !r) return null
+    const i = plan.trayectoria.findIndex((x) => x.mes === c.mes)
+    const fin = plan.trayectoria[i + 12]
+    const pagados = plan.pagos.filter((x) => x.mes > c.mes && fin && x.mes <= fin.mes).reduce((sum, x) => sum + x.pago, 0)
+    resultados.push({
+      destino,
+      ahorros: redondear(r.desembolso - (r.venta?.neto ?? 0)),
+      falta: r.falta,
+      cuotas: r.cuotas,
+      alquilerNeto: r.alquiler ? redondear(r.alquiler.neto / 12) : 0,
+      ahorroMensual: fin ? redondear((fin.saldo - plan.trayectoria[i].saldo + pagados) / 12) : 0,
+      esfuerzo: r.esfuerzo,
+      saldadaEn: plan.saldadaEn,
+      patrimonio5: patrimonioPrevisto(db, plan, compra, hoy, sumarMeses(`${mesDatos}-01`, 60).slice(0, 7)),
+      patrimonio10: patrimonioPrevisto(db, plan, compra, hoy, sumarMeses(`${mesDatos}-01`, 120).slice(0, 7)),
+    })
+  }
+  return resultados
+}

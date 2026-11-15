@@ -14,7 +14,9 @@ import { fijoEn, objetivoEn } from './nomina'
 import { calcularPatrimonio, interesesRestantes, NOMBRE_TIPO_BIEN } from './patrimonio'
 import {
   calcularPlan,
+  capacidadCompra,
   cifrasCompra,
+  compararDestinos,
   comprobarPrevision,
   evolucionAnual,
   haySimulacion,
@@ -26,6 +28,7 @@ import {
 } from './plan'
 import { estadoEventos } from './previstos'
 import { primerMes } from './prevision'
+import { inversionDe } from './vivienda'
 import { consumoPresupuestos, presupuestoAnual } from './presupuesto'
 import type { BaseDatos } from './tipos'
 import { nombreCategoria } from './vista'
@@ -161,7 +164,8 @@ const USO: Record<CompraVivienda['uso'], string> = { alquilar: 'para alquilar', 
 /** La compra de la simulación en una frase */
 function textoCompra(c: CompraVivienda): string {
   const x = cifrasCompra(c)
-  return `comprar una vivienda ${USO[c.uso]} de ${eur(c.precio)} en ${mesTexto(c.mes)} (entrada de ${eur(x.entrada)}, gastos de compra de ${eur(x.gastos)}, hipoteca de ${eur(x.prestamo)} a ${c.anios} años al ${String(c.interes).replace('.', ',')} % con una cuota de ${eur(x.cuota)} al mes)`
+  const destino = c.uso === 'vivir' && c.actual && c.actual.destino !== 'mantener' ? (c.actual.destino === 'vender' ? ', vendiendo la actual' : ', alquilando la actual') : ''
+  return `comprar una vivienda ${USO[c.uso]} de ${eur(c.precio)} en ${mesTexto(c.mes)}${destino} (entrada de ${eur(x.entrada)}, gastos de compra de ${eur(x.gastos)}, hipoteca de ${eur(x.prestamo)} a ${c.anios} años al ${String(c.interes).replace('.', ',')} % con una cuota de ${eur(x.cuota)} al mes)`
 }
 
 /**
@@ -253,6 +257,16 @@ export function textoPatrimonio(db: BaseDatos, hoy: string, sim: Simulacion): st
     lineas.push('', `Operación que quiero valorar: ${textoCompra(sim.compra)}.`)
     if (sim.compra.gastos_mes) lineas.push(`Gastos de la vivienda: ${eur(sim.compra.gastos_mes)} al mes (IBI, comunidad, seguros y mantenimiento).`)
     if (sim.compra.uso === 'alquilar' && sim.compra.alquiler_mes) lineas.push(`Alquiler previsto: ${eur(sim.compra.alquiler_mes)} al mes.`)
+    if (sim.pareja) lineas.push('Cuento también con la nómina de mi pareja, cotitular de la hipoteca nueva.')
+    if (sim.pausarPago) lineas.push('El año de la compra no pagaría la deuda familiar, para tener la entrada.')
+    if (r?.venta)
+      lineas.push(
+        `Vendería mi vivienda actual por ${eur(r.venta.precio)}: menos ${eur(r.venta.hipoteca)} de hipoteca, ${eur(r.venta.gastos)} de gastos de venta y ${eur(r.venta.irpf)} de IRPF${r.venta.ganancia > 0 && r.venta.irpf === 0 ? ' (la ganancia queda exenta por reinversión en vivienda habitual)' : ''}, me quedarían ${eur(r.venta.neto)}.`,
+      )
+    if (r?.alquiler)
+      lineas.push(
+        `Alquilaría mi vivienda actual (copropiedad al ${inversionDe(db).propiedad_pct} % con mi pareja): ${eur(r.alquiler.ingresos)} al año de alquiler, ${eur(r.alquiler.gastos)} de gastos, ${eur(r.alquiler.intereses)} de intereses y ${eur(r.alquiler.amortizacion)} de amortización deducibles, reducción del ${inversionDe(db).reduccion_alquiler} %; IRPF de ${eur(r.alquiler.irpfTitular)} para mí y ${eur(r.alquiler.irpfPareja)} para mi pareja; neto ${eur(r.alquiler.neto)} al año. Seguiría pagando su hipoteca.`,
+      )
     if (r) {
       lineas.push(
         `En ${mesTexto(r.mes)} tendría unos ${eur(r.saldoAntes)} en la cuenta de ahorro: ${r.falta > 0 ? `me faltarían ${eur(r.falta)} para la entrada y los gastos` : `después de pagar entrada y gastos me quedarían ${eur(r.sobreColchon)} por encima del colchón`}.`,
@@ -261,6 +275,27 @@ export function textoPatrimonio(db: BaseDatos, hoy: string, sim: Simulacion): st
     }
     if (plan && conCompra && plan.deudaPendiente > 0)
       lineas.push(`Con la compra, la deuda familiar quedaría saldada en ${conCompra.saldadaEn ?? 'más de 30 años'}, frente a ${plan.saldadaEn ?? 'más de 30 años'} sin ella.`)
+    const comparacion = compararDestinos(db, hoy, sim)
+    if (comparacion) {
+      lineas.push('', 'Vender o alquilar mi vivienda actual con esta compra:')
+      for (const x of comparacion)
+        lineas.push(
+          `- ${x.destino === 'vender' ? 'Vendiéndola' : 'Alquilándola'}: ahorros necesarios ${eur(x.ahorros)}, cuotas de hipoteca ${eur(x.cuotas)} al mes${x.alquilerNeto ? `, alquiler neto ${eur(x.alquilerNeto)} al mes` : ''}, ahorro ${eur(x.ahorroMensual)} al mes, esfuerzo ${x.esfuerzo === null ? 'sin dato' : pct(x.esfuerzo)}, deuda familiar saldada en ${x.saldadaEn ?? 'más de 30 años'}, patrimonio neto en 5 años ${x.patrimonio5 === null ? 'sin dato' : eur(x.patrimonio5)} y en 10 años ${x.patrimonio10 === null ? 'sin dato' : eur(x.patrimonio10)}.`,
+        )
+    }
   } else lineas.push('', 'No tengo todavía una operación concreta.')
+
+  // Cuánto podría comprar cada año, con lo que haga con la vivienda actual y con la nómina de la pareja si la cuento
+  const destino = sim.compra?.uso === 'vivir' ? (sim.compra.actual?.destino ?? 'mantener') : 'mantener'
+  const capacidad = capacidadCompra(db, hoy, sim, { pareja: !!sim.pareja, destino })
+  if (capacidad?.filas.length) {
+    const inv = inversionDe(db)
+    lineas.push(
+      '',
+      `Precio máximo de vivienda que la app calcula (esfuerzo máximo del ${inv.esfuerzo_max} % sobre mis ingresos netos, el banco cuenta el ${inv.alquiler_banco} % del alquiler, entrada del ${capacidad.entrada_pct} %, gastos del ${capacidad.gastos_pct} %, hipoteca a ${capacidad.anios} años al ${String(capacidad.interes).replace('.', ',')} %${destino === 'vender' ? ', vendiendo la actual' : destino === 'alquilar' ? ', alquilando la actual' : ', manteniendo la actual'}):`,
+    )
+    for (const f of capacidad.filas)
+      lineas.push(`- ${mesTexto(f.mes)}: ${eur(f.pagando.precio)} pagando la deuda ese año, ${eur(f.pausando.precio)} pausando ese pago (cuota máxima ${eur(f.cuotaMax)})`)
+  }
   return cierre(lineas)
 }

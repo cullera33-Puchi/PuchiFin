@@ -102,7 +102,7 @@ export function migrar(d: Partial<BaseDatos>): BaseDatos {
   if (desde < 5) datos.ajustes = { ...datos.ajustes, version_logica: datos.ajustes.version_logica ?? null }
   // Esquema 16 (v0.41.0): bienes para el patrimonio y capital pendiente de la hipoteca (sin dato, ninguno)
   if (desde < 16) {
-    datos.ajustes = { ...datos.ajustes, bienes: d.ajustes?.bienes ?? [] }
+    datos.ajustes = { ...datos.ajustes, bienes: d.ajustes?.bienes ?? [], inversion: { ...AJUSTES_POR_DEFECTO.inversion, ...(d.ajustes?.inversion ?? {}) } }
     datos.cuentas = datos.cuentas.map((c) => ({ ...c, prestamo: c.prestamo ?? null }))
   }
   // Esquema 15 (v0.39.0): nómina en bruto (sin dato, sigue en neto) e inflación del gasto, con la hipoteca

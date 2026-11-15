@@ -1,4 +1,5 @@
-import { Building2, Car, ChevronRight, HandCoins, Home, Landmark, Package, PiggyBank, Plus, TrendingUp, type LucideIcon } from 'lucide-react'
+import { Building2, Car, ChevronRight, HandCoins, Home, Landmark, Package, PiggyBank, Plus, Settings2, TrendingUp, type LucideIcon } from 'lucide-react'
+import { CuantoPuedoComprar, HojaSupuestos, VenderOAlquilar } from '../componentes/Capacidad'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useHacer } from '../componentes/acciones'
@@ -15,7 +16,7 @@ import { movimientosUltimoAno } from '../lib/csvClaude'
 import { hoyIso, MESES, mesLargo } from '../lib/fechas'
 import { formatearRedondo, leerImporteUsuario } from '../lib/formato'
 import { calcularPatrimonio, cuotaDe, finPrestamo, interesesRestantes, NOMBRE_TIPO_BIEN, type LineaBien, type Patrimonio as DatosPatrimonio } from '../lib/patrimonio'
-import { calcularPlan, SIN_SIMULACION } from '../lib/plan'
+import { calcularPlan } from '../lib/plan'
 import type { Bien, Cuenta, TipoBien } from '../lib/tipos'
 
 const GLIFO: Record<TipoBien, { glifo: LucideIcon; color: string }> = {
@@ -41,8 +42,10 @@ export function Patrimonio() {
   const hoy = hoyIso()
   const p = useMemo(() => calcularPatrimonio(db, hoy), [db, hoy])
   const [sim] = useSimulacion()
-  const base = useMemo(() => (sim.compra ? calcularPlan(db, hoy).plan : null), [db, hoy, sim.compra])
-  const conCompra = useMemo(() => (sim.compra ? calcularPlan(db, hoy, { ...SIN_SIMULACION, compra: sim.compra }).plan : null), [db, hoy, sim.compra])
+  // Con toda la simulación (la segunda nómina, las subidas…), igual que en el plan de pagos
+  const base = useMemo(() => (sim.compra ? calcularPlan(db, hoy, { ...sim, compra: null, pausarPago: undefined }).plan : null), [db, hoy, sim])
+  const conCompra = useMemo(() => (sim.compra ? calcularPlan(db, hoy, sim).plan : null), [db, hoy, sim])
+  const [supuestos, setSupuestos] = useState(false)
   const [bien, setBien] = useState<Bien | TipoBien | null>(null)
   const [hipoteca, setHipoteca] = useState<Cuenta | null>(null)
   const [compra, setCompra] = useState(false)
@@ -55,9 +58,14 @@ export function Patrimonio() {
         titulo="Patrimonio"
         atras="Extracto"
         accion={
-          <button className="boton-icono justify-self-end" aria-label="Añadir un bien" onClick={() => setBien('inmueble')}>
-            <Plus className="size-6" strokeWidth={1.75} />
-          </button>
+          <span className="flex justify-self-end">
+            <button className="boton-icono" aria-label="Supuestos de compra, venta y alquiler" onClick={() => setSupuestos(true)}>
+              <Settings2 className="size-[22px]" strokeWidth={1.75} />
+            </button>
+            <button className="boton-icono" aria-label="Añadir un bien" onClick={() => setBien('inmueble')}>
+              <Plus className="size-6" strokeWidth={1.75} />
+            </button>
+          </span>
         }
       />
       <section className="tarjeta">
@@ -180,6 +188,22 @@ export function Patrimonio() {
         </div>
       </section>
 
+      {sim.compra?.uso === 'vivir' && conCompra && (
+        <section className="mt-4">
+          <h3 className="cabecera-grupo">Vender o alquilar tu vivienda actual</h3>
+          <div className="lista px-4 py-3">
+            <VenderOAlquilar sim={sim} />
+          </div>
+        </section>
+      )}
+
+      <section className="mt-4">
+        <h3 className="cabecera-grupo">¿Cuánto puedo comprar?</h3>
+        <div className="lista px-4 py-3">
+          <CuantoPuedoComprar key={`${sim.compra?.uso === 'vivir' ? (sim.compra.actual?.destino ?? 'mantener') : 'mantener'}-${!!sim.pareja}`} sim={sim} />
+        </div>
+      </section>
+
       <div className="mt-4">
         <BotonClaude onPulsar={() => setClaude(true)} />
       </div>
@@ -188,6 +212,7 @@ export function Patrimonio() {
       </p>
 
       <HojaBien bien={bien} onCerrar={() => setBien(null)} />
+      <HojaSupuestos abierta={supuestos} onCerrar={() => setSupuestos(false)} />
       <HojaHipoteca cuenta={hipoteca} onCerrar={() => setHipoteca(null)} />
       <HojaCompra abierta={compra} onCerrar={() => setCompra(false)} />
       <HojaClaude

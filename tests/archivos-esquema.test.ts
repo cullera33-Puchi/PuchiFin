@@ -21,6 +21,7 @@ function archivo(esquema: number): string {
   a.version_app = { 3: '0.6.0', 5: '0.8.0', 7: '0.13.0', 8: '0.14.0', 9: '0.22.0', 10: '0.23.0', 11: '0.24.0', 12: '0.33.0', 13: '0.34.1', 14: '0.38.0', 15: '0.40.0' }[esquema]
   // Quita lo que llegó después de ese esquema
   delete a.datos.ajustes.bienes
+  delete a.datos.ajustes.inversion
   for (const c of a.datos.cuentas) delete c.prestamo
   if (esquema < 14) delete a.datos.ajustes.claude
   if (esquema < 15) {
@@ -58,6 +59,7 @@ describe('archivos de esquemas anteriores', () => {
     expect(a.datos.ajustes.prevision).toEqual({ inflacion: 3, sin_inflacion: [a.datos.categorias.find((c) => c.padre_id && c.nombre === 'Hipoteca')!.id] })
     // Esquema 16: sin bienes ni capital pendiente de la hipoteca
     expect(a.datos.ajustes.bienes).toEqual([])
+    expect(a.datos.ajustes.inversion).toMatchObject({ esfuerzo_max: 30, alquiler_banco: 70, bruto_pareja: 25000, coste_vivienda: null })
     expect(a.datos.cuentas.every((c) => c.prestamo === null)).toBe(true)
     // Esquema 10: el colchón de la deuda, sobre la Cuenta 2
     // Esquema 14: sin plantillas propias y con comercios

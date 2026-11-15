@@ -10,6 +10,7 @@ import { MAX_PLANTILLA, PLANTILLAS } from '../lib/plantillas'
 import {
   VERSION_ESQUEMA,
   type Ajustes,
+  type AjustesInversion,
   type AjustesPrevision,
   type BaseDatos,
   type Bien,
@@ -93,6 +94,7 @@ export const AJUSTES_POR_DEFECTO: Ajustes = {
   claude: { plantillas: {}, sin_conceptos: false },
   prevision: { inflacion: 3, sin_inflacion: [] },
   bienes: [],
+  inversion: { esfuerzo_max: 30, alquiler_banco: 70, bruto_pareja: 25000, revalorizacion: 2, gastos_venta: 5, propiedad_pct: 50, reduccion_alquiler: 50, coste_vivienda: null, construccion_pct: 50 },
 }
 
 /** La hipoteca a tipo fijo no sube con la inflación: su subcategoría, si existe */
@@ -528,6 +530,33 @@ export function borrarBien(db: BaseDatos, id: string): BaseDatos {
   const lista = db.ajustes.bienes ?? []
   if (!lista.some((b) => b.id === id)) throw new ErrorDatos('Bien no encontrado')
   return { ...db, ajustes: { ...db.ajustes, bienes: lista.filter((b) => b.id !== id) } }
+}
+
+/** Supuestos de compra, venta y alquiler de vivienda (v0.42.0) */
+export function guardarInversion(db: BaseDatos, datos: AjustesInversion): BaseDatos {
+  const entre = (n: number, min: number, max: number) => Number.isFinite(n) && n >= min && n <= max
+  if (!entre(datos.esfuerzo_max, 10, 60)) throw new ErrorDatos('El esfuerzo máximo va del 10 al 60 %')
+  if (!entre(datos.alquiler_banco, 0, 100)) throw new ErrorDatos('La parte del alquiler que cuenta el banco va de 0 a 100 %')
+  if (!entre(datos.bruto_pareja, 0, 10_000_000)) throw new ErrorDatos('El bruto de tu pareja debe ser un importe positivo')
+  if (!entre(datos.revalorizacion, -10, 20)) throw new ErrorDatos('La revalorización va de -10 a 20 %')
+  if (!entre(datos.gastos_venta, 0, 20)) throw new ErrorDatos('Los gastos de venta van de 0 a 20 %')
+  if (!entre(datos.propiedad_pct, 0, 100)) throw new ErrorDatos('Tu parte de la propiedad va de 0 a 100 %')
+  if (!entre(datos.reduccion_alquiler, 0, 100)) throw new ErrorDatos('La reducción va de 0 a 100 %')
+  if (datos.coste_vivienda !== null && !entre(datos.coste_vivienda, 1, 100_000_000)) throw new ErrorDatos('Escribe lo que costó la vivienda')
+  if (!entre(datos.construccion_pct, 0, 100)) throw new ErrorDatos('La parte de construcción va de 0 a 100 %')
+  const r = (n: number) => Math.round(n * 100) / 100
+  const inversion: AjustesInversion = {
+    esfuerzo_max: r(datos.esfuerzo_max),
+    alquiler_banco: r(datos.alquiler_banco),
+    bruto_pareja: r(datos.bruto_pareja),
+    revalorizacion: r(datos.revalorizacion),
+    gastos_venta: r(datos.gastos_venta),
+    propiedad_pct: r(datos.propiedad_pct),
+    reduccion_alquiler: r(datos.reduccion_alquiler),
+    coste_vivienda: datos.coste_vivienda === null ? null : r(datos.coste_vivienda),
+    construccion_pct: r(datos.construccion_pct),
+  }
+  return { ...db, ajustes: { ...db.ajustes, inversion } }
 }
 
 /** Capital pendiente, tipo fijo y plazo de la hipoteca; null lo quita */

@@ -2,6 +2,22 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.42.0. Vender o alquilar la vivienda actual y cuánto puedo comprar (15 de noviembre de 2026)
+
+Pedido por el usuario: ver cómo quedarían la deuda y la casa nueva con los ingresos futuros y una segunda nómina, hasta cuánto podría endeudarse, y qué pasa si vende la vivienda actual o la alquila, con su IRPF (copropiedad al 50 %). Decisiones del usuario: esfuerzo máximo del 30 % (35 % a la vista), los dos casos de la deuda (pagar o pausar el pago el año de la compra), la nómina de la pareja opcional, el banco cuenta el 70 % del alquiler, bruto de la pareja de 25.000 € por defecto, IRPF del alquiler apartado cada mes, revalorización del 2 % y gastos de venta del 5 %. No aplica la deducción por vivienda habitual anterior a 2013.
+
+- Supuestos guardados (`ajustes.inversion`, `guardarInversion`, hoja «Supuestos» en Patrimonio): esfuerzo máximo, parte del alquiler que cuenta el banco, bruto anual de la pareja, revalorización, gastos de venta, parte de la propiedad, reducción por alquiler, lo que costó la vivienda actual y parte de construcción. Dentro del esquema 16, que no llegó a publicarse con la v0.41.0.
+- Vivienda actual (`src/lib/vivienda.ts`): al comprar para vivir, mantenerla, venderla o alquilarla (`CompraVivienda.actual`).
+  - Venta (`calcularVenta`): precio menos gastos de venta, hipoteca pendiente e IRPF de la ganancia en la base del ahorro (escala de 2025, por titular), con la exención por reinversión en vivienda habitual en proporción a lo reinvertido sobre lo obtenido. El dinero entra el mes de la compra y deja de pagarse la cuota actual.
+  - Alquiler (`alquilerAnual`): alquiler de los meses alquilada, menos gastos, intereses del año y amortización (3 % de la construcción), con la reducción; el IRPF de cada titular es la cuota de más al sumar su parte a su base general (`irpfAdicional` en `nomina.ts`), con su nómina en bruto o, para la pareja, con su bruto. El neto se suma cada mes, con el IRPF ya apartado.
+- Simulación: `pausarPago` (sin pago de la deuda el año de la compra) y `pareja` (la nómina que no cuenta en la previsión o, sin ella, una con el bruto de la pareja), en el plan, los ingresos previstos, la comprobación y la evolución por años. El esfuerzo cuenta las nóminas (con la del historial si no hay ninguna guardada) y la parte del alquiler que cuenta el banco, y se compara con el máximo de los supuestos.
+- ¿Cuánto puedo comprar? (`capacidadCompra`, `CuantoPuedoComprar`): precio máximo cada año en el mes de la compra, pagando la deuda o pausando ese pago, con la vivienda actual mantenida, vendida o alquilada y con o sin la pareja. Lo limita lo primero que se alcanza, el dinero para la entrada y los gastos o la cuota máxima; se indica cuál, y el precio con un 35 % de esfuerzo.
+- Vender o alquilar (`compararDestinos`, `VenderOAlquilar`): con la misma compra, ahorros necesarios, lo que falta, cuotas, alquiler neto, ahorro al mes, esfuerzo, año en que queda saldada la deuda y patrimonio neto a 5 y 10 años con la revalorización, con la mejor de las dos en verde.
+- El plan proyecta al menos once años (`trayectoria`) para la capacidad y el patrimonio previsto.
+- Corrección: en Patrimonio, la compra se calculaba sin el resto de la simulación (la segunda nómina, las subidas); ahora usa la misma simulación que el plan de pagos.
+- Claude recibe la vivienda actual (venta o alquiler con su IRPF), la comparación y el precio máximo por año.
+- Pruebas: 485 unitarias (venta y exención, alquiler e IRPF por titular, plan con venta, alquiler, pausa y pareja, capacidad y comparación) y prueba de navegador del recorrido.
+
 ## v0.41.0. Patrimonio completo, situación completa para Claude y simulador de compra (15 de noviembre de 2026)
 
 Pedido por el usuario para ver el patrimonio como en BBVA y valorar inversiones como la compra de una vivienda. Decisiones del usuario: todos los tipos de bien, valor puesto a mano, hipoteca con tipo fijo y años, referencia catastral bloqueada, ficha de la operación, importes exactos para Claude y simulador en el plan.

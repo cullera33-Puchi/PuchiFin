@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { datosIniciales, ErrorDatos, guardarCompromiso, guardarEvento, guardarNomina, guardarPrestamo, guardarPresupuesto, guardarPrevision } from '../datos/operaciones'
-import { calcularPlan, cifrasCompra, comprobarPrevision, efectoMesCerrado, evolucionAnual, hayCrecimiento, haySimulacion, importeNomina, preverIngresos, SIN_SIMULACION } from './plan'
+import { datosIniciales, ErrorDatos, guardarBien, guardarCompromiso, guardarEvento, guardarInversion, guardarNomina, guardarPrestamo, guardarPresupuesto, guardarPrevision } from '../datos/operaciones'
+import { alquilerAnual, calcularVenta, INVERSION_POR_DEFECTO } from './vivienda'
+import { calcularPlan, capacidadCompra, cifrasCompra, compararDestinos, comprobarPrevision, efectoMesCerrado, evolucionAnual, hayCrecimiento, haySimulacion, importeNomina, preverIngresos, SIN_SIMULACION } from './plan'
 import type { BaseDatos, Movimiento, NominaBruta } from './tipos'
 
 const db0 = datosIniciales()
@@ -342,8 +343,9 @@ describe('comprar una vivienda y fin de la hipoteca (v0.41.0)', () => {
     expect(r.saldoAntes).toBe(saldo(sin, '2027-03'))
     expect(r.falta).toBeCloseTo(30000 - r.saldoAntes, 2)
     expect(r.sobreColchon).toBeCloseTo(r.saldoAntes - 30000 - 3000, 2)
-    // Cuota nueva sobre 3.000 de nómina neta
-    expect(r.esfuerzo).toBeCloseTo(666.67 / 3000, 3)
+    // Cuota nueva sobre 3.000 de nómina neta más el 70 % de los 500 de alquiler, que es lo que cuenta el banco
+    expect(r.esfuerzo).toBeCloseTo(666.67 / 3350, 3)
+    expect(r.esfuerzoMax).toBe(0.3)
     expect(sin.compra).toBeNull()
     expect(haySimulacion(db, { ...SIN_SIMULACION, compra })).toBe(true)
     // Sin alquilar, el alquiler no cuenta
@@ -364,5 +366,117 @@ describe('comprar una vivienda y fin de la hipoteca (v0.41.0)', () => {
     expect(saldo(b, '2027-01')).toBe(saldo(a, '2027-01'))
     expect(saldo(b, '2027-02') - saldo(a, '2027-02')).toBeCloseTo(1000, 0)
     expect(saldo(b, '2027-03') - saldo(a, '2027-03')).toBeCloseTo(2000, 0)
+  })
+})
+
+describe('vender o alquilar la vivienda actual y cuánto puedo comprar (v0.42.0)', () => {
+  const hipoteca = db0.cuentas.find((c) => c.tipo === 'hipoteca')!
+  // Vivienda actual de 300.000 que costó 200.000, con 100.000 de hipoteca sin intereses a 1.000 al mes
+  const conVivienda = (db: BaseDatos, interes = 0) => {
+    let d = guardarBien(db, { alias: 'Casa', tipo: 'inmueble', habitual: true, valor: 300000, fecha: '2026-11-01' })
+    d = guardarPrestamo(d, hipoteca.id, { capital: 100000, fecha: '2026-11-01', interes, plazo_meses: 100 })
+    return guardarInversion(d, { ...INVERSION_POR_DEFECTO, coste_vivienda: 200000, revalorizacion: 0 })
+  }
+  const compra = { precio: 350000, mes: '2027-03', entrada_pct: 20, gastos_pct: 12, interes: 0, anios: 25, gastos_mes: 0, alquiler_mes: 0, uso: 'vivir' as const }
+  const actual = { precio_venta: 300000, alquiler_mes: 1000, meses_vacia: 1, gastos_anio: 1200 }
+  const saldo = (p: ReturnType<typeof calcularPlan>['plan'], mes: string) => p!.trayectoria.find((x) => x.mes === mes)!.saldo
+
+  it('venta: gastos, hipoteca que se cancela e IRPF de la ganancia, exenta si se reinvierte', () => {
+    const db = conVivienda(crear(20000))
+    const v = calcularVenta(db, 300000, '2027-08', 400000)
+    // Ganancia: 300.000 menos 15.000 de gastos menos 200.000 que costó; hipoteca tras 9 cuotas
+    expect(v).toMatchObject({ gastos: 15000, hipoteca: 91000, ganancia: 85000, exenta: 1, irpf: 0, neto: 194000 })
+    // Reinvirtiendo la mitad de lo obtenido, tributa la mitad de la ganancia, por mitades
+    const parcial = calcularVenta(db, 300000, '2027-08', 97000)
+    expect(parcial.exenta).toBe(0.5)
+    expect(parcial.irpf).toBeCloseTo(2 * (6000 * 0.19 + 15250 * 0.21), 2)
+    // Sin saber lo que costó, no hay ganancia
+    expect(calcularVenta(guardarInversion(db, { ...INVERSION_POR_DEFECTO }), 300000, '2027-08', 0).irpf).toBe(0)
+  })
+
+  it('alquiler: gastos, intereses y amortización deducibles, reducción del 50 % e IRPF de cada titular', () => {
+    const db = conVivienda(crear(20000))
+    const a = alquilerAnual(db, { destino: 'alquilar', ...actual }, 2028)
+    // 11 meses de 1.000, menos 1.200 de gastos, sin intereses y 3 % de la mitad de 200.000 de amortización
+    expect(a).toMatchObject({ ingresos: 11000, gastos: 1200, intereses: 0, amortizacion: 3000, rendimiento: 6800, base: 3400 })
+    // Sin nómina en bruto, el titular al 45 %; la pareja, con su bruto de 25.000
+    expect(a.irpfTitular).toBe(765)
+    expect(a.irpfPareja).toBeGreaterThan(1700 * 0.2)
+    expect(a.irpfPareja).toBeLessThan(1700 * 0.35)
+    expect(a.neto).toBeCloseTo(11000 - 1200 - a.irpfTitular - a.irpfPareja, 2)
+    // Con intereses, se deducen los del año
+    const conIntereses = alquilerAnual(conVivienda(crear(20000), 3), { destino: 'alquilar', ...actual }, 2028)
+    expect(conIntereses.intereses).toBeGreaterThan(2000)
+    expect(conIntereses.intereses).toBeLessThan(3000)
+    expect(conIntereses.irpfTitular).toBeLessThan(a.irpfTitular)
+  })
+
+  it('en el plan: la venta entra el mes de la compra y deja de pagarse la hipoteca actual; el alquiler suma cada mes', () => {
+    const db = conVivienda(crear(20000))
+    const mantener = calcularPlan(db, HOY, { ...SIN_SIMULACION, compra }).plan!
+    const vender = calcularPlan(db, HOY, { ...SIN_SIMULACION, compra: { ...compra, actual: { destino: 'vender', ...actual } } }).plan!
+    const alquilar = calcularPlan(db, HOY, { ...SIN_SIMULACION, compra: { ...compra, actual: { destino: 'alquilar', ...actual } } }).plan!
+    const venta = vender.compra!.venta!
+    expect(saldo(vender, '2027-03') - saldo(mantener, '2027-03')).toBeCloseTo(venta.neto, 0)
+    // Sin la hipoteca actual, 1.000 más de ahorro al mes
+    expect(saldo(vender, '2027-05') - saldo(vender, '2027-04') - (saldo(mantener, '2027-05') - saldo(mantener, '2027-04'))).toBeCloseTo(1000, 0)
+    expect(vender.compra!.falta).toBe(0)
+    expect(vender.compra!.cuotas).toBe(vender.compra!.cuota)
+    // Alquilando: el alquiler neto de cada mes y las dos cuotas
+    const alquiler = alquilar.compra!.alquiler!
+    expect(saldo(alquilar, '2028-05') - saldo(alquilar, '2028-04') - (saldo(mantener, '2028-05') - saldo(mantener, '2028-04'))).toBeCloseTo(alquiler.neto / 12, 0)
+    expect(alquilar.compra!.cuotas).toBeCloseTo(alquilar.compra!.cuota + 1000, 2)
+    expect(alquilar.compra!.esfuerzo!).toBeLessThan(mantener.compra!.esfuerzo!)
+  })
+
+  it('pausar el pago de la deuda el año de la compra y contar la nómina de la pareja', () => {
+    const db = crear(20000)
+    const julio = { ...compra, mes: '2027-07' }
+    const pagando = calcularPlan(db, HOY, { ...SIN_SIMULACION, compra: julio }).plan!
+    const pausando = calcularPlan(db, HOY, { ...SIN_SIMULACION, compra: julio, pausarPago: true }).plan!
+    expect(pagando.pagos.some((x) => x.anio === 2027)).toBe(true)
+    expect(pausando.pagos.some((x) => x.anio === 2027)).toBe(false)
+    // La pareja: sin nómina suya, una de 25.000 brutos en 12 pagas, unos 1.650 netos al mes
+    const sola = calcularPlan(db, HOY).plan!
+    const conPareja = calcularPlan(db, HOY, { ...SIN_SIMULACION, pareja: true }).plan!
+    const diferencia = saldo(conPareja, '2027-05') - saldo(conPareja, '2027-04') - (saldo(sola, '2027-05') - saldo(sola, '2027-04'))
+    expect(diferencia).toBeGreaterThan(1500)
+    expect(diferencia).toBeLessThan(1900)
+  })
+
+  it('cuánto puedo comprar: por año, pagando o pausando, y más vendiendo la actual', () => {
+    const db = conVivienda(crear(20000))
+    const mantener = capacidadCompra(db, HOY, SIN_SIMULACION, { pareja: false, destino: 'mantener' })!
+    expect(mantener.filas.map((f) => f.mes)).toEqual(['2027-07', '2028-07', '2029-07', '2030-07', '2031-07', '2032-07'])
+    const f = mantener.filas[0]
+    // Pagando la deuda en julio, el dinero por encima del colchón se va al pago: casi nada para la entrada
+    expect(f.pagando.efectivo).toBeLessThan(f.pausando.efectivo)
+    expect(f.pausando.precio).toBeGreaterThanOrEqual(f.pagando.precio)
+    expect(f.pagando.limite).toBe('entrada')
+    expect(f.precio35).toBeGreaterThanOrEqual(f.pausando.precio)
+    // El 30 % de 3.000 menos la cuota actual de 1.000: no queda cuota para otra hipoteca
+    expect(f.cuotaMax).toBe(0)
+    // Vendiendo, la venta da la entrada y no hay cuota actual
+    const vender = capacidadCompra(db, HOY, SIN_SIMULACION, { pareja: false, destino: 'vender' })!
+    expect(vender.filas[0].cuotaMax).toBe(900)
+    expect(vender.filas[0].pagando.precio).toBeGreaterThan(200000)
+    // Con la pareja, cabe más cuota
+    const pareja = capacidadCompra(db, HOY, SIN_SIMULACION, { pareja: true, destino: 'vender' })!
+    expect(pareja.filas[0].cuotaMax).toBeGreaterThan(1300)
+    expect(pareja.filas[0].pagando.precio).toBeGreaterThanOrEqual(vender.filas[0].pagando.precio)
+  })
+
+  it('vender o alquilar: ahorros necesarios, cuotas, alquiler neto y patrimonio a 5 y 10 años', () => {
+    const db = conVivienda(crear(20000))
+    const r = compararDestinos(db, HOY, { ...SIN_SIMULACION, compra: { ...compra, actual: { destino: 'mantener', ...actual } } })!
+    const [vender, alquilar] = r
+    expect(vender.destino).toBe('vender')
+    expect(vender.ahorros).toBeLessThan(0)
+    expect(alquilar.ahorros).toBe(cifrasCompra(compra).desembolso)
+    expect(alquilar.cuotas).toBeGreaterThan(vender.cuotas)
+    expect(alquilar.alquilerNeto).toBeGreaterThan(0)
+    expect(vender.patrimonio5).not.toBeNull()
+    expect(alquilar.patrimonio10).not.toBeNull()
+    expect(compararDestinos(db, HOY, { ...SIN_SIMULACION, compra: { ...compra, uso: 'segunda' } })).toBeNull()
   })
 })

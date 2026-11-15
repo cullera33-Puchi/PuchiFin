@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.42.0",
+    "fecha": "2026-11-15",
+    "cambios": [
+      "¿Cuánto puedo comprar? En Patrimonio, el precio máximo de vivienda cada año, pagando la deuda o pausando ese pago, con o sin la nómina de tu pareja.",
+      "Al comprar para vivir, elige qué haces con tu vivienda actual: mantenerla, venderla o alquilarla. La app calcula la venta neta y el alquiler neto con el IRPF de cada uno.",
+      "Vender o alquilar, lado a lado: ahorros que necesitas, cuotas, ahorro al mes, deuda y patrimonio a 5 y 10 años.",
+      "Supuestos editables: esfuerzo máximo del 30 %, el 70 % del alquiler para el banco, el bruto de tu pareja y más.",
+      "Patrimonio calcula la compra con toda la simulación, igual que el plan de pagos."
+    ]
+  },
+  {
     "version": "0.41.0",
     "fecha": "2026-11-15",
     "cambios": [

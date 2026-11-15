@@ -108,6 +108,40 @@ export function cuotaRetencion(retribucion: number, seguridadSocial: number, hij
   return r2(Math.max(0, escala(base) - escala(minimoFamiliar(hijos, anio))))
 }
 
+/**
+ * IRPF de más por sumar «extra» a la base general (el alquiler, v0.42.0): la cuota con y sin él, con la
+ * misma escala de retenciones (estatal más una autonómica tipo; la de Cataluña es algo más alta).
+ */
+export function irpfAdicional(retribucion: number, seguridadSocial: number, hijos: number[], anio: number, extra: number): number {
+  if (!(extra > 0)) return 0
+  const neto = Math.max(0, retribucion - seguridadSocial)
+  const base = Math.max(0, neto - (retribucion > 0 ? OTROS_GASTOS + reduccionTrabajo(neto) : 0))
+  const minimo = escala(minimoFamiliar(hijos, anio))
+  const cuota = (b: number) => Math.max(0, escala(b) - minimo)
+  return r2(cuota(base + extra) - cuota(base))
+}
+
+/** Escala del ahorro (ganancias por la venta de bienes) desde 2025 */
+const ESCALA_AHORRO = [
+  { hasta: 6000, tipo: 19 },
+  { hasta: 50000, tipo: 21 },
+  { hasta: 200000, tipo: 23 },
+  { hasta: 300000, tipo: 27 },
+  { hasta: Infinity, tipo: 30 },
+]
+
+/** IRPF de una ganancia en la base del ahorro (de una persona) */
+export function cuotaAhorro(base: number): number {
+  let cuota = 0
+  let desde = 0
+  for (const t of ESCALA_AHORRO) {
+    if (base <= desde) break
+    cuota += ((Math.min(base, t.hasta) - desde) * t.tipo) / 100
+    desde = t.hasta
+  }
+  return r2(cuota)
+}
+
 const tipoDe = (cuota: number, retribucion: number) => (retribucion > 0 ? Math.min(47, Math.max(0, Math.round((cuota / retribucion) * 10000) / 100)) : 0)
 
 // ---------------------------------------------------------------------------
