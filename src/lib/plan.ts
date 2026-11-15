@@ -972,7 +972,7 @@ export function capacidadCompra(datos: BaseDatos, hoy: string, sim: Simulacion, 
       const porEntrada = e + g > 0 ? disponible / (e + g) : Infinity
       // Con la entrada fija de la compra, el préstamo es el precio menos la entrada: igual que al simularla
       const porCuota = e < 1 ? prestamoCon(cuotaCon(esfuerzo), p.interes, Math.round(p.anios * 12)) / (1 - e) : Infinity
-      return { efectivo: redondear(efectivo), precio: Math.floor(Math.min(porEntrada, porCuota) / 1000) * 1000, limite: porEntrada <= porCuota ? 'entrada' : 'cuota' }
+      return { efectivo: redondear(efectivo), precio: Math.floor((Math.min(porEntrada, porCuota) + 0.005) / 1000) * 1000, limite: porEntrada <= porCuota ? 'entrada' : 'cuota' }
     }
     // Pausar: el pago de ese año, si ya se habría hecho, se queda en la cuenta
     const pagoDelAnio = plan.pagos.find((x) => x.anio === anio && x.mes <= mes)?.pago ?? 0

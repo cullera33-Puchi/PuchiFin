@@ -279,7 +279,8 @@ export function textoPatrimonio(db: BaseDatos, hoy: string, sim: Simulacion, sol
       lineas.push(
         `En ${mesTexto(r.mes)} tendría unos ${eur(r.saldoAntes)} en la cuenta de ahorro: ${r.falta > 0 ? `me faltarían ${eur(r.falta)} para la entrada y los gastos` : `después de pagar entrada y gastos me quedarían ${eur(r.sobreColchon)} por encima del colchón`}.`,
       )
-      if (r.esfuerzo !== null) lineas.push(`Las cuotas de hipoteca, la actual y la nueva, serían el ${pct(r.esfuerzo)} de mis nóminas netas.`)
+      if (r.esfuerzo !== null)
+        lineas.push(`Las cuotas de hipoteca que pagaría (${eur(r.cuotas)} al mes) serían el ${pct(r.esfuerzo)} de lo que cuenta el banco: mis nóminas netas y el ${inversionDe(db).alquiler_banco} % del alquiler, si lo hay.`)
     }
     if (plan && conCompra && plan.deudaPendiente > 0)
       lineas.push(`Con la compra, la deuda familiar quedaría saldada en ${conCompra.saldadaEn ?? 'más de 30 años'}, frente a ${plan.saldadaEn ?? 'más de 30 años'} sin ella.`)

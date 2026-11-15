@@ -520,6 +520,15 @@ describe('revisión de cálculos del plan (v0.43.0)', () => {
     expect(conColchon.filas[0].pagando.efectivo).toBeGreaterThanOrEqual(0)
   })
 
+  it('el precio máximo no baja 1.000 € por los decimales cuando el cálculo da una cifra exacta', () => {
+    // Entrada del 20 % y gastos del 10 %: 0,2 + 0,1 no es 0,3 exacto en coma flotante
+    const db = crear(20000)
+    const sim = { ...SIN_SIMULACION, compra: { ...compra, mes: '2027-09', entrada_pct: 20, gastos_pct: 10 } }
+    const c = capacidadCompra(db, HOY, sim, { pareja: false, destino: 'vender' })!
+    for (const f of c.filas) if (f.pagando.limite === 'entrada') expect(f.pagando.precio).toBe(Math.floor(Math.round((f.pagando.efectivo / 0.3) * 100) / 100 / 1000) * 1000)
+    expect(Math.floor((7500 / (0.2 + 0.1) + 0.005) / 1000) * 1000).toBe(25000)
+  })
+
   it('vender o alquilar, sin datos de la vivienda actual, vende al precio previsto de la habitual', () => {
     const db = guardarBien(crear(20000), { alias: 'Casa', tipo: 'inmueble', habitual: true, valor: 300000, fecha: '2026-11-01' })
     const [vender] = compararDestinos(db, HOY, { ...SIN_SIMULACION, compra })!
