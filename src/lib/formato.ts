@@ -22,7 +22,9 @@ const eurosRedondos = new Intl.NumberFormat('es-ES', { style: 'currency', curren
 /** Importe redondeado al euro, para frases: 1234.56 → "1.235 €" */
 export function formatearRedondo(importe: number): string {
   if (esDiscreto()) return CIFRA_OCULTA
-  const valor = Math.round(importe) === 0 ? 0 : Math.round(importe)
+  // Igual hacia arriba que hacia abajo: -2,5 y 2,5 redondean a 3 en valor absoluto
+  const redondo = Math.sign(importe) * Math.round(Math.abs(importe))
+  const valor = redondo === 0 ? 0 : redondo
   return eurosRedondos.format(valor).replace(/ /g, ' ')
 }
 
@@ -54,7 +56,9 @@ export function leerImporteUsuario(texto: string, conSigno = false): number | nu
   if (!t) return null
   // Con coma, la coma es el decimal y los puntos separan miles. Sin coma, «15.000» o «1.500.000» son miles
   // (en España nadie escribe 15.000 queriendo decir quince); «12.5» sigue siendo decimal
-  const sinComa = /^\d{1,3}(\.\d{3})+$/.test(t) ? t.replace(/\./g, '') : t
+  // Solo cifras, puntos y una coma: fuera «1e3» y similares
+  if (!/^[\d.]*,?\d*$/.test(t)) return null
+  const sinComa = /^[1-9]\d{0,2}(\.\d{3})+$/.test(t) ? t.replace(/\./g, '') : t
   const n = Number(/,/.test(t) ? t.replace(/\./g, '').replace(',', '.') : sinComa)
   if (!Number.isFinite(n)) return null
   const valor = Math.round(Math.abs(n) * 100) / 100

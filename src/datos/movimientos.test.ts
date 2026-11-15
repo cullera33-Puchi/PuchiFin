@@ -90,9 +90,12 @@ describe('extracto y análisis', () => {
     expect(oct.media).toBeNull()
     expect(oct.hayAnterior).toBe(false)
     const dic = calcularExtracto(db, '2026-12')
-    expect(dic.mesesMedia).toBe(2)
+    // Octubre es el primer mes importado (suele estar incompleto): no entra en la media
+    expect(dic.mesesMedia).toBe(1)
     const nov = calcularExtracto(db, '2026-11')
-    expect(dic.media!.gastos).toBeCloseTo((oct.totales.gastos + nov.totales.gastos) / 2, 1)
+    expect(nov.media).toBeNull()
+    expect(nov.hayAnterior).toBe(true)
+    expect(dic.media!.gastos).toBeCloseTo(nov.totales.gastos, 1)
     expect(dic.haySiguiente).toBe(true) // la nómina del 31 de diciembre cuenta en enero
   })
 
@@ -111,7 +114,7 @@ describe('extracto y análisis', () => {
     expect(suma).toBeCloseTo(nov.totales.gastos, 1)
     expect(nov.categorias.reduce((s, c) => s + c.peso, 0)).toBeCloseTo(1)
     const viv = nov.categorias.find((c) => c.nombre === 'Vivienda')!
-    expect(viv.media).not.toBeNull()
+    expect(calcularExtracto(db, '2026-12').categorias.find((c) => c.nombre === 'Vivienda')!.media).not.toBeNull()
     const movs = movimientosDeCategoria(db, '2026-11', viv.id)
     expect(-movs.reduce((s, m) => s + m.importe, 0)).toBeCloseTo(viv.importe)
   })

@@ -46,8 +46,13 @@ export function cuadrarCuenta(movimientos: Movimiento[]): CuadreCuenta {
   // Repetidos: el mismo movimiento guardado dos veces (las repeticiones legítimas tienen saldos distintos)
   const grupos = new Map<string, Movimiento[]>()
   for (const m of conSaldo) anadirA(grupos, claveRepetido(m), m)
-  const duplicados = [...grupos.values()].filter((g) => g.length > 1)
-  const unicos = [...grupos.values()].map((g) => g[0])
+  // Salvo si otro movimiento de ese día devolvió el saldo a la misma cifra: cada uno permite una repetición más
+  const vuelven = new Map<string, number>()
+  for (const m of conSaldo) vuelven.set(`${m.fecha_operacion}|${cent(m.importe)}|${cent(m.saldo!)}`, (vuelven.get(`${m.fecha_operacion}|${cent(m.importe)}|${cent(m.saldo!)}`) ?? 0) + 1)
+  const permitidas = (m: Movimiento) => 1 + (vuelven.get(`${m.fecha_operacion}|${-cent(m.importe)}|${cent(m.saldo!) - cent(m.importe)}`) ?? 0)
+  // Cada grupo con el que se queda delante y los que sobran detrás (quitar repetidos borra a partir del segundo)
+  const duplicados = [...grupos.values()].filter((g) => g.length > permitidas(g[0])).map((g) => [g[0], ...g.slice(permitidas(g[0]))])
+  const unicos = [...grupos.values()].flatMap((g) => g.slice(0, permitidas(g[0])))
 
   // Cadena: de cada eslabón al que empieza donde acaba él, el de fecha más cercana
   const eslabones = unicos.map((m) => ({ m, antes: cent(m.saldo!) - cent(m.importe), despues: cent(m.saldo!) }))

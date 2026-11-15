@@ -265,7 +265,7 @@ test('gastos previstos, plan de pagos y Analizar con Claude', async ({ page }) =
   await expect(page.locator('#contenido').getByText('Deuda pendiente', { exact: true }).first()).toBeVisible()
   await expect(page.getByText(/Pago previsto en agosto/)).toBeVisible()
   await page.getByRole('radio', { name: '+200 €' }).tap()
-  await expect(page.getByText(/Primer pago:/)).toBeVisible()
+  await expect(page.getByText(/^Pago de agosto de \d{4}: /)).toBeVisible()
   // Otro colchón para simular y guardarlo en el plan
   await page.getByLabel('Colchón para simular').fill('1000')
   await expect(page.getByText(/En el plan: .* de colchón/)).toBeVisible()

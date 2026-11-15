@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.43.0",
+    "fecha": "2026-11-15",
+    "cambios": [
+      "Enviar todo a Claude: toda la app en un texto y todos tus movimientos en CSV. Desde Ajustes, el menú del Extracto o Patrimonio.",
+      "Revisión completa de los cálculos: la media del Extracto ya no cuenta el primer mes importado, que suele estar incompleto.",
+      "Importar: los comercios que empiezan por «Total» (como TotalEnergies) ya no se pierden, y los traspasos entre tus cuentas se emparejan con más cuidado.",
+      "Plan y vivienda: precio máximo coherente con la compra simulada, nómina de tu pareja sin subidas de más y alquiler sin contar dos veces sus gastos.",
+      "Privacidad: la app detecta también el DNI, el IBAN y la tarjeta escritos con puntos."
+    ]
+  },
+  {
     "version": "0.42.0",
     "fecha": "2026-11-15",
     "cambios": [

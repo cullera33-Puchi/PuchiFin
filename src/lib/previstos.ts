@@ -56,5 +56,16 @@ export function previstosPendientes(db: BaseDatos, desde: string, hasta: string,
   return estadoEventos(db, hoy)
     .filter((e) => e.estado === 'pendiente' && e.evento.fecha > desde && e.evento.fecha <= hasta)
     .map((e) => e.evento)
-    .filter((ev) => !recurrentes.some((r) => r.activo && ev.categoria_id && r.categoria_id === ev.categoria_id && dias(r.proxima, ev.fecha) <= 20))
+    // El mismo recibo: misma categoría, a 20 días o menos y un importe parecido (±30 %)
+    .filter(
+      (ev) =>
+        !recurrentes.some(
+          (r) =>
+            r.activo &&
+            ev.categoria_id &&
+            r.categoria_id === ev.categoria_id &&
+            dias(r.proxima, ev.fecha) <= 20 &&
+            Math.abs(Math.abs(r.importe) - Math.abs(ev.importe)) <= 0.3 * Math.abs(ev.importe),
+        ),
+    )
 }

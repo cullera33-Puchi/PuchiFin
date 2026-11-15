@@ -23,7 +23,7 @@ export interface Entrada {
 /** Las entradas iguales seguidas en este intervalo se agrupan en una */
 const AGRUPAR_MS = 10 * 60 * 1000
 
-const IMPORTE = /[-+]?\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?\s?€/g
+const IMPORTE = /[-+−]?\d+(?:\.\d{3})*(?:,\d{1,2})?\s?€/g
 
 /**
  * Las descripciones de los cambios son las del aviso en pantalla y pueden llevar comercios, importes o

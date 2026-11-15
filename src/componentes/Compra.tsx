@@ -211,7 +211,10 @@ export function HojaCompra({ abierta, onCerrar }: { abierta: boolean; onCerrar: 
             {fila('Gastos de la vivienda', f.gastosMes, (v) => cambiar({ gastosMes: v }), '0 €')}
             {f.uso === 'alquilar' && fila('Alquiler que cobras', f.alquiler, (v) => cambiar({ alquiler: v }), '0 €')}
           </div>
-          <p className="mt-1 px-4 text-[12px] text-zinc-500">IBI, comunidad, seguros y mantenimiento. El alquiler, sin descontar impuestos.</p>
+          <p className="mt-1 px-4 text-[12px] text-zinc-500">
+            IBI, comunidad, seguros y mantenimiento. El alquiler, sin descontar impuestos.
+            {f.uso === 'vivir' ? ' Los gastos de tu vivienda actual ya están en tu gasto habitual: pon solo lo que pagarás de más que ahora.' : ''}
+          </p>
         </section>
         <div className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
           <div className="fila min-h-12">

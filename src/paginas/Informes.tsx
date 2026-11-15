@@ -9,6 +9,7 @@ import { Hoja, Segmentado, useInterfaz } from '../componentes/Interfaz'
 import { DetalleMovimiento } from '../componentes/movimientos'
 import { useDatos } from '../datos/ProveedorDatos'
 import { movimientosDelPeriodo } from '../lib/csvClaude'
+import { fechaDeLosDatos } from '../lib/extracto'
 import { diaLargo, hoyIso, MESES, mesLargo } from '../lib/fechas'
 import { formatearRedondo, plural } from '../lib/formato'
 import { calcularInforme, moverPeriodo, periodoDeFecha, porcionesGrafico, type Escala, type Informe, type PeriodoInforme, type Vista } from '../lib/informes'
@@ -466,10 +467,12 @@ function mesesDelPeriodo(p: PeriodoInforme, hoy: string): number {
 function SeccionHormiga({ informe, hoy }: { informe: Informe; hoy: string }) {
   const [abierto, setAbierto] = useState<LineaComercio | null>(null)
   // En un año, los meses con datos (un año con datos solo desde octubre son tres meses, no doce)
+  const db = useDatos()
+  // El ritmo, hasta el último dato importado (no hasta hoy)
   const meses = useMemo(() => {
-    const m = mesesDelPeriodo(informe.periodo, hoy)
+    const m = mesesDelPeriodo(informe.periodo, fechaDeLosDatos(db, hoy))
     return informe.periodo.escala === 'anio' ? Math.max(1, Math.min(m, new Set(informe.movimientos.map(mesEfectivo)).size)) : m
-  }, [informe, hoy])
+  }, [informe, hoy, db])
   const h = useMemo(() => gastosHormiga(informe.movimientos, meses), [informe, meses])
   if (!h) return null
   return (

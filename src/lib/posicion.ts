@@ -32,6 +32,8 @@ export interface Posicion {
   evolucion: { mes: string; saldo: number; capital: number }[]
   /** Diferencia del saldo de las cuentas frente al cierre del mes anterior */
   variacionMes: number | null
+  /** Diferencia del capital (con lo pendiente de la tarjeta) frente al cierre del mes anterior */
+  variacionCapital: number | null
 }
 
 /** Saldo de una cuenta al final de un día (null si aún no hay datos), con sus movimientos ya separados */
@@ -92,6 +94,7 @@ function calcularPosicionCon(db: BaseDatos, meses: number): Posicion | null {
     fecha,
     evolucion: [...cierres, { mes: actual, saldo: bancos, capital }],
     variacionMes: anterior ? redondear(bancos - anterior.saldo) : null,
+    variacionCapital: anterior ? redondear(capital - anterior.capital) : null,
   }
 }
 

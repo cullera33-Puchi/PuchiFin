@@ -192,7 +192,7 @@ export function generarDatosPrueba(opciones: {
     }
 
     // Cuenta 2: gastos anuales
-    if (dia.slice(5) === '10-21') anadir(segunda, dia, 'RECIBO IBI URBANA', -418.6, 'Vivienda > IBI y tasas')
+    if (dia.slice(5) === '10-21') anadir(segunda, dia, 'RECIBO IBI URBANA', -418.6, 'Impuestos > IBI y tasas')
     if (dia.slice(5) === '11-06') anadir(segunda, dia, 'RECIBO SEGURO COCHE', -386.25, 'Seguros > Coche')
     if (dia.slice(5) === '12-14') anadir(segunda, dia, 'RECIBO SEGURO HOGAR', -212.4, 'Vivienda > Seguro de hogar')
 

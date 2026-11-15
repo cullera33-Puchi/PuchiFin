@@ -422,9 +422,10 @@ describe('vender o alquilar la vivienda actual y cuánto puedo comprar (v0.42.0)
     expect(saldo(vender, '2027-05') - saldo(vender, '2027-04') - (saldo(mantener, '2027-05') - saldo(mantener, '2027-04'))).toBeCloseTo(1000, 0)
     expect(vender.compra!.falta).toBe(0)
     expect(vender.compra!.cuotas).toBe(vender.compra!.cuota)
-    // Alquilando: el alquiler neto de cada mes y las dos cuotas
+    // Alquilando: cada mes, el alquiler menos su IRPF (los gastos del piso ya están en el gasto habitual), y las dos cuotas
     const alquiler = alquilar.compra!.alquiler!
-    expect(saldo(alquilar, '2028-05') - saldo(alquilar, '2028-04') - (saldo(mantener, '2028-05') - saldo(mantener, '2028-04'))).toBeCloseTo(alquiler.neto / 12, 0)
+    expect(alquiler.cobro - alquiler.neto).toBeCloseTo(alquiler.gastos, 2)
+    expect(saldo(alquilar, '2028-05') - saldo(alquilar, '2028-04') - (saldo(mantener, '2028-05') - saldo(mantener, '2028-04'))).toBeCloseTo(alquiler.cobro / 12, 0)
     expect(alquilar.compra!.cuotas).toBeCloseTo(alquilar.compra!.cuota + 1000, 2)
     expect(alquilar.compra!.esfuerzo!).toBeLessThan(mantener.compra!.esfuerzo!)
   })
@@ -478,5 +479,50 @@ describe('vender o alquilar la vivienda actual y cuánto puedo comprar (v0.42.0)
     expect(vender.patrimonio5).not.toBeNull()
     expect(alquilar.patrimonio10).not.toBeNull()
     expect(compararDestinos(db, HOY, { ...SIN_SIMULACION, compra: { ...compra, uso: 'segunda' } })).toBeNull()
+  })
+})
+
+describe('revisión de cálculos del plan (v0.43.0)', () => {
+  const compra = { precio: 350000, mes: '2027-03', entrada_pct: 20, gastos_pct: 12, interes: 3, anios: 25, gastos_mes: 0, alquiler_mes: 0, uso: 'vivir' as const }
+
+  it('la subida simulada no se aplica a la nómina de la pareja calculada con su bruto', () => {
+    const db = crear(20000)
+    const sin = calcularPlan(db, HOY, { ...SIN_SIMULACION, pareja: true }).plan!
+    const con = calcularPlan(db, HOY, { ...SIN_SIMULACION, pareja: true, subida: 3 }).plan!
+    const paso = (p: typeof sin, mes: string, antes: string) => p.trayectoria.find((x) => x.mes === mes)!.saldo - p.trayectoria.find((x) => x.mes === antes)!.saldo
+    expect(paso(con, '2027-04', '2027-03')).toBeCloseTo(paso(sin, '2027-04', '2027-03'), 0)
+  })
+
+  it('sin el bonus, la nómina se calcula sin él: más neto al mes que quitándolo solo al final', () => {
+    const bruta: NominaBruta = {
+      fijo_anual: 60000, pagas: 12, meses_extra: [], bonus_objetivo: 10000, bonus_consecucion: 80, bonus_mes: 8,
+      flexible_mes: 0, especie_mes: 0, subida_anual: 0, subida_mes: 9, vigente_desde: '2026-09', hijos: [], tipo_actual: null,
+    }
+    const db = guardarNomina(crear(20000), { nombre: 'Mi nómina', neto_mensual: 3000, pagas: [], desde: null, hasta: null, incluida: true, bonus: null, bruto: bruta })
+    const id = db.ajustes.nominas[0].id
+    const con = preverIngresos(db, HOY)!.meses.find((m) => m.mes === '2027-03')!.nominas[0].importe
+    const sinBonus = preverIngresos(db, HOY, { ...SIN_SIMULACION, bonus: { [id]: false } })!.meses.find((m) => m.mes === '2027-03')!.nominas[0].importe
+    expect(sinBonus).toBeGreaterThan(con)
+  })
+
+  it('cuánto puedo comprar coincide con simular esa compra y usa el colchón simulado', () => {
+    const db = crear(20000)
+    const sim = { ...SIN_SIMULACION, pareja: true }
+    const c = capacidadCompra(db, HOY, sim, { pareja: true, destino: 'mantener' })!
+    const fila = c.filas.find((f) => f.pausando.limite === 'cuota')
+    if (fila) {
+      const simulada = calcularPlan(db, HOY, { ...sim, compra: { ...compra, precio: fila.pausando.precio, mes: fila.mes, interes: c.interes, anios: c.anios } }).plan!.compra!
+      expect(simulada.esfuerzo!).toBeLessThanOrEqual(0.3 + 0.005)
+    }
+    const conColchon = capacidadCompra(db, HOY, { ...SIN_SIMULACION, colchon: 0 }, { pareja: false, destino: 'mantener' })!
+    const normal = capacidadCompra(db, HOY, SIN_SIMULACION, { pareja: false, destino: 'mantener' })!
+    expect(conColchon.filas[0].pagando.efectivo).toBeGreaterThanOrEqual(normal.filas[0].pagando.efectivo)
+    expect(conColchon.filas[0].pagando.efectivo).toBeGreaterThanOrEqual(0)
+  })
+
+  it('vender o alquilar, sin datos de la vivienda actual, vende al precio previsto de la habitual', () => {
+    const db = guardarBien(crear(20000), { alias: 'Casa', tipo: 'inmueble', habitual: true, valor: 300000, fecha: '2026-11-01' })
+    const [vender] = compararDestinos(db, HOY, { ...SIN_SIMULACION, compra })!
+    expect(vender.ahorros).toBeLessThan(cifrasCompra(compra).desembolso - 250000)
   })
 })

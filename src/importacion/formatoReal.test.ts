@@ -194,3 +194,19 @@ describe('tarjeta: una compra sin liquidar y luego liquidada no entra dos veces'
     expect(p.nuevos.map((m) => m.importe)).toEqual([-12.4])
   })
 })
+
+describe('revisión v0.43.0: filas de comercios que empiezan por «Total» o «Suma»', () => {
+  it('solo se saltan las de totales y saldos, que no traen fecha', () => {
+    const l = extraer(
+      informe([
+        fila('05/11/2026', '05/11/2026', 'TOTALENERGIES CLIENTES SAU', 'Recibo', -60),
+        fila('04/11/2026', '04/11/2026', ancho('TOTAL ENERGIES EESS', 'madrid'), 'Pago con tarjeta', -40),
+        fila('03/11/2026', '03/11/2026', ancho('SUMA SUPERMERCATS', 'girona'), 'Pago con tarjeta', -10),
+        ['', '', '', 'TOTAL', '', -110, 'EUR', '', '', ''],
+        ['', '', '', 'Saldo final', '', 890, 'EUR', '', '', ''],
+      ]),
+    )
+    expect(l.filas.map((f) => f.importe)).toEqual([-60, -40, -10])
+    expect(l.ilegibles).toEqual([])
+  })
+})

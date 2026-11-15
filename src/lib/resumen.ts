@@ -191,7 +191,9 @@ export function calcularResumen(
   // «A estas alturas»: hasta el último movimiento importado si cae dentro del periodo (v0.34.0)
   let ultima = ''
   if (hoy) for (const m of movs) if (m.fecha_operacion <= hoy && m.fecha_operacion > ultima) ultima = m.fecha_operacion
-  const referencia = ultima && ultima >= periodo.inicio && ultima <= periodo.fin && hoy && hoy >= periodo.inicio && hoy < periodo.fin ? ultima : hoy
+  const enElPeriodo = !!hoy && hoy >= periodo.inicio && hoy < periodo.fin
+  // Con el periodo en curso y los últimos datos de antes, solo cuenta su primer día
+  const referencia = !enElPeriodo ? hoy : ultima && ultima >= periodo.inicio && ultima <= periodo.fin ? ultima : periodo.inicio
   const { anterior, enCurso, corte } = periodoComparable(periodo, referencia)
   const porId = new Map(categorias.map((c) => [c.id, c]))
   const actuales = movs

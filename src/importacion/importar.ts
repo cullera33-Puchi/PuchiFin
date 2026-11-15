@@ -185,13 +185,19 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
     return n >= 8 && n >= Math.min(20, a.length, b.length)
   }
   for (const x of filas) if (!yaGuardada.has(x) && x.f.saldo === null) emparejar(x, (m) => m.saldo === null && empiezaIgual(m.concepto_normalizado, x.normalizado))
-  // Filas repetidas dentro del propio fichero (por ejemplo, al pegar dos veces lo mismo): con el mismo saldo son la misma
-  const vistasFichero = new Set<string>()
+  // Filas repetidas dentro del propio fichero (por ejemplo, al pegar dos veces lo mismo): con el mismo saldo son
+  // la misma. Salvo si otro movimiento de ese día devolvió el saldo a la misma cifra (una compra, su devolución
+  // y otra compra igual): cada uno de esos permite una repetición más
+  const vistasFichero = new Map<string, number>()
+  const vuelven = new Map<string, number>()
+  for (const x of filas) if (x.f.saldo !== null) vuelven.set(`${x.f.fecha_operacion}|${x.f.importe}|${x.f.saldo}`, (vuelven.get(`${x.f.fecha_operacion}|${x.f.importe}|${x.f.saldo}`) ?? 0) + 1)
   for (const x of filas) {
     if (x.f.saldo === null || yaGuardada.has(x)) continue
     const k = `${x.f.fecha_operacion}|${x.f.importe}|${x.f.saldo}|${x.normalizado}`
-    if (vistasFichero.has(k)) yaGuardada.add(x)
-    vistasFichero.add(k)
+    const vistas = vistasFichero.get(k) ?? 0
+    const permitidas = 1 + (vuelven.get(`${x.f.fecha_operacion}|${-x.f.importe}|${Math.round((x.f.saldo - x.f.importe) * 100) / 100}`) ?? 0)
+    if (vistas >= permitidas) yaGuardada.add(x)
+    vistasFichero.set(k, vistas + 1)
   }
 
   for (const x of filas) {
@@ -237,21 +243,40 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
   const usados = new Set<string>()
   const bancarias = new Set(db.cuentas.filter((c) => c.tipo === 'cuenta').map((c) => c.id))
   if (bancarias.has(cuenta_id)) {
+    // Un traspaso que ya tiene su pareja en otra cuenta propia no se vuelve a emparejar
+    const conPareja = (x: Movimiento) =>
+      db.movimientos.some(
+        (y) =>
+          y.id !== x.id &&
+          y.cuenta_id !== x.cuenta_id &&
+          bancarias.has(y.cuenta_id) &&
+          y.tipo === 'traspaso_interno' &&
+          y.importe === -x.importe &&
+          y.fecha_operacion >= sumarDias(x.fecha_operacion, -3) &&
+          y.fecha_operacion <= sumarDias(x.fecha_operacion, 3),
+      )
+    const distancia = (a: string, b: string) => Math.abs(Date.parse(a) - Date.parse(b))
     for (const m of nuevos) {
       if ((m.tipo !== 'normal' && m.tipo !== 'traspaso_interno') || !ES_TRASPASO.test(m.concepto_normalizado)) continue
-      const par = db.movimientos.find(
-        (x) =>
-          !usados.has(x.id) &&
-          x.cuenta_id !== cuenta_id &&
-          bancarias.has(x.cuenta_id) &&
-          x.importe === -m.importe &&
-          // Lo que categorizaste a mano no se toca: no se empareja
-          !x.tipo_manual &&
-          ((x.tipo === 'normal' && x.origen_categoria !== 'manual') || x.tipo === 'traspaso_interno') &&
-          ES_TRASPASO.test(x.concepto_normalizado) &&
-          x.fecha_operacion >= sumarDias(m.fecha_operacion, -3) &&
-          x.fecha_operacion <= sumarDias(m.fecha_operacion, 3),
-      )
+      // Un traspaso de BBVA admite 3 días; una transferencia, 1 (una a un tercero puede coincidir en importe). Bizum entre cuentas propias no hay
+      if (/\bbizum\b/.test(m.concepto_normalizado) && !/\btraspaso\b/.test(m.concepto_normalizado)) continue
+      const margen = /\btraspaso\b/.test(m.concepto_normalizado) ? 3 : 1
+      const par = db.movimientos
+        .filter(
+          (x) =>
+            !usados.has(x.id) &&
+            x.cuenta_id !== cuenta_id &&
+            bancarias.has(x.cuenta_id) &&
+            x.importe === -m.importe &&
+            // Lo que categorizaste a mano no se toca: no se empareja
+            !x.tipo_manual &&
+            ((x.tipo === 'normal' && x.origen_categoria !== 'manual') || (x.tipo === 'traspaso_interno' && !conPareja(x))) &&
+            ES_TRASPASO.test(x.concepto_normalizado) &&
+            !/^bizum\b/.test(x.concepto_normalizado) &&
+            x.fecha_operacion >= sumarDias(m.fecha_operacion, -margen) &&
+            x.fecha_operacion <= sumarDias(m.fecha_operacion, margen),
+        )
+        .sort((a, b) => distancia(a.fecha_operacion, m.fecha_operacion) - distancia(b.fecha_operacion, m.fecha_operacion))[0]
       if (par) {
         usados.add(par.id)
         m.tipo = 'traspaso_interno'

@@ -10,7 +10,7 @@ import type { AliasTercero } from '../lib/tipos'
 
 /** Series de 8 o más dígitos (o enmascarados con X o *), con o sin código de país, separadas por espacios o guiones */
 const RE_NUMERO = /(?<![A-Z0-9])(?:[A-Z]{2}\d{2}[ -]?)?[\dX*](?:[ -]?[\dX*]){7,}(?![A-Z0-9])/gi
-const RE_DNI = /(?<![A-Z0-9])(?:[XYZ][ -]?\d{7}|\d{8})[ -]?[A-Z](?![A-Z0-9])/gi
+const RE_DNI = /(?<![A-Z0-9])(?:[XYZ][ .-]?(?:\d{7}|\d\.?\d{3}\.?\d{3})|\d{2}\.?\d{3}\.?\d{3})[ .-]?[A-Z](?![A-Z0-9])/gi
 
 function enmascararNumero(s: string): string {
   const digitos = (s.match(/\d/g) ?? []).length

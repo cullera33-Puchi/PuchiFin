@@ -99,7 +99,7 @@ const mesesAlquiladaEn = (mesCompra: string, anio: number) => (anio < Number(mes
 function alquilerNetoMes(db: BaseDatos, a: ViviendaActual, mesCompra: string, mes: string, ajuste: AjusteNomina): number {
   const anio = Number(mes.slice(0, 4))
   const meses = mesesAlquiladaEn(mesCompra, anio)
-  return meses > 0 ? alquilerAnual(db, a, anio, ajuste, meses).neto / meses : 0
+  return meses > 0 ? alquilerAnual(db, a, anio, ajuste, meses).cobro / meses : 0
 }
 
 /**
@@ -181,6 +181,14 @@ export const ajusteNominas = (db: BaseDatos, sim: Simulacion): AjusteNomina => (
   consecucion: sim.consecucion,
   inflacion: inflacionDe(db, sim),
 })
+
+/**
+ * El ajuste de cada nómina: la subida simulada no se aplica a la de la pareja calculada con su bruto, y sin
+ * el bonus, la cotización y la retención se calculan también sin él
+ */
+function ajustePara(n: Nomina, ajuste: AjusteNomina, sim: Simulacion): AjusteNomina {
+  return { ...ajuste, ...(n.id === 'pareja' ? { subida: 0 } : {}), ...(sim.bonus?.[n.id] === false ? { consecucion: 0 } : {}) }
+}
 
 /** Hay crecimiento configurado: alguna nómina en bruto con subida o inflación del gasto */
 export const hayCrecimiento = (db: BaseDatos) =>
@@ -449,8 +457,9 @@ function modelo(db: BaseDatos, stats: Map<string, Estadistica>, base: string, si
   const desglose = (mes: string) => {
     const nominas: IngresoNomina[] = activas
       .map((x) => {
-        const bonus = sim.bonus?.[x.id] === false ? 0 : bonusNomina(x, mes, ajuste)
-        return { id: x.id, nombre: x.nombre, importe: importeNomina(x, mes, false, ajuste) + bonus, bonus }
+        const aj = ajustePara(x, ajuste, sim)
+        const bonus = sim.bonus?.[x.id] === false ? 0 : bonusNomina(x, mes, aj)
+        return { id: x.id, nombre: x.nombre, importe: importeNomina(x, mes, false, aj) + bonus, bonus }
       })
       .filter((x) => x.importe > 0)
     // El alquiler de la vivienda que se simula comprar, con los otros ingresos
@@ -828,9 +837,10 @@ export function evolucionAnual(datosOriginales: BaseDatos, hoy: string, simulaci
       const mes = `${anio}-${String(m).padStart(2, '0')}`
       for (const n of activas) {
         const conBonus = sim.bonus?.[n.id] !== false
-        neto += importeNomina(n, mes, conBonus, ajuste)
+        const aj = ajustePara(n, ajuste, sim)
+        neto += importeNomina(n, mes, conBonus, aj)
         if (!n.bruto || (n.desde && mes < n.desde) || (n.hasta && mes > n.hasta)) continue
-        const d = mesDeNomina(n.bruto, mes, ajuste, n.desde, n.hasta)
+        const d = mesDeNomina(n.bruto, mes, aj, n.desde, n.hasta)
         bruto += d.bruto + (conBonus ? d.bonusBruto : 0)
         bonusBruto += conBonus ? d.bonusBruto : 0
         seguridadSocial += d.seguridadSocial
@@ -960,12 +970,13 @@ export function capacidadCompra(datos: BaseDatos, hoy: string, sim: Simulacion, 
     const maximo = (efectivo: number, esfuerzo: number): PrecioMaximo => {
       const disponible = Math.max(0, efectivo)
       const porEntrada = e + g > 0 ? disponible / (e + g) : Infinity
-      const porCuota = (disponible + prestamoCon(cuotaCon(esfuerzo), p.interes, Math.round(p.anios * 12))) / (1 + g)
+      // Con la entrada fija de la compra, el préstamo es el precio menos la entrada: igual que al simularla
+      const porCuota = e < 1 ? prestamoCon(cuotaCon(esfuerzo), p.interes, Math.round(p.anios * 12)) / (1 - e) : Infinity
       return { efectivo: redondear(efectivo), precio: Math.floor(Math.min(porEntrada, porCuota) / 1000) * 1000, limite: porEntrada <= porCuota ? 'entrada' : 'cuota' }
     }
     // Pausar: el pago de ese año, si ya se habría hecho, se queda en la cuenta
     const pagoDelAnio = plan.pagos.find((x) => x.anio === anio && x.mes <= mes)?.pago ?? 0
-    const colchon = plan.compromiso.colchon
+    const colchon = sim.colchon ?? plan.compromiso.colchon
     const pagando = t.saldo - colchon + venta
     const pausando = pagando + pagoDelAnio
     filas.push({
@@ -1010,8 +1021,10 @@ function patrimonioPrevisto(db: BaseDatos, plan: Plan, c: CompraVivienda, hoy: s
   let bienes = 0
   for (const b of db.ajustes.bienes ?? []) {
     if (vendida && b.habitual) continue
+    // Los inmuebles se revalorizan desde su última valoración, como el precio de venta previsto
+    const ultima = b.valoraciones.filter((v) => v.fecha <= hoy).at(-1) ?? b.valoraciones[0]
     const valor = valorBien(b, hoy)
-    bienes += b.tipo === 'inmueble' ? valor * sube(aniosEntre(hoy.slice(0, 7), mes)) : valor
+    bienes += b.tipo === 'inmueble' && ultima ? valor * sube(aniosEntre(ultima.fecha.slice(0, 7), mes)) : valor
   }
   if (mes >= c.mes) bienes += c.precio * sube(aniosEntre(c.mes, mes))
   const actual = hipotecaActual(db)
@@ -1027,7 +1040,8 @@ export function compararDestinos(db: BaseDatos, hoy: string, sim: Simulacion): R
   const c = sim.compra
   if (!c || c.uso !== 'vivir') return null
   const mesDatos = fechaDeLosDatos(db, hoy).slice(0, 7)
-  const base: ViviendaActual = c.actual ?? { destino: 'mantener', precio_venta: 0, alquiler_mes: 0, meses_vacia: 1, gastos_anio: 0 }
+  // Sin datos de la vivienda actual (si se mantiene), la venta al precio previsto de la vivienda habitual
+  const base: ViviendaActual = c.actual ?? { destino: 'mantener', precio_venta: precioPrevisto(db, c.mes), alquiler_mes: 0, meses_vacia: 1, gastos_anio: 0 }
   const resultados: ResultadoDestino[] = []
   for (const destino of ['vender', 'alquilar'] as const) {
     const compra = { ...c, actual: { ...base, destino } }

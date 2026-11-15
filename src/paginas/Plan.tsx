@@ -128,7 +128,11 @@ function ContenidoPlan({
   // Al restablecer, los campos de deuda y colchón vuelven a los importes del plan
   const [reinicio, setReinicio] = useState(0)
   const recorte = sim.recorte
-  const diferencia = simulado && proximo ? (simulado.pagos[0]?.pago ?? 0) - proximo.pago : 0
+  // El pago del mismo año con la simulación (con la compra y la pausa, el primero puede ser de otro año)
+  const pagoSimulado = simulado && proximo ? (simulado.pagos.find((p) => p.anio === proximo.anio)?.pago ?? 0) : 0
+  const diferencia = simulado && proximo ? pagoSimulado - proximo.pago : 0
+  // «Sin la compra»: la misma simulación, solo sin la compra ni la pausa del pago
+  const sinCompra = useMemo(() => (sim.compra ? calcularPlan(db, hoyIso(), { ...sim, compra: null, pausarPago: undefined }).plan : null), [db, sim])
   const anios = simulado?.saldadaEn && plan.saldadaEn ? plan.saldadaEn - simulado.saldadaEn : 0
 
   return (
@@ -285,7 +289,7 @@ function ContenidoPlan({
           {simulado && (
             <div className="rounded-xl bg-zinc-100 px-3 py-2 text-[15px] dark:bg-zinc-800">
               <p className="tabular-nums">
-                Primer pago: {formatearRedondo(simulado.pagos[0]?.pago ?? 0)}{' '}
+                {proximo ? `Pago de ${mesNombre(Number(proximo.mes.slice(5, 7)))} de ${proximo.anio}` : 'Primer pago'}: {formatearRedondo(proximo ? pagoSimulado : (simulado.pagos[0]?.pago ?? 0))}{' '}
                 <span className={diferencia >= 0 ? 'text-[#248A3D] dark:text-[#30D158]' : 'text-[#D70015] dark:text-[#FF6961]'}>
                   ({diferencia >= 0 ? '+' : ''}
                   {formatearRedondo(diferencia)})
@@ -297,7 +301,7 @@ function ContenidoPlan({
               </p>
               {simulado.compra && (
                 <div className="mt-2 border-t border-zinc-200/70 pt-2 dark:border-zinc-700">
-                  <ResumenCompra r={simulado.compra} base={plan} con={simulado} />
+                  <ResumenCompra r={simulado.compra} base={sinCompra} con={simulado} />
                 </div>
               )}
             </div>

@@ -158,6 +158,8 @@ export function leerImporte(v: unknown): number | null {
   let s = String(v ?? '').replace(/[€\s]|EUR/gi, '').replace(/−/g, '-')
   if (!s) return null
   if (/,\d{1,2}$/.test(s)) s = s.replace(/\./g, '').replace(',', '.')
+  // Solo con puntos de miles («1.234», «1.234.567»): sin decimales
+  else if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '')
   else s = s.replace(/,/g, '')
   const n = Number(s)
   return Number.isFinite(n) ? Math.round(n * 100) / 100 : null
@@ -185,8 +187,9 @@ export function extraer(filas: unknown[][], hoja = 'Hoja 1', plantillas = PLANTI
     const brutoFecha = fila[columnas.fecha_operacion![0]]
     const brutoImporte = fila[columnas.importe![0]]
     if (!concepto && (brutoImporte === undefined || brutoImporte === '')) continue // fila vacía
-    if (/^(total|saldo|suma)/i.test(normalizarCabecera(concepto)) || /^(total|saldo)/i.test(normalizarCabecera(brutoFecha))) continue
     const fecha = leerFecha(brutoFecha)
+    // Filas de totales y saldos: sin fecha. Un comercio que empieza por «Total» o «Suma» (TotalEnergies) sí es un movimiento
+    if (!fecha && (/^(total|saldo|suma)\b/i.test(normalizarCabecera(concepto)) || /^(total|saldo)/i.test(normalizarCabecera(brutoFecha)))) continue
     const importe = leerImporte(brutoImporte)
     if (!fecha || importe === null) {
       ilegibles.push(i + 1)

@@ -19,7 +19,8 @@ import { sumarDias } from './fechas'
 import type { BaseDatos, Movimiento } from './tipos'
 
 const cent = (n: number) => Math.round(n * 100)
-const PATRON = /\b(liquidacion|liq)\b.*\btarj|\bpago\b.*\btarjeta (de )?credito\b|\bcargo\b.*\btarjeta\b|\badeudo mensual de tarjeta\b/
+// Nunca una compra con tarjeta («CARGO BIKES … Pago con tarjeta»)
+const PATRON = /^(?!.*\bpago con tarjeta\b)(?:.*\b(liquidacion|liq)\b.*\btarj|.*\bpago\b.*\btarjeta (de )?credito\b|.*\bcargo\b.*\btarjeta\b|.*\badeudo mensual de tarjeta\b)/
 /** Pago de la liquidación visto desde la tarjeta: no es una compra */
 const PAGO_EN_TARJETA = /\b(rebut|recibo) (del )?mes anterior\b|\babono\b.*\bliquidacion\b|\b(liquidacion|liq)\b.*\btarj/
 

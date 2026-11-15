@@ -89,7 +89,9 @@ export function calcularInforme(db: BaseDatos, periodo: PeriodoInforme, vista: V
   const anterior = moverPeriodo(periodo, -1)
   // «A estas alturas»: hasta el último dato importado si cae dentro del periodo, como el Extracto (v0.34.0)
   const datos = hoy ? fechaDeLosDatos(db, hoy) : undefined
-  const { enCurso, corte } = corteAnterior(periodo, hoy, datos && datos.startsWith(periodo.clave) ? datos : hoy)
+  // Si los últimos datos son de antes del periodo, en curso solo cuenta su primer día
+  const referencia = !hoy || !datos ? hoy : datos.startsWith(periodo.clave) ? datos : hoy.startsWith(periodo.clave) ? (periodo.escala === 'mes' ? `${periodo.clave}-01` : `${periodo.clave}-01-01`) : hoy
+  const { enCurso, corte } = corteAnterior(periodo, hoy, referencia)
 
   const delPeriodo = (p: PeriodoInforme, recorte: (f: string) => boolean) =>
     db.movimientos.filter((m) => {

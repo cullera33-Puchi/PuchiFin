@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { datosIniciales } from '../datos/operaciones'
 import { resumenAnual } from './anual'
 import { generarDatosPrueba } from './datosPrueba'
+import { evolucionMensual } from './extracto'
 
 describe('resumen del año', () => {
   it('totales, meses, categorías y comercios del año', () => {
@@ -15,7 +16,9 @@ describe('resumen del año', () => {
     expect(r.categorias.length).toBeGreaterThan(0)
     expect(r.comercios.length).toBe(5)
     expect(r.mejorMes!.ahorro).toBeGreaterThanOrEqual(r.peorMes!.ahorro)
-    expect(r.gastoMedioMes).toBeCloseTo(r.totales.gastos / 11, 1)
+    // Media de los meses completos: de enero a octubre (noviembre está en curso)
+    const completos = evolucionMensual(db).filter((m) => m.mes >= '2026-01' && m.mes <= '2026-10')
+    expect(r.gastoMedioMes).toBeCloseTo(completos.reduce((s, m) => s + m.gastos, 0) / 10, 1)
     expect(r.capital?.fin).toBeTypeOf('number')
     const anterior = resumenAnual(db, '2025', '2026-11-14')
     expect(anterior.enCurso).toBe(false)

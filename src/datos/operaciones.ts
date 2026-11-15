@@ -28,6 +28,8 @@ import {
 export class ErrorDatos extends Error {}
 
 export const nuevoId = (): string => crypto.randomUUID()
+/** AAAA-MM-DD que existe en el calendario (sin el 30 de febrero, que Date.parse da por bueno) */
+const fechaValida = (f: string) => !Number.isNaN(Date.parse(f)) && new Date(`${f}T00:00:00Z`).toISOString().slice(0, 10) === f
 const ahora = () => new Date().toISOString()
 
 /** Lanza un error si el texto contiene IBAN, cuenta, tarjeta, DNI o NIE */
@@ -277,6 +279,15 @@ export function fusionarCategoria(db: BaseDatos, origen: string, destino: string
     reglas: db.reglas.map((r) => (reasignar.has(r.categoria_id ?? '') ? { ...r, categoria_id: nueva(r.categoria_id) } : r)),
     eventos_previstos: db.eventos_previstos.map((e) => (reasignar.has(e.categoria_id ?? '') ? { ...e, categoria_id: nueva(e.categoria_id) } : e)),
     presupuestos: [...presupuestos.values()],
+    // Lo que guarda una importación para deshacerla y las categorías que no suben con la inflación también se reasignan
+    importaciones: db.importaciones.map((i) =>
+      i.modificados.some((x) => reasignar.has(x.categoria_id ?? ''))
+        ? { ...i, modificados: i.modificados.map((x) => (reasignar.has(x.categoria_id ?? '') ? { ...x, categoria_id: nueva(x.categoria_id ?? null) } : x)) }
+        : i,
+    ),
+    ajustes: db.ajustes.prevision
+      ? { ...db.ajustes, prevision: { ...db.ajustes.prevision, sin_inflacion: [...new Set(db.ajustes.prevision.sin_inflacion.map((id) => nueva(id)!))].filter((id) => (id === destino ? d.naturaleza === 'gasto' : true)) } }
+      : db.ajustes,
   }
 }
 
@@ -350,7 +361,7 @@ export function guardarEvento(db: BaseDatos, datos: DatosEvento, id?: string): B
   if (!concepto) throw new ErrorDatos('Escribe qué es (por ejemplo, IBI o seguro del coche)')
   if (concepto.length > 60) throw new ErrorDatos('El concepto admite un máximo de 60 caracteres')
   exigirSinIdentificativos('Concepto', concepto)
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(datos.fecha) || Number.isNaN(Date.parse(datos.fecha))) throw new ErrorDatos('Fecha no válida')
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datos.fecha) || !fechaValida(datos.fecha)) throw new ErrorDatos('Fecha no válida')
   if (!Number.isFinite(datos.importe) || datos.importe === 0 || Math.abs(datos.importe) > 1_000_000) throw new ErrorDatos('Escribe un importe')
   if (datos.categoria_id && !db.categorias.some((c) => c.id === datos.categoria_id)) throw new ErrorDatos('Categoría no encontrada')
   const valores = { fecha: datos.fecha, concepto, importe: Math.round(datos.importe * 100) / 100, categoria_id: datos.categoria_id }
@@ -380,7 +391,7 @@ export function guardarCompromiso(db: BaseDatos, id: string, datos: DatosComprom
   if (!db.compromisos.some((c) => c.id === id)) throw new ErrorDatos('Deuda no encontrada')
   if (!Number.isFinite(datos.deuda_inicial) || datos.deuda_inicial < 0 || datos.deuda_inicial > 10_000_000) throw new ErrorDatos('Escribe la deuda pendiente')
   if (!Number.isFinite(datos.colchon) || datos.colchon < 0 || datos.colchon > 10_000_000) throw new ErrorDatos('Escribe el colchón')
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(datos.fecha_referencia) || Number.isNaN(Date.parse(datos.fecha_referencia))) throw new ErrorDatos('Fecha no válida')
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datos.fecha_referencia) || !fechaValida(datos.fecha_referencia)) throw new ErrorDatos('Fecha no válida')
   const mes = (n: number) => Number.isInteger(n) && n >= 1 && n <= 12
   if (!mes(datos.ventana_mes_inicio) || !mes(datos.ventana_mes_fin) || !mes(datos.mes_referencia)) throw new ErrorDatos('Mes no válido')
   if (datos.ventana_mes_inicio > datos.ventana_mes_fin) throw new ErrorDatos('La ventana de pago empieza después de acabar')
@@ -510,7 +521,7 @@ export function guardarBien(db: BaseDatos, datos: DatosBien, id?: string): BaseD
   exigirSinIdentificativos('Nombre del bien', alias)
   if (!TIPOS_BIEN.includes(datos.tipo)) throw new ErrorDatos('Tipo de bien no válido')
   if (!Number.isFinite(datos.valor) || datos.valor < 0 || datos.valor > 100_000_000) throw new ErrorDatos('Escribe el valor estimado')
-  if (!FECHA_ISO.test(datos.fecha) || Number.isNaN(Date.parse(datos.fecha))) throw new ErrorDatos('Fecha no válida')
+  if (!FECHA_ISO.test(datos.fecha) || !fechaValida(datos.fecha)) throw new ErrorDatos('Fecha no válida')
   const lista = db.ajustes.bienes ?? []
   if (lista.some((b) => b.id !== id && b.alias.toLowerCase() === alias.toLowerCase())) throw new ErrorDatos('Ya hay un bien con ese nombre')
   const valoracion = { fecha: datos.fecha, valor: Math.round(datos.valor * 100) / 100 }
@@ -567,7 +578,7 @@ export function guardarPrestamo(db: BaseDatos, cuentaId: string, datos: Prestamo
   let prestamo: Prestamo | null = null
   if (datos) {
     if (!Number.isFinite(datos.capital) || datos.capital <= 0 || datos.capital > 100_000_000) throw new ErrorDatos('Escribe el capital pendiente')
-    if (!FECHA_ISO.test(datos.fecha) || Number.isNaN(Date.parse(datos.fecha))) throw new ErrorDatos('Fecha no válida')
+    if (!FECHA_ISO.test(datos.fecha) || !fechaValida(datos.fecha)) throw new ErrorDatos('Fecha no válida')
     if (!Number.isFinite(datos.interes) || datos.interes < 0 || datos.interes > 20) throw new ErrorDatos('El tipo de interés va de 0 a 20 %')
     if (!Number.isInteger(datos.plazo_meses) || datos.plazo_meses < 1 || datos.plazo_meses > 600) throw new ErrorDatos('Los años que quedan van de 1 mes a 50 años')
     prestamo = { capital: Math.round(datos.capital * 100) / 100, fecha: datos.fecha, interes: Math.round(datos.interes * 1000) / 1000, plazo_meses: datos.plazo_meses }
@@ -578,7 +589,8 @@ export function guardarPrestamo(db: BaseDatos, cuentaId: string, datos: Prestamo
 /** Inflación anual del gasto para el plan de pagos y categorías que no suben (la hipoteca a tipo fijo) */
 export function guardarPrevision(db: BaseDatos, datos: AjustesPrevision): BaseDatos {
   if (!Number.isFinite(datos.inflacion) || datos.inflacion < 0 || datos.inflacion > 20) throw new ErrorDatos('La inflación va de 0 a 20 %')
-  const ids = [...new Set(datos.sin_inflacion)]
+  // Una categoría que ya no existe (borrada o fusionada) se quita sin más
+  const ids = [...new Set(datos.sin_inflacion)].filter((id) => db.categorias.some((c) => c.id === id))
   for (const id of ids) {
     const c = db.categorias.find((x) => x.id === id)
     if (!c) throw new ErrorDatos('Categoría no encontrada')

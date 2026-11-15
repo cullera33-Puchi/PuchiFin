@@ -306,8 +306,9 @@ export function Ingresos() {
               )}
               {plan && plan.pagos[0] && (
                 <p>
-                  Pago de {MESES[Number(plan.pagos[0].mes.slice(5, 7)) - 1]} de {plan.pagos[0].anio}: {formatearRedondo((planSim ?? plan).pagos[0]?.pago ?? 0)}
-                  {planSim && <Dif n={(planSim.pagos[0]?.pago ?? 0) - plan.pagos[0].pago} />}
+                  Pago de {MESES[Number(plan.pagos[0].mes.slice(5, 7)) - 1]} de {plan.pagos[0].anio}:{' '}
+                  {formatearRedondo(planSim ? (planSim.pagos.find((p) => p.anio === plan.pagos[0].anio)?.pago ?? 0) : plan.pagos[0].pago)}
+                  {planSim && <Dif n={(planSim.pagos.find((p) => p.anio === plan.pagos[0].anio)?.pago ?? 0) - plan.pagos[0].pago} />}
                 </p>
               )}
               {plan && (

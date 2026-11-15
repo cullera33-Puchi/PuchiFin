@@ -99,6 +99,11 @@ export interface AlquilerAnual {
   irpfPareja: number
   /** Lo que queda para la familia: ingresos menos gastos e IRPF (la cuota de la hipoteca se paga aparte) */
   neto: number
+  /**
+   * Lo que suma al ahorro previsto: ingresos menos IRPF. Los gastos de la vivienda (IBI, comunidad, seguro)
+   * ya están en el gasto habitual, porque hoy se pagan: restarlos otra vez los contaría dos veces
+   */
+  cobro: number
 }
 
 /** Intereses de un préstamo pagados en un año natural: las cuotas de ese año menos el capital que amortizan */
@@ -151,7 +156,7 @@ export function alquilerAnual(db: BaseDatos, a: ViviendaActual, anio: number, aj
   const irpfTitular = trabajo ? irpfAdicional(trabajo.retribucion, trabajo.seguridadSocial, trabajo.hijos, anio, titular) : r2((titular * TIPO_SIN_NOMINA) / 100)
   const ssPareja = inv.bruto_pareja > 0 ? cotizacionMes(inv.bruto_pareja / 12, anio, ajuste.inflacion) * 12 : 0
   const irpfPareja = irpfAdicional(inv.bruto_pareja, ssPareja, trabajo?.hijos ?? mia?.bruto?.hijos ?? [], anio, pareja)
-  const r: AlquilerAnual = { ingresos, gastos, intereses, amortizacion, rendimiento, base, irpfTitular, irpfPareja, neto: r2(ingresos - gastos - irpfTitular - irpfPareja) }
+  const r: AlquilerAnual = { ingresos, gastos, intereses, amortizacion, rendimiento, base, irpfTitular, irpfPareja, neto: r2(ingresos - gastos - irpfTitular - irpfPareja), cobro: r2(ingresos - irpfTitular - irpfPareja) }
   m.set(k, r)
   return r
 }

@@ -242,7 +242,11 @@ export function textoPatrimonio(db: BaseDatos, hoy: string, sim: Simulacion, sol
   const previstos = estadoEventos(db, hoy).filter((e) => e.estado === 'pendiente')
   if (previstos.length) {
     lineas.push('', 'Gastos e ingresos puntuales previstos:')
-    for (const e of previstos) lineas.push(`- ${mesTexto(e.evento.fecha.slice(0, 7))}: ${e.evento.concepto}, ${eur(e.evento.importe)}`)
+    // Sin conceptos, cada previsto sale por su categoría (el concepto es texto libre)
+    const sin = sinConceptos(db)
+    previstos.forEach((e, i) =>
+      lineas.push(`- ${mesTexto(e.evento.fecha.slice(0, 7))}: ${sin ? (e.evento.categoria_id ? nombreCategoria(db, e.evento.categoria_id) : `Gasto previsto ${i + 1}`) : e.evento.concepto}, ${eur(e.evento.importe)}`),
+    )
   }
 
   const plan = calcularPlan(db, hoy).plan

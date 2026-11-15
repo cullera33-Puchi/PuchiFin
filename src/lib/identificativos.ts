@@ -18,11 +18,12 @@ export interface Hallazgo {
 
 const LETRAS_DNI = 'TRWAGMYFPDXBNJZSQVHLCKE'
 
+// Separadores admitidos: espacio, guion y punto (un DNI se escribe a menudo 12.345.678-Z)
 const RE_IBAN =
-  /(?<![A-Z0-9])[A-Z]{2}[0-9]{2}[ -]?[A-Z0-9]{4}(?:[ -]?[0-9][A-Z0-9]{3}){1,6}(?:[ -]?[0-9][A-Z0-9]{0,3})?(?![A-Z0-9])/g
-const RE_DIGITOS = /(?<![0-9])[0-9](?:[ -]?[0-9]){12,23}(?![0-9])/g
-const RE_DNI = /(?<![A-Z0-9])([0-9]{8})[ -]?([A-Z])(?![A-Z0-9])/g
-const RE_NIE = /(?<![A-Z0-9])([XYZ])[ -]?([0-9]{7})[ -]?([A-Z])(?![A-Z0-9])/g
+  /(?<![A-Z0-9])[A-Z]{2}[0-9]{2}[ .-]?[A-Z0-9]{4}(?:[ .-]?[0-9][A-Z0-9]{3}){1,6}(?:[ .-]?[0-9][A-Z0-9]{0,3})?(?![A-Z0-9])/g
+const RE_DIGITOS = /(?<![0-9])[0-9](?:[ .-]?[0-9]){12,23}(?![0-9])/g
+const RE_DNI = /(?<![A-Z0-9])([0-9]{2}\.?[0-9]{3}\.?[0-9]{3})[ .-]?([A-Z])(?![A-Z0-9])/g
+const RE_NIE = /(?<![A-Z0-9])([XYZ])[ .-]?([0-9]{7}|[0-9]\.?[0-9]{3}\.?[0-9]{3})[ .-]?([A-Z])(?![A-Z0-9])/g
 /**
  * Referencia catastral (v0.41.0): identifica el inmueble y, por el Catastro, a su propietario. Urbana:
  * 7 dígitos, 2 letras, 4 dígitos y una letra (la parcela), con o sin el cargo (4 dígitos) y el control
@@ -53,7 +54,7 @@ function letraControl(numero: number): string {
 
 /** Deja visibles solo los cuatro últimos caracteres */
 export function enmascarar(texto: string): string {
-  const limpio = texto.replace(/[ -]/g, '')
+  const limpio = texto.replace(/[ .-]/g, '')
   if (limpio.length <= 4) return '*'.repeat(limpio.length)
   return '*'.repeat(limpio.length - 4) + limpio.slice(-4)
 }
@@ -66,7 +67,7 @@ export function detectarIdentificativos(texto: string | null | undefined): Halla
   const hallazgos: Hallazgo[] = []
 
   for (const m of t.matchAll(RE_IBAN)) {
-    const compacto = m[0].replace(/[ -]/g, '')
+    const compacto = m[0].replace(/[ .-]/g, '')
     const digitosCuerpo = compacto.slice(4).replace(/[^0-9]/g, '')
     if (compacto.length >= 15 && digitosCuerpo.length >= 10) {
       hallazgos.push({ tipo: 'iban', muestra: enmascarar(original(m)), posicion: m.index, longitud: m[0].length })
@@ -74,7 +75,7 @@ export function detectarIdentificativos(texto: string | null | undefined): Halla
   }
 
   for (const m of t.matchAll(RE_DIGITOS)) {
-    const compacto = m[0].replace(/[ -]/g, '')
+    const compacto = m[0].replace(/[ .-]/g, '')
     if (compacto.length === 20) {
       hallazgos.push({ tipo: 'cuenta', muestra: enmascarar(compacto), posicion: m.index, longitud: m[0].length })
     } else if (compacto.length >= 13 && compacto.length <= 19 && luhnValido(compacto)) {
@@ -83,14 +84,14 @@ export function detectarIdentificativos(texto: string | null | undefined): Halla
   }
 
   for (const m of t.matchAll(RE_DNI)) {
-    if (letraControl(Number(m[1])) === m[2]) {
+    if (letraControl(Number(m[1].replace(/\./g, ''))) === m[2]) {
       hallazgos.push({ tipo: 'dni', muestra: enmascarar(original(m)), posicion: m.index, longitud: m[0].length })
     }
   }
 
   for (const m of t.matchAll(RE_NIE)) {
     const prefijo = { X: '0', Y: '1', Z: '2' }[m[1] as 'X' | 'Y' | 'Z']
-    if (letraControl(Number(prefijo + m[2])) === m[3]) {
+    if (letraControl(Number(prefijo + m[2].replace(/\./g, ''))) === m[3]) {
       hallazgos.push({ tipo: 'nie', muestra: enmascarar(original(m)), posicion: m.index, longitud: m[0].length })
     }
   }

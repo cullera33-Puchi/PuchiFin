@@ -7,14 +7,14 @@
 import { sumarDias, sumarMeses } from './fechas'
 import { fechaEfectiva, mesEfectivo } from './imputacion'
 import { fijoYVariable, type Recurrente } from './recurrentes'
-import { fechaDeLosDatos } from './extracto'
 import { calcularTotales } from './resumen'
 import { previstosPendientes } from './previstos'
 import type { BaseDatos, EventoPrevisto } from './tipos'
 
 const redondear = (n: number) => Math.round(n * 100) / 100
 /** Primer mes con datos: casi siempre incompleto (el primer Excel empieza a mitad de mes) */
-export const primerMes = (db: BaseDatos) => db.movimientos.reduce((min, m) => (mesEfectivo(m) < min ? mesEfectivo(m) : min), '9999-99')
+import { fechaDeLosDatos, primerMes } from './extracto'
+export { primerMes }
 
 const diasDelMes = (mes: string) => Number(sumarDias(sumarMeses(`${mes}-01`, 1), -1).slice(8, 10))
 

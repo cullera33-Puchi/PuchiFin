@@ -72,6 +72,9 @@ export interface Extracto {
  * comparaciones «a estas alturas del mes» se hacen hasta ahí: si el Excel es de hace unos días, los días
  * sin importar no cuentan como días sin gasto.
  */
+/** Primer mes con datos: suele estar incompleto y no entra en las medias */
+export const primerMes = (db: BaseDatos) => db.movimientos.reduce((min, m) => (mesEfectivo(m) < min ? mesEfectivo(m) : min), '9999-99')
+
 export function fechaDeLosDatos(db: BaseDatos, hoy: string): string {
   let ultima = ''
   for (const m of db.movimientos) if (m.fecha_operacion <= hoy && m.fecha_operacion > ultima) ultima = m.fecha_operacion
@@ -81,12 +84,15 @@ export function fechaDeLosDatos(db: BaseDatos, hoy: string): string {
 function calcularExtractoSin(db: BaseDatos, mes: string, hoy: string | undefined): Extracto {
   const enCurso = !!hoy && mesDe(hoy) === mes
   const corte = hoy ? fechaDeLosDatos(db, hoy) : null
-  const diaCorte = enCurso ? Number((corte!.startsWith(mes) ? corte! : hoy!).slice(8, 10)) : null
+  // Si los últimos datos son de un mes anterior, del mes en curso solo hay lo que se pasó a él (el día 1)
+  const diaCorte = enCurso ? (corte!.startsWith(mes) ? Number(corte!.slice(8, 10)) : 1) : null
   const delPeriodo = (p: string) => db.movimientos.filter((m) => mesEfectivo(m) === p && (diaCorte === null || Number(fechaEfectiva(m).slice(8, 10)) <= diaCorte))
   const delMes = db.movimientos.filter((m) => mesEfectivo(m) === mes)
   const totales = calcularTotales(delMes, db.categorias)
   const meses = mesesConDatos(db.movimientos)
-  const previos = meses.filter((m) => m < mes).slice(-12)
+  // Sin el primer mes importado, que suele estar incompleto (como la previsión y el plan)
+  const primero = primerMes(db)
+  const previos = meses.filter((m) => m < mes && m > primero).slice(-12)
 
   let media: Totales | null = null
   const mediasCat = new Map<string | null, number>()

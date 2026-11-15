@@ -7,6 +7,7 @@
  */
 import { porVersionYClave } from './cache'
 import { claveComercio, esPasarela } from './conceptos'
+import { primerMes } from './extracto'
 import { sumarMeses } from './fechas'
 import { mesEfectivo } from './imputacion'
 import type { BaseDatos, Movimiento } from './tipos'
@@ -33,6 +34,8 @@ function calcular(db: BaseDatos, mes: string): GastoAtipico[] {
   const esGasto = (m: Movimiento) => m.tipo === 'normal' && m.importe < 0 && (!m.categoria_id || gastoNatural.has(m.categoria_id))
   const clave = (m: Movimiento) => claveComercio(m.concepto_limpio) || m.concepto_normalizado
   const desde = sumarMeses(`${mes}-01`, -12).slice(0, 7)
+  // En el primer mes importado no hay historial: nada es «nuevo»
+  const primero = primerMes(db)
   // Cargos de los doce meses anteriores por comercio
   const previos = new Map<string, number[]>()
   for (const m of db.movimientos) {
@@ -53,7 +56,7 @@ function calcular(db: BaseDatos, mes: string): GastoAtipico[] {
     if (!esPasarela(k) && antes.length >= 3) {
       const habitual = mediana(antes)
       if (importe > habitual * 1.6 && importe - habitual >= 30) res.push({ movimiento: m, motivo: 'comercio', habitual: Math.round(habitual * 100) / 100, veces: antes.length })
-    } else if (!antes.length && importe >= UMBRAL_GRANDE) {
+    } else if (!antes.length && importe >= UMBRAL_GRANDE && mes > primero) {
       res.push({ movimiento: m, motivo: 'nuevo', habitual: null, veces: 0 })
     }
   }

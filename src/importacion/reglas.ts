@@ -27,7 +27,7 @@ interface ReglaBase {
 export const REGLAS_RETIRADAS = ['Reembolso de la empresa', 'Viajes de trabajo: alojamiento', 'Viajes de trabajo: transporte', 'PayPal']
 
 const REGLAS_BASE: ReglaBase[] = [
-  { nombre: 'Liquidación de tarjeta', patron: '\\b(liquidacion|liq)\\b.*\\btarj|\\bpago\\b.*\\btarjeta (de )?credito\\b|\\bcargo\\b.*\\btarjeta\\b|\\badeudo mensual de tarjeta\\b', tipo: 'traspaso_interno', signo: 'gasto', prioridad: 10 },
+  { nombre: 'Liquidación de tarjeta', patron: '^(?!.*\\bpago con tarjeta\\b)(?:.*\\b(liquidacion|liq)\\b.*\\btarj|.*\\bpago\\b.*\\btarjeta (de )?credito\\b|.*\\bcargo\\b.*\\btarjeta\\b|.*\\badeudo mensual de tarjeta\\b)', tipo: 'traspaso_interno', signo: 'gasto', prioridad: 10 },
   { nombre: 'Abono de la liquidación en la tarjeta', patron: '\\b(liquidacion|liq)\\b.*\\btarj|\\babono\\b.*\\bliquidacion\\b|\\b(rebut|recibo) (del )?mes anterior\\b', tipo: 'traspaso_interno', signo: 'ingreso', prioridad: 10 },
   { nombre: 'Fraccionamiento de gastos', patron: '\\babono por fraccionamiento\\b|\\babono capital prestamo\\b', tipo: 'traspaso_interno', signo: 'ingreso', prioridad: 12 },
   { nombre: 'Operación financiada', patron: '\\boperaci(on|o) financ?(i)?ada\\b', tipo: 'traspaso_interno', prioridad: 12 },
@@ -201,9 +201,13 @@ export interface Aprendidas {
   mesSiguiente: Set<string>
 }
 
+/** Primeras palabras que no dicen nada del comercio: no sirven para aprender por parecido */
+const GENERICAS = new Set(['bizum', 'transferencia', 'transf', 'trf', 'traspaso', 'recibo', 'adeudo', 'ingreso', 'abono', 'cargo', 'pago', 'compra', 'devolucion', 'retirada', 'reintegro', 'comision', 'liquidacion', 'operacion'])
+
 /** Lo aprendido de las correcciones a mano, en cualquier cuenta */
 export function categoriasAprendidas(db: BaseDatos): Aprendidas {
   const m = new Map<string, { categoria: string; fecha: string }>()
+  const signoDe = new Map<string, '-' | '+'>()
   const mesSiguiente = new Set<string>()
   for (const mov of db.movimientos) {
     const base = claveComercio(mov.concepto_limpio)
@@ -213,14 +217,19 @@ export function categoriasAprendidas(db: BaseDatos): Aprendidas {
     // En PayPal se aprende por importe: cada cargo puede ser de una cosa distinta
     const clave = claveConImporte(base, mov.importe)
     const prev = m.get(clave)
-    if (!prev || mov.fecha_operacion >= prev.fecha) m.set(clave, { categoria: mov.categoria_id, fecha: mov.fecha_operacion })
+    if (!prev || mov.fecha_operacion >= prev.fecha) {
+      m.set(clave, { categoria: mov.categoria_id, fecha: mov.fecha_operacion })
+      signoDe.set(clave, mov.importe < 0 ? '-' : '+')
+    }
   }
   const porClave = new Map([...m].map(([k, v]) => [k, v.categoria]))
+  // Por la primera palabra y el signo: un gasto no enseña a un ingreso. Sin palabras genéricas (bizum,
+  // transferencia, recibo…), que no dicen nada del comercio
   const palabras = new Map<string, Set<string>>()
   for (const [k, c] of porClave) {
     if (esPasarela(k)) continue
     const p = primeraPalabra(k)
-    if (p) palabras.set(p, (palabras.get(p) ?? new Set()).add(c))
+    if (p && !GENERICAS.has(p)) palabras.set(`${p}|${signoDe.get(k) ?? ''}`, (palabras.get(`${p}|${signoDe.get(k) ?? ''}`) ?? new Set()).add(c))
   }
   const porPalabra = new Map([...palabras].filter(([, cs]) => cs.size === 1).map(([p, cs]) => [p, [...cs][0]]))
   return { porClave, porPalabra, mesSiguiente }
@@ -281,7 +290,7 @@ export function clasificar(m: TextoRegla, reglas: Regla[], aprendidas: Aprendida
   // 3. Aprendidas: el mismo comercio o, si no, uno que empieza igual
   if (!res.categoria_id && res.tipo === 'normal') {
     const p = esPasarela(m.clave) ? null : primeraPalabra(m.clave)
-    const aprendida = aprendidas.porClave.get(claveConImporte(m.clave, m.importe)) ?? (p ? aprendidas.porPalabra.get(p) : undefined)
+    const aprendida = aprendidas.porClave.get(claveConImporte(m.clave, m.importe)) ?? (p ? aprendidas.porPalabra.get(`${p}|${m.importe < 0 ? '-' : '+'}`) : undefined)
     if (aprendida) {
       res.categoria_id = aprendida
       res.origen_categoria = 'aprendida'

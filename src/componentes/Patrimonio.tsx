@@ -36,10 +36,10 @@ export function FilasPatrimonio() {
             <Baldosa glifo={Landmark} color="#007AFF" tamano="sm" />
             <span className="min-w-0 flex-1">
               <span className="block text-[15px]">Capital</span>
-              {posicion.variacionMes !== null && !oculta && (
-                <span className={`block text-[12px] tabular-nums ${posicion.variacionMes >= 0 ? VERDE : ROJO}`}>
-                  {posicion.variacionMes >= 0 ? '+' : ''}
-                  {formatearRedondo(posicion.variacionMes)} este mes
+              {posicion.variacionCapital !== null && !oculta && (
+                <span className={`block text-[12px] tabular-nums ${posicion.variacionCapital >= 0 ? VERDE : ROJO}`}>
+                  {posicion.variacionCapital >= 0 ? '+' : ''}
+                  {formatearRedondo(posicion.variacionCapital)} este mes
                 </span>
               )}
             </span>
