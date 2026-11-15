@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { crearArchivo } from '../datos/archivo'
 import { datosIniciales } from '../datos/operaciones'
-import { copiasSobrantes, metaDe, type MetaCopia } from './copias'
+import { copiasSobrantes, hayCopiaReciente, metaDe, type MetaCopia } from './copias'
 
 describe('metaDe', () => {
   it('resume la copia y la diaria usa el día como clave', () => {
@@ -13,22 +13,20 @@ describe('metaDe', () => {
 })
 
 describe('copiasSobrantes', () => {
-  const meta = (dia: number, tipo: MetaCopia['tipo']): MetaCopia => ({
-    clave: `${dia}-${tipo}`, tipo, creada: `2026-11-${String(dia).padStart(2, '0')}T08:00:00Z`, dia: '', version: '', movimientos: 0, cuentas: 0, categorias: 0,
+  const meta = (dia: number, tipo: MetaCopia['tipo'], hora = '08'): MetaCopia => ({
+    clave: `${dia}-${tipo}-${hora}`, tipo, creada: `2026-11-${String(dia).padStart(2, '0')}T${hora}:00:00Z`, dia: '', version: '', movimientos: 0, cuentas: 0, categorias: 0,
   })
 
-  it('conserva las 7 diarias más recientes', () => {
-    const lista = Array.from({ length: 9 }, (_, i) => meta(i + 1, 'diaria'))
-    expect(copiasSobrantes(lista).sort()).toEqual(['1-diaria', '2-diaria'])
+  it('conserva solo las 3 más recientes, de cualquier tipo', () => {
+    const lista = [meta(1, 'diaria'), meta(2, 'manual'), meta(3, 'diaria'), meta(4, 'antes de importar'), meta(5, 'diaria')]
+    expect(copiasSobrantes(lista).sort()).toEqual(['1-diaria-08', '2-manual-08'])
+    expect(copiasSobrantes(lista.slice(2))).toEqual([])
   })
 
-  it('las manuales no cuentan en el límite de las diarias', () => {
-    const lista = [...Array.from({ length: 7 }, (_, i) => meta(i + 1, 'diaria')), meta(1, 'manual'), meta(2, 'antes de importar')]
-    expect(copiasSobrantes(lista)).toEqual([])
-  })
-
-  it('las manuales no se borran solas; las de antes de importar, solo a partir de 10', () => {
-    const lista = [...Array.from({ length: 12 }, (_, i) => meta(i + 1, 'manual')), ...Array.from({ length: 11 }, (_, i) => meta(i + 1, 'antes de importar'))]
-    expect(copiasSobrantes(lista)).toEqual(['1-antes de importar'])
+  it('una copia de hace menos de 15 minutos cuenta como reciente', () => {
+    const ahora = Date.parse('2026-11-05T08:10:00Z')
+    expect(hayCopiaReciente([meta(5, 'diaria')], ahora)).toBe(true)
+    expect(hayCopiaReciente([meta(5, 'diaria')], ahora + 10 * 60 * 1000)).toBe(false)
+    expect(hayCopiaReciente([], ahora)).toBe(false)
   })
 })

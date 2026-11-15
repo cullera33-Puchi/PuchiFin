@@ -43,6 +43,8 @@ export function HojaCompra({ abierta, onCerrar }: { abierta: boolean; onCerrar: 
   // La vivienda actual, si la nueva es para vivir; y si se pausa el pago de la deuda o cuenta la pareja
   const [actual, setActual] = useState({ destino: 'mantener' as ViviendaActual['destino'], venta: '', alquiler: '', vacia: '1', gastos: '' })
   const [pausar, setPausar] = useState(false)
+  // Todo el dinero disponible como entrada: por defecto en una compra nueva (v0.44.0)
+  const [todo, setTodo] = useState(true)
   const [pareja, setPareja] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // Al abrir, la compra de la simulación o los valores de partida (ajuste durante el render, sin efecto)
@@ -72,6 +74,7 @@ export function HojaCompra({ abierta, onCerrar }: { abierta: boolean; onCerrar: 
           : { destino: 'mantener', venta: '', alquiler: '', vacia: '1', gastos: '' },
       )
       setPausar(!!sim.pausarPago)
+      setTodo(c ? !!c.entrada_maxima : true)
       setPareja(!!sim.pareja)
       setError(null)
     }
@@ -106,7 +109,19 @@ export function HojaCompra({ abierta, onCerrar }: { abierta: boolean; onCerrar: 
       if (gastosAnio === null) return 'Revisa los gastos de tu vivienda actual'
       vivienda = { destino: actual.destino, precio_venta: venta ?? 0, alquiler_mes: renta ?? 0, meses_vacia: vacia, gastos_anio: gastosAnio }
     }
-    return { precio, mes: f.mes, entrada_pct: entrada, gastos_pct: gastos, interes, anios: anios ?? 1, gastos_mes: gastosMes, alquiler_mes: f.uso === 'alquilar' ? alquiler : 0, uso: f.uso, actual: vivienda }
+    return {
+      precio,
+      mes: f.mes,
+      entrada_pct: entrada,
+      gastos_pct: gastos,
+      interes,
+      anios: anios ?? 1,
+      gastos_mes: gastosMes,
+      alquiler_mes: f.uso === 'alquilar' ? alquiler : 0,
+      uso: f.uso,
+      actual: vivienda,
+      entrada_maxima: todo,
+    }
   }
   const compra = leer()
   const cifras = typeof compra === 'string' ? null : cifrasCompra(compra)
@@ -192,7 +207,14 @@ export function HojaCompra({ abierta, onCerrar }: { abierta: boolean; onCerrar: 
         <section>
           <h3 className="cabecera-grupo">Compra e hipoteca</h3>
           <div className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
-            {fila('Entrada (%)', f.entrada, (v) => cambiar({ entrada: v }), '20')}
+            {fila(todo ? 'Entrada mínima (%)' : 'Entrada (%)', f.entrada, (v) => cambiar({ entrada: v }), '20')}
+            <div className="fila min-h-12">
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px]">Todo el dinero como entrada</span>
+                <span className="block text-[12px] text-zinc-500">Lo que tengas ese mes por encima del colchón{actual.destino === 'vender' && f.uso === 'vivir' ? ' y lo que deje la venta' : ''}</span>
+              </span>
+              <Interruptor etiqueta="Todo el dinero como entrada" activo={todo} onCambio={setTodo} />
+            </div>
             {fila('Gastos de compra (%)', f.gastos, (v) => cambiar({ gastos: v }), '12')}
             {fila('Tipo fijo (%)', f.interes, (v) => cambiar({ interes: v }), '3')}
             {fila('Años de hipoteca', f.anios, (v) => cambiar({ anios: v }), '25')}
@@ -232,13 +254,15 @@ export function HojaCompra({ abierta, onCerrar }: { abierta: boolean; onCerrar: 
         {cifras && (
           <div className="space-y-1 rounded-xl bg-zinc-100/70 px-4 py-3 text-[15px] tabular-nums dark:bg-zinc-800/50" aria-label="Cifras de la compra">
             <p>
-              Necesitas {formatearRedondo(cifras.desembolso)}: {formatearRedondo(cifras.entrada)} de entrada y {formatearRedondo(cifras.gastos)} de gastos.
+              {todo ? 'Necesitas como mínimo' : 'Necesitas'} {formatearRedondo(cifras.desembolso)}: {formatearRedondo(cifras.entrada)} de entrada y {formatearRedondo(cifras.gastos)} de gastos.
             </p>
             {cifras.prestamo > 0 && (
               <p>
-                Hipoteca de {formatearRedondo(cifras.prestamo)}, con una cuota de {formatearRedondo(cifras.cuota)} al mes.
+                {todo ? 'Hipoteca de hasta' : 'Hipoteca de'} {formatearRedondo(cifras.prestamo)}, con una cuota de {todo ? 'hasta ' : ''}
+                {formatearRedondo(cifras.cuota)} al mes.
               </p>
             )}
+            {todo && <p className="text-[13px] text-zinc-500">Si tienes más, la app pone más entrada y la hipoteca baja: lo ves al simular.</p>}
           </div>
         )}
         {error && <p className={`px-1 text-[13px] ${ROJO}`}>{error}</p>}
@@ -263,7 +287,8 @@ export function ResumenCompra({ r, base, con }: { r: ResultadoCompra; base: Plan
   return (
     <div className="space-y-1 text-[15px] tabular-nums">
       <p>
-        En {nombreMes(r.mes).toLowerCase()} necesitas {formatearRedondo(r.desembolso)}: {formatearRedondo(r.entrada)} de entrada y {formatearRedondo(r.gastos)} de gastos.
+        En {nombreMes(r.mes).toLowerCase()} pones {formatearRedondo(r.desembolso)}: {formatearRedondo(r.entrada)} de entrada (el {Math.round((r.entrada / Math.max(1, r.entrada + r.prestamo)) * 100)} % del
+        precio) y {formatearRedondo(r.gastos)} de gastos.
       </p>
       {r.venta && (
         <p>

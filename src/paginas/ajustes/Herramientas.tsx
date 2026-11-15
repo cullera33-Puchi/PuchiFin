@@ -358,7 +358,7 @@ export function Herramientas({ apartado }: { apartado: ApartadoHerramientas }) {
       {ver('archivo') && (
         <Seccion
           titulo="Copias de seguridad"
-          nota="Cada día, al abrir la app, se guarda una copia en el iPhone (se conservan las 7 últimas). Si borras la app, se borran con ella: para eso está la exportación."
+          nota="Cada día, al abrir la app, y antes de importar, restaurar o actualizar, se guarda una copia en el iPhone. Se conservan las 3 más recientes, también las que haces tú. Si borras la app, se borran con ella: para eso está la exportación."
         >
           {copias === null ? (
             <p className="text-sm text-zinc-500">Cargando…</p>

@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.44.0",
+    "fecha": "2026-11-15",
+    "cambios": [
+      "¿Cuánto puedo comprar?: cada año dice la cuota máxima, el dinero que tienes y qué te limita, el dinero o la cuota. Debajo, qué significa cada dato.",
+      "Al simular una compra, todo el dinero que tengas por encima del colchón va a la entrada, y lo que deje la venta si vendes. La hipoteca baja. Se puede desactivar.",
+      "Copias de seguridad: solo se guardan las 3 más recientes. Varias importaciones seguidas ya no hacen una copia cada una."
+    ]
+  },
+  {
     "version": "0.43.0",
     "fecha": "2026-11-15",
     "cambios": [

@@ -2,6 +2,16 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.44.0. Cuánto puedo comprar, más claro; todo el dinero como entrada y 3 copias (15 de noviembre de 2026)
+
+Pedido por el usuario: la tabla del precio máximo no se entendía, y se hacían demasiadas copias de seguridad.
+
+- Tabla «¿Cuánto puedo comprar?» (`Capacidad.tsx`): «Cuota máxima: X al mes» en cada año, «Te limita el dinero» o «Te limita la cuota», el dinero que tienes ese mes para entrada y gastos («Tienes X», `efectivo`) y «Si el banco acepta el 35 %». Nota al pie por conceptos (precio máximo, tienes, cuota máxima, te limita, 35 %). En vender o alquilar, «De tus ahorros».
+- Todo el dinero como entrada (`CompraVivienda.entrada_maxima`, `conEntrada` en `plan.ts`): la compra pone de entrada todo lo que hay ese mes por encima del colchón, más lo que deja la venta, con el porcentaje de entrada como mínimo y sin pasar del precio; la hipoteca baja. Activado por defecto en las compras nuevas, con interruptor en la hoja de compra. Lo usan el plan, la previsión de ingresos, la comprobación del ahorro, la evolución por años y el texto para Claude (`textoCompra` con el resultado calculado).
+- El precio máximo con todo el dinero (`capacidadCompra`, `todoElDinero`): con límite de cuota, el precio es el dinero disponible más el préstamo que admite la cuota, entre uno más los gastos de compra. Con la entrada fija, como antes.
+- Copias de seguridad (`copias.ts`): se conservan las 3 más recientes de cualquier tipo (antes, 7 diarias y 10 del resto). Antes de importar o de actualizar no se repite la copia si hay una de hace menos de 15 minutos (`hayCopiaReciente`), para que una tanda de importaciones no se coma las demás. `hacerCopia` devuelve `null` cuando no la repite. Las copias de más se borran con la siguiente copia.
+- Pruebas: todo el dinero como entrada, precio máximo frente a entrada fija, la compra al precio máximo cumple el esfuerzo del 30 %, y copias (3 de cualquier tipo, copia reciente).
+
 ## v0.43.0. Enviar todo a Claude y revisión completa de los cálculos (15 de noviembre de 2026)
 
 Pedido por el usuario: poder exportar todo a Claude y revisar la app entera para que no tenga fallos en los cálculos.

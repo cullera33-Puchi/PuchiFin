@@ -24,6 +24,7 @@ import {
   tieneBonus,
   type CompraVivienda,
   type Plan,
+  type ResultadoCompra,
   type Simulacion,
 } from './plan'
 import { estadoEventos } from './previstos'
@@ -155,7 +156,7 @@ export function textoPlan(db: BaseDatos, plan: Plan, sim: Simulacion | null, sim
       sim.colchon !== undefined ? `con un colchón de ${eur(sim.colchon)}` : '',
       sim.ahorroExtra ? `ahorrar ${eur(sim.ahorroExtra)} más al mes` : '',
       sim.recorte ? `recortar ${nombreCategoria(db, sim.recorte.categoria_id)} un ${sim.recorte.porcentaje} %` : '',
-      sim.compra ? textoCompra(sim.compra) : '',
+      sim.compra ? textoCompra(sim.compra, simulado.compra) : '',
       sim.pareja ? 'contar la nómina de mi pareja' : '',
       sim.pausarPago ? 'no pagar la deuda antes de la compra' : '',
     ].filter(Boolean)
@@ -168,8 +169,9 @@ const mesTexto = (mes: string) => mesLargo(`${mes}-01`).toLowerCase()
 const USO: Record<CompraVivienda['uso'], string> = { alquilar: 'para alquilar', segunda: 'como segunda residencia', vivir: 'para vivir en ella' }
 
 /** La compra de la simulación en una frase */
-function textoCompra(c: CompraVivienda): string {
-  const x = cifrasCompra(c)
+/** «r»: el resultado del plan, con la entrada que de verdad se pone (todo el dinero disponible, si se eligió) */
+function textoCompra(c: CompraVivienda, r?: ResultadoCompra | null): string {
+  const x = r ?? cifrasCompra(c)
   const destino = c.uso === 'vivir' && c.actual && c.actual.destino !== 'mantener' ? (c.actual.destino === 'vender' ? ', vendiendo la actual' : ', alquilando la actual') : ''
   return `comprar una vivienda ${USO[c.uso]} de ${eur(c.precio)} en ${mesTexto(c.mes)}${destino} (entrada de ${eur(x.entrada)}, gastos de compra de ${eur(x.gastos)}, hipoteca de ${eur(x.prestamo)} a ${c.anios} años al ${String(c.interes).replace('.', ',')} % con una cuota de ${eur(x.cuota)} al mes)`
 }
@@ -264,7 +266,8 @@ export function textoPatrimonio(db: BaseDatos, hoy: string, sim: Simulacion, sol
   if (sim.compra) {
     const conCompra = calcularPlan(db, hoy, sim).plan
     const r = conCompra?.compra
-    lineas.push('', `Operación que quiero valorar: ${textoCompra(sim.compra)}.`)
+    lineas.push('', `Operación que quiero valorar: ${textoCompra(sim.compra, r)}.`)
+    if (sim.compra.entrada_maxima) lineas.push('Pongo de entrada todo el dinero que tenga ese mes por encima del colchón, y lo que deje la venta si vendo.')
     if (sim.compra.gastos_mes) lineas.push(`Gastos de la vivienda: ${eur(sim.compra.gastos_mes)} al mes (IBI, comunidad, seguros y mantenimiento).`)
     if (sim.compra.uso === 'alquilar' && sim.compra.alquiler_mes) lineas.push(`Alquiler previsto: ${eur(sim.compra.alquiler_mes)} al mes.`)
     if (sim.pareja) lineas.push('Cuento también con la nómina de mi pareja, cotitular de la hipoteca nueva.')

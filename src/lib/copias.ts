@@ -1,8 +1,11 @@
 /**
  * Copias de seguridad y paso de datos entre dispositivos.
  *
- * - Copia diaria automática en el dispositivo (IndexedDB "puchifin-copias"), al abrir la app: 7 últimas.
- * - Copia manual y copias automáticas antes de restaurar o importar, que no se borran solas (10 últimas).
+ * - Copia diaria automática en el dispositivo (IndexedDB "puchifin-copias"), al abrir la app.
+ * - Copia manual y copias automáticas antes de restaurar, importar, actualizar o borrar.
+ * - Se conservan las 3 más recientes, de cualquier tipo (decisión del usuario, v0.44.0). Antes de importar o
+ *   de actualizar no se repite la copia si ya hay una de hace menos de 15 minutos (importar varios ficheros
+ *   seguidos no llena las tres con copias casi iguales).
  * - Exportar: archivo JSON con todos los datos, para guardarlo en Archivos o iCloud Drive y cargarlo
  *   en otro dispositivo. Importar sustituye todo por el contenido del archivo, exactamente igual.
  */
@@ -27,8 +30,10 @@ export interface MetaCopia {
   reglas?: number
 }
 
-export const MAX_DIARIAS = 7
-export const MAX_OTRAS = 10
+/** Copias que se conservan en el iPhone, de cualquier tipo */
+export const MAX_COPIAS = 3
+/** Antes de importar o de actualizar, no se repite la copia si la última es de hace menos de esto */
+const RECIENTE_MS = 15 * 60 * 1000
 const BASE = 'puchifin-copias'
 const CLAVE_ULTIMA_EXPORTACION = 'puchifin-ultima-exportacion'
 const CLAVE_SALTAR = 'puchifin-copia-saltar'
@@ -58,13 +63,17 @@ export function metaDe(archivo: ArchivoPuchiFin, tipo: TipoCopia, creada = new D
   }
 }
 
-/** Qué copias sobran: más de 7 diarias o más de 10 del resto, de las más antiguas */
+/** Qué copias sobran: todas menos las 3 más recientes, sean del tipo que sean */
 export function copiasSobrantes(lista: MetaCopia[]): string[] {
-  const orden = [...lista].sort((a, b) => b.creada.localeCompare(a.creada))
-  const diarias = orden.filter((m) => m.tipo === 'diaria').slice(MAX_DIARIAS)
-  // Las manuales las hace y las borra el usuario: no se rotan
-  const otras = orden.filter((m) => m.tipo !== 'diaria' && m.tipo !== 'manual').slice(MAX_OTRAS)
-  return [...diarias, ...otras].map((m) => m.clave)
+  return [...lista]
+    .sort((a, b) => b.creada.localeCompare(a.creada))
+    .slice(MAX_COPIAS)
+    .map((m) => m.clave)
+}
+
+/** Hay una copia de hace menos de 15 minutos: los datos de entonces son casi los de ahora */
+export function hayCopiaReciente(lista: MetaCopia[], ahora = Date.now()): boolean {
+  return lista.some((m) => ahora - Date.parse(m.creada) < RECIENTE_MS)
 }
 
 // ---------------------------------------------------------------------------
@@ -135,8 +144,15 @@ export async function borrarTodasLasCopias(): Promise<number> {
   return lista.length
 }
 
-/** Guarda una copia de los datos actuales en el dispositivo */
-export async function hacerCopia(tipo: TipoCopia): Promise<MetaCopia> {
+/**
+ * Guarda una copia de los datos actuales en el dispositivo. Antes de importar o de actualizar, si ya hay una
+ * de hace menos de 15 minutos, no se hace otra (devuelve null)
+ */
+export async function hacerCopia(tipo: TipoCopia): Promise<MetaCopia | null> {
+  if ((tipo === 'antes de importar' || tipo === 'antes de actualizar') && hayCopiaReciente(await listarCopias())) {
+    registrar('info', `Copia ${tipo} no repetida: hay una reciente`)
+    return null
+  }
   await esperarGuardado()
   const archivo = crearArchivo(structuredClone(obtenerDatos()))
   const m = metaDe(archivo, tipo)

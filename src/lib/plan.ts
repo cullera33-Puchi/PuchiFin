@@ -76,6 +76,11 @@ export interface CompraVivienda {
   uso: 'alquilar' | 'segunda' | 'vivir'
   /** Si es para vivir: qué se hace con la vivienda actual (v0.42.0) */
   actual?: ViviendaActual | null
+  /**
+   * Poner de entrada todo el dinero que haya ese mes por encima del colchón (con la venta, si se vende), y no
+   * solo el mínimo de «entrada_pct»: el préstamo y la cuota bajan (v0.44.0)
+   */
+  entrada_maxima?: boolean
 }
 
 /** Cifras de la compra: entrada, gastos de compra, lo que sale de la cuenta, préstamo y cuota */
@@ -522,7 +527,29 @@ function pagosDeDeuda(db: BaseDatos, c: Compromiso) {
   return { pagado, pagosReales: [...porAnio].map(([anio, importe]) => ({ anio, importe })).sort((a, b) => a.anio - b.anio) }
 }
 
+/**
+ * Con «entrada_maxima», la entrada de la compra pasa a ser todo el dinero que habrá ese mes por encima del
+ * colchón (y lo que deje la venta), menos los gastos de compra; como mínimo, la entrada mínima, y como mucho,
+ * el precio. Se calcula con un primer plan con la entrada mínima: lo que hay antes de comprar no depende de ella
+ */
+function conEntrada(db: BaseDatos, hoy: string, sim: Simulacion): Simulacion {
+  const c = sim.compra
+  if (!c?.entrada_maxima) return sim
+  const fija: Simulacion = { ...sim, compra: { ...c, entrada_maxima: false } }
+  const plan = calcularPlanFijo(db, hoy, fija).plan
+  const r = plan?.compra
+  if (!plan || !r) return fija
+  const colchon = sim.colchon ?? plan.compromiso.colchon
+  const disponible = r.saldoAntes + (r.venta?.neto ?? 0) - colchon
+  const entrada = Math.min(c.precio, Math.max(r.entrada, disponible - r.gastos))
+  return { ...sim, compra: { ...c, entrada_maxima: false, entrada_pct: (entrada / c.precio) * 100 } }
+}
+
 export function calcularPlan(datosOriginales: BaseDatos, hoy: string, simulacion: Simulacion = SIN_SIMULACION): ResultadoPlan {
+  return calcularPlanFijo(datosOriginales, hoy, conEntrada(datosOriginales, hoy, simulacion))
+}
+
+function calcularPlanFijo(datosOriginales: BaseDatos, hoy: string, simulacion: Simulacion): ResultadoPlan {
   const [db, sim] = conLaPareja(datosOriginales, simulacion)
   const compromiso = db.compromisos.find((c) => c.activo)
   if (!compromiso) return { plan: null, falta: 'sin_compromiso' }
@@ -663,7 +690,7 @@ export function preverIngresos(
   hoy: string,
   simulacion: Simulacion = SIN_SIMULACION,
 ): { meses: MesIngresos[]; ahorroMensual: number; capitalHoy: number | null; capital12: number | null; mediaNomina: number | null } | null {
-  const [db, sim] = conLaPareja(datosOriginales, simulacion)
+  const [db, sim] = conLaPareja(datosOriginales, conEntrada(datosOriginales, hoy, simulacion))
   const stats = estadisticas(db)
   const datos = fechaDeLosDatos(db, hoy)
   const mesDatos = datos.slice(0, 7)
@@ -731,7 +758,7 @@ export interface Comprobacion {
  * meses cerrados, y lo que conviene revisar si la previsión se aleja del historial. Null sin un mes cerrado.
  */
 export function comprobarPrevision(datosOriginales: BaseDatos, hoy: string, simulacion: Simulacion = SIN_SIMULACION): Comprobacion | null {
-  const [db, sim] = conLaPareja(datosOriginales, simulacion)
+  const [db, sim] = conLaPareja(datosOriginales, conEntrada(datosOriginales, hoy, simulacion))
   const stats = estadisticas(db)
   const mesDatos = fechaDeLosDatos(db, hoy).slice(0, 7)
   const mod = modelo(db, stats, mesDatos, sim)
@@ -822,7 +849,7 @@ export interface AnioPrevisto {
  * y, en los años siguientes, otros ingresos, gasto y ahorro previstos. Con el mismo modelo que el plan.
  */
 export function evolucionAnual(datosOriginales: BaseDatos, hoy: string, simulacion: Simulacion = SIN_SIMULACION, anios = 6): AnioPrevisto[] | null {
-  const [db, sim] = conLaPareja(datosOriginales, simulacion)
+  const [db, sim] = conLaPareja(datosOriginales, conEntrada(datosOriginales, hoy, simulacion))
   const stats = estadisticas(db)
   const mesDatos = fechaDeLosDatos(db, hoy).slice(0, 7)
   const mod = modelo(db, stats, mesDatos, sim)
@@ -943,6 +970,8 @@ export interface Capacidad {
   esfuerzo: number
   /** Se vende y no hay vivienda habitual con valor: no se sabe lo que deja la venta */
   sinVivienda: boolean
+  /** Todo el dinero disponible va a la entrada (si no, la entrada es la mínima) */
+  todoElDinero: boolean
 }
 
 /**
@@ -967,6 +996,8 @@ export function capacidadCompra(datos: BaseDatos, hoy: string, sim: Simulacion, 
   const sinVivienda = opciones.destino === 'vender' && !viviendaHabitual(db)
   const e = p.entrada / 100
   const g = p.gastos / 100
+  // Sin compra simulada, o con ella y «todo el dinero como entrada», se cuenta con todo el dinero disponible
+  const todoElDinero = c ? !!c.entrada_maxima : true
   const filas: FilaCapacidad[] = []
   for (let anio = Number(mesDatos.slice(0, 4)); filas.length < 6 && anio < Number(mesDatos.slice(0, 4)) + 12; anio++) {
     const mes = `${anio}-${mesDelAnio}`
@@ -982,9 +1013,12 @@ export function capacidadCompra(datos: BaseDatos, hoy: string, sim: Simulacion, 
     const cuotaCon = (esfuerzo: number) => Math.max(0, esfuerzo * ingresosBanco - existentes)
     const maximo = (efectivo: number, esfuerzo: number): PrecioMaximo => {
       const disponible = Math.max(0, efectivo)
+      // El dinero llega para la entrada mínima y los gastos
       const porEntrada = e + g > 0 ? disponible / (e + g) : Infinity
-      // Con la entrada fija de la compra, el préstamo es el precio menos la entrada: igual que al simularla
-      const porCuota = e < 1 ? prestamoCon(cuotaCon(esfuerzo), p.interes, Math.round(p.anios * 12)) / (1 - e) : Infinity
+      const prestamo = prestamoCon(cuotaCon(esfuerzo), p.interes, Math.round(p.anios * 12))
+      // La cuota: con todo el dinero como entrada, el precio es el préstamo máximo más lo que queda tras los
+      // gastos; con la entrada fija, el préstamo es el precio menos esa entrada. Igual que al simularla
+      const porCuota = todoElDinero ? (disponible + prestamo) / (1 + g) : e < 1 ? prestamo / (1 - e) : Infinity
       return { efectivo: redondear(efectivo), precio: aMiles(Math.min(porEntrada, porCuota)), limite: porEntrada <= porCuota ? 'entrada' : 'cuota' }
     }
     // Pausar: el pago de ese año, si ya se habría hecho, se queda en la cuenta
@@ -1001,7 +1035,7 @@ export function capacidadCompra(datos: BaseDatos, hoy: string, sim: Simulacion, 
       precio35: maximo(pausando, 0.35).precio,
     })
   }
-  return { filas, entrada_pct: p.entrada, gastos_pct: p.gastos, interes: p.interes, anios: p.anios, esfuerzo: inv.esfuerzo_max, sinVivienda }
+  return { filas, entrada_pct: p.entrada, gastos_pct: p.gastos, interes: p.interes, anios: p.anios, esfuerzo: inv.esfuerzo_max, sinVivienda, todoElDinero }
 }
 
 export interface ResultadoDestino {

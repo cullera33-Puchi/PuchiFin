@@ -511,13 +511,38 @@ describe('revisión de cálculos del plan (v0.43.0)', () => {
     const c = capacidadCompra(db, HOY, sim, { pareja: true, destino: 'mantener' })!
     const fila = c.filas.find((f) => f.pausando.limite === 'cuota')
     if (fila) {
-      const simulada = calcularPlan(db, HOY, { ...sim, compra: { ...compra, precio: fila.pausando.precio, mes: fila.mes, interes: c.interes, anios: c.anios } }).plan!.compra!
+      const simulada = calcularPlan(db, HOY, { ...sim, pausarPago: true, compra: { ...compra, precio: fila.pausando.precio, mes: fila.mes, interes: c.interes, anios: c.anios, entrada_maxima: true } }).plan!.compra!
       expect(simulada.esfuerzo!).toBeLessThanOrEqual(0.3 + 0.005)
     }
     const conColchon = capacidadCompra(db, HOY, { ...SIN_SIMULACION, colchon: 0 }, { pareja: false, destino: 'mantener' })!
     const normal = capacidadCompra(db, HOY, SIN_SIMULACION, { pareja: false, destino: 'mantener' })!
     expect(conColchon.filas[0].pagando.efectivo).toBeGreaterThanOrEqual(normal.filas[0].pagando.efectivo)
     expect(conColchon.filas[0].pagando.efectivo).toBeGreaterThanOrEqual(0)
+  })
+
+  it('todo el dinero como entrada: pone lo que sobra del colchón, baja la hipoteca y nunca pasa del precio (v0.44.0)', () => {
+    const db = crear(20000)
+    const fija = calcularPlan(db, HOY, { ...SIN_SIMULACION, compra: { ...compra, precio: 200000 } }).plan!.compra!
+    const todo = calcularPlan(db, HOY, { ...SIN_SIMULACION, compra: { ...compra, precio: 200000, entrada_maxima: true } }).plan!.compra!
+    expect(todo.entrada).toBeGreaterThanOrEqual(fija.entrada)
+    expect(todo.prestamo).toBeLessThanOrEqual(fija.prestamo)
+    expect(todo.entrada + todo.prestamo).toBeCloseTo(200000, 0)
+    // Lo que queda en la cuenta tras la compra es el colchón (o más, si la entrada mínima ya lo superaba)
+    const plan = calcularPlan(db, HOY, { ...SIN_SIMULACION, compra: { ...compra, precio: 200000, entrada_maxima: true } }).plan!
+    if (todo.entrada > fija.entrada) expect(todo.saldoAntes - todo.entrada - todo.gastos).toBeCloseTo(plan.compromiso.colchon, 0)
+    // Una vivienda barata: la entrada no pasa del precio
+    const barata = calcularPlan(db, HOY, { ...SIN_SIMULACION, compra: { ...compra, precio: 1000, entrada_maxima: true } }).plan!.compra!
+    expect(barata.entrada).toBeLessThanOrEqual(1000)
+    expect(barata.prestamo).toBeCloseTo(0, 2)
+  })
+
+  it('cuánto puedo comprar sube con todo el dinero como entrada frente a la entrada fija', () => {
+    const db = crear(20000)
+    const fija = capacidadCompra(db, HOY, { ...SIN_SIMULACION, compra: { ...compra, entrada_maxima: false } }, { pareja: false, destino: 'vender' })!
+    const todo = capacidadCompra(db, HOY, { ...SIN_SIMULACION, compra: { ...compra, entrada_maxima: true } }, { pareja: false, destino: 'vender' })!
+    expect(fija.todoElDinero).toBe(false)
+    expect(todo.todoElDinero).toBe(true)
+    fija.filas.forEach((f, i) => expect(todo.filas[i].pausando.precio).toBeGreaterThanOrEqual(f.pausando.precio))
   })
 
   it('el precio máximo no baja 1.000 € por los decimales cuando el cálculo da una cifra exacta', () => {

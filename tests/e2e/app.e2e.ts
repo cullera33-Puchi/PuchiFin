@@ -425,7 +425,7 @@ test('patrimonio: inmueble, hipoteca, compra simulada y situación completa para
   await page.getByRole('button', { name: 'Simular una compra' }).tap()
   await page.getByLabel('Precio', { exact: true }).fill('250000')
   await page.getByLabel('Alquiler que cobras').fill('900')
-  await expect(page.getByLabel('Cifras de la compra').getByText(/Necesitas 80\.000\s€/)).toBeVisible()
+  await expect(page.getByLabel('Cifras de la compra').getByText(/Necesitas (como mínimo )?80\.000\s€/)).toBeVisible()
   await page.getByRole('button', { name: 'Simular', exact: true }).tap()
   await expect(page.getByText(/Cuota de la nueva hipoteca: /)).toBeVisible()
   await expect(page.getByText(/Cuotas sobre tus ingresos/)).toBeVisible()
@@ -481,7 +481,7 @@ test('vivienda actual: supuestos, vender o alquilar, cuánto puedo comprar y Cla
   await expect(tabla.getByRole('row')).toHaveCount(7)
   await page.getByRole('radio', { name: 'Venderla' }).tap()
   await page.getByRole('switch', { name: 'Contar la nómina de tu pareja' }).tap()
-  await expect(tabla.getByText(/Limita la/).first()).toBeVisible()
+  await expect(tabla.getByText(/Te limita (el dinero|la cuota)/).first()).toBeVisible()
   // Comprar para vivir alquilando la actual
   await page.getByRole('button', { name: 'Simular una compra' }).tap()
   await page.getByLabel('Precio', { exact: true }).fill('400000')

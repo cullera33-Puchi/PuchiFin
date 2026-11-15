@@ -17,7 +17,8 @@ function Precio({ m }: { m: PrecioMaximo }) {
   return (
     <span className="block">
       <span className="block text-[15px] tabular-nums">{m.precio > 0 ? formatearRedondo(m.precio) : 'Nada'}</span>
-      <span className="block text-[11px] text-zinc-500">{m.limite === 'entrada' ? 'Limita la entrada' : 'Limita la cuota'}</span>
+      <span className="block text-[11px] text-zinc-500">{m.limite === 'entrada' ? 'Te limita el dinero' : 'Te limita la cuota'}</span>
+      <span className="block whitespace-nowrap text-[11px] text-zinc-500 tabular-nums">Tienes {formatearRedondo(Math.max(0, m.efectivo))}</span>
     </span>
   )
 }
@@ -63,14 +64,18 @@ export function CuantoPuedoComprar({ sim }: { sim: Simulacion }) {
             <tr key={f.mes}>
               <th scope="row" className="py-2 text-left align-top font-normal">
                 <span className="block text-[15px]">{mesTexto(f.mes)}</span>
-                <span className="block text-[11px] text-zinc-500 tabular-nums">Cuota hasta {formatearRedondo(f.cuotaMax)}</span>
+                <span className="block text-[11px] text-zinc-500 tabular-nums">Cuota máxima: <span className="whitespace-nowrap">{formatearRedondo(f.cuotaMax)} al mes</span></span>
               </th>
               <td className="py-2 text-right align-top">
                 <Precio m={f.pagando} />
               </td>
               <td className="py-2 text-right align-top">
                 <Precio m={f.pausando} />
-                {f.precio35 > f.pausando.precio && <span className="block text-[11px] text-zinc-500 tabular-nums">Al 35 %: {formatearRedondo(f.precio35)}</span>}
+                {f.precio35 > f.pausando.precio && (
+                  <span className="mt-1 block text-[11px] text-zinc-500 tabular-nums">
+                    Si el banco acepta el 35&nbsp;%: <span className="whitespace-nowrap">{formatearRedondo(f.precio35)}</span>
+                  </span>
+                )}
               </td>
             </tr>
           ))}
@@ -78,12 +83,28 @@ export function CuantoPuedoComprar({ sim }: { sim: Simulacion }) {
       </table>
       {c.sinVivienda && <p className="text-[13px] text-[#C93400] dark:text-[#FF9F0A]">Para contar la venta, añade tu vivienda habitual con su valor en Patrimonio.</p>}
       {alquilerSinDato && <p className="text-[13px] text-[#C93400] dark:text-[#FF9F0A]">Escribe el alquiler de tu vivienda actual en «Simular una compra» para que cuente.</p>}
-      <p className="text-[12px] text-zinc-500">
-        Precio de la vivienda, sin los gastos de compra. Lo limita lo primero que se alcanza: el dinero para la entrada ({texto(c.entrada_pct)} %) y los gastos ({texto(c.gastos_pct)} %),
-        que es lo que tengas por encima del colchón{destino === 'vender' ? ' más lo que deja la venta' : ''}, o la cuota que admite el banco: el {texto(c.esfuerzo)} % de tus ingresos
-        {destino === 'mantener' ? ', menos la hipoteca actual' : ''}, con una hipoteca a {texto(c.anios)} años al {texto(c.interes)} %. Los datos de la hipoteca nueva son los de la compra
-        simulada.
-      </p>
+      <div className="space-y-1.5 text-[12px] text-zinc-500">
+        <p>
+          <strong className="font-medium">Precio máximo</strong> de la vivienda, sin los gastos de compra ({texto(c.gastos_pct)} %), que se pagan aparte.
+        </p>
+        <p>
+          <strong className="font-medium">Tienes:</strong> el dinero de ese mes por encima del colchón{destino === 'vender' ? ', más lo que deja la venta' : ''}. Pagando la deuda ese año,
+          el pago de agosto se lleva casi todo; pausándolo, se queda en la cuenta.
+        </p>
+        <p>
+          <strong className="font-medium">Cuota máxima:</strong> la que admite el banco, el {texto(c.esfuerzo)} % de vuestros ingresos netos
+          {destino === 'mantener' ? ', menos la cuota de tu hipoteca actual' : ''}. Con una hipoteca a {texto(c.anios)} años al {texto(c.interes)} %.
+        </p>
+        <p>
+          <strong className="font-medium">Te limita</strong> lo primero que se alcanza: el dinero, que debe cubrir al menos el {texto(c.entrada_pct)} % de entrada y los gastos, o la cuota.
+          {c.todoElDinero ? ' Todo el dinero que tienes va a la entrada: cuanto más pones, menos hipoteca.' : ` La entrada es el ${texto(c.entrada_pct)} %, como en la compra simulada.`}
+        </p>
+        <p>
+          <strong className="font-medium">Si el banco acepta el 35 %:</strong> el precio máximo si el banco admitiera que las cuotas fueran el 35 % de vuestros ingresos. Algunos
+          bancos llegan ahí.
+        </p>
+        <p>Los datos de la hipoteca nueva son los de la compra simulada.</p>
+      </div>
     </div>
   )
 }
@@ -101,7 +122,7 @@ export function VenderOAlquilar({ sim }: { sim: Simulacion }) {
     return <p className="text-[13px] text-zinc-500">Para comparar las dos opciones, escribe {falta.join(' y ')} de tu vivienda actual en la compra («Cambiar»).</p>
   const [vender, alquilar] = r
   const filas: [string, (x: typeof vender) => string, ((x: typeof vender) => number) | null][] = [
-    ['Ahorros que necesitas', (x) => (x.ahorros < 0 ? `Te sobran ${formatearRedondo(-x.ahorros)}` : formatearRedondo(x.ahorros)), (x) => -x.ahorros],
+    ['De tus ahorros', (x) => (x.ahorros < 0 ? `Te sobran ${formatearRedondo(-x.ahorros)}` : formatearRedondo(x.ahorros)), (x) => -x.ahorros],
     ['Te faltan', (x) => (x.falta > 0 ? formatearRedondo(x.falta) : 'Nada'), (x) => -x.falta],
     ['Cuotas al mes', (x) => formatearRedondo(x.cuotas), (x) => -x.cuotas],
     ['Alquiler neto al mes', (x) => (x.alquilerNeto ? formatearRedondo(x.alquilerNeto) : 'No hay'), null],

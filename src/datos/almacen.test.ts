@@ -67,7 +67,7 @@ describe('copias', () => {
 
   it('una copia manual se puede leer completa', async () => {
     await iniciarAlmacen()
-    const m = await hacerCopia('manual')
+    const m = (await hacerCopia('manual'))!
     const a = await leerCopia(m.clave)
     expect(a?.datos).toEqual(obtenerDatos())
   })
@@ -87,7 +87,7 @@ describe('copias', () => {
     const completo = structuredClone(obtenerDatos())
     expect(completo.reglas.filter((r) => r.origen === 'manual')).toHaveLength(2)
 
-    const meta = await hacerCopia('manual')
+    const meta = (await hacerCopia('manual'))!
     expect(meta).toMatchObject({ movimientos: completo.movimientos.length, reglas: completo.reglas.length })
     await cambiar((d) => empezarDeCero(d, { conservarReglas: false, configuracionInicial: true }))
     expect(obtenerDatos().movimientos).toHaveLength(0)
