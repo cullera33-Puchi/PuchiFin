@@ -473,7 +473,7 @@ test('vivienda actual: supuestos, vender o alquilar, cuánto puedo comprar y Cla
   await expect(page.getByLabel('Bruto anual de tu pareja')).toHaveValue('25000')
   await expect(page.getByLabel('Esfuerzo máximo (%)')).toHaveValue('30')
   await page.getByLabel('Lo que costó tu vivienda').fill('200000')
-  await page.getByRole('button', { name: 'Guardar', exact: true }).tap()
+  await page.getByRole('dialog', { name: 'Supuestos' }).getByRole('button', { name: 'Guardar', exact: true }).tap()
   await expect(page.getByText('Supuestos guardados')).toBeVisible()
   // Cuánto puedo comprar: por año, pagando o pausando
   const tabla = page.getByRole('table', { name: 'Precio máximo por año' })
