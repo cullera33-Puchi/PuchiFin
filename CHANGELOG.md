@@ -2,6 +2,19 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.41.0. Patrimonio completo, situación completa para Claude y simulador de compra (15 de noviembre de 2026)
+
+Pedido por el usuario para ver el patrimonio como en BBVA y valorar inversiones como la compra de una vivienda. Decisiones del usuario: todos los tipos de bien, valor puesto a mano, hipoteca con tipo fijo y años, referencia catastral bloqueada, ficha de la operación, importes exactos para Claude y simulador en el plan.
+
+- Esquema 16: `ajustes.bienes` (inmuebles, inversiones, planes de pensiones, vehículos y otros, con su historial de valoraciones y la vivienda habitual) y `Cuenta.prestamo` en la hipoteca (capital pendiente a una fecha, tipo fijo y plazo en meses). `guardarBien`, `borrarBien` y `guardarPrestamo` en `operaciones.ts`, con sus comprobaciones; migración sin bienes ni capital pendiente.
+- Referencia catastral (`catastro` en `identificativos.ts`): urbana con o sin cargo y control, y rústica completa. Se bloquea igual que el IBAN o el DNI en todo lo que se guarda y se enmascara en el registro y en los textos que salen.
+- Patrimonio (`src/lib/patrimonio.ts`): cuadro de amortización francés (cuota, capital pendiente en cualquier fecha, fin e intereses que quedan), valor de cada bien en una fecha según sus valoraciones, deuda familiar en una fecha y patrimonio neto (liquidez más bienes menos hipotecas y deuda familiar) con su evolución a final de cada mes.
+- Pantalla Patrimonio (`/extracto/patrimonio`): patrimonio neto con su variación y evolución, lo que tienes (cuentas y bienes, con aviso si la valoración tiene más de un año), lo que debes (hipoteca calculada y deuda familiar), compra simulada y «Analizar con Claude». Hojas de alta y cambio de bienes y de la hipoteca, con la cuota calculada al momento. Accesos desde el Extracto (fila «Patrimonio neto», cuando hay bienes o hipoteca), Tu posición y Ajustes, Planificación.
+- Comprar una vivienda (`Simulacion.compra`, `cifrasCompra`, `HojaCompra`, `ResumenCompra`): precio, mes, uso (alquilar, segunda residencia o vivir), entrada, gastos de compra (12 % por defecto, Cataluña), hipoteca nueva a tipo fijo, gastos de la vivienda y alquiler. En el plan, la entrada y los gastos salen de la cuenta de ahorro ese mes y después cuentan la cuota, los gastos y el alquiler. Resultado: si llega el dinero o cuánto falta, colchón, cuota, esfuerzo de las cuotas de hipoteca sobre las nóminas (o la nómina del historial) y año en que queda saldada la deuda. Desde Patrimonio y en la simulación del plan de pagos.
+- El plan deja de restar la cuota de la hipoteca actual tras su última cuota.
+- Analizar con Claude, situación completa (`textoPatrimonio`, plantilla `patrimonio`): patrimonio con importes exactos y sin nombres de bienes, ingresos y ahorro por años, lo real frente a lo previsto, gasto medio por categoría, gastos previstos, plan de la deuda, supuestos y la operación simulada con sus cifras. CSV del último año como detalle. La compra también sale en el texto del plan de pagos.
+- Pruebas: 479 unitarias (hipoteca, bienes, referencia catastral, patrimonio neto, compra en el plan y texto para Claude), archivo del esquema 15 y prueba de navegador del recorrido completo.
+
 ## v0.40.0. De dónde sale el ahorro previsto y evolución de ingresos por años (14 de noviembre de 2026)
 
 El usuario ve mucho ahorro previsto en la simulación y pide comprobar que es coherente, y ver la evolución de sus ingresos.

@@ -54,6 +54,16 @@ export const PLANTILLAS: Record<ClavePlantilla, { titulo: string; donde: string;
       '3. Qué riesgos ves (gastos anuales, imprevistos) y cómo cubrirlos.',
     ].join('\n'),
   },
+  patrimonio: {
+    titulo: 'Situación completa e inversiones',
+    donde: 'Patrimonio',
+    porDefecto: [
+      '1. Resume mi situación: patrimonio, liquidez, deudas y capacidad real de ahorro.',
+      '2. Qué margen tengo para invertir sin poner en riesgo el plan de pagos de la deuda ni el colchón.',
+      '3. Si hay una operación concreta, si es viable: entrada, gastos de compra, cuota, esfuerzo sobre mis ingresos y efecto en el plan. Si no la hay, qué opciones de inversión encajan con mi perfil.',
+      '4. Riesgos que ves (tipos de interés, ingresos variables, gastos imprevistos) y qué harías tú.',
+    ].join('\n'),
+  },
 }
 
 export const CLAVES_PLANTILLA = Object.keys(PLANTILLAS) as ClavePlantilla[]

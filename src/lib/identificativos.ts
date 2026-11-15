@@ -6,7 +6,7 @@
  * última barrera; si se cambia aquí, hay que cambiarla también en la migración.
  */
 
-export type TipoIdentificativo = 'iban' | 'cuenta' | 'tarjeta' | 'dni' | 'nie'
+export type TipoIdentificativo = 'iban' | 'cuenta' | 'tarjeta' | 'dni' | 'nie' | 'catastro'
 
 export interface Hallazgo {
   tipo: TipoIdentificativo
@@ -23,6 +23,14 @@ const RE_IBAN =
 const RE_DIGITOS = /(?<![0-9])[0-9](?:[ -]?[0-9]){12,23}(?![0-9])/g
 const RE_DNI = /(?<![A-Z0-9])([0-9]{8})[ -]?([A-Z])(?![A-Z0-9])/g
 const RE_NIE = /(?<![A-Z0-9])([XYZ])[ -]?([0-9]{7})[ -]?([A-Z])(?![A-Z0-9])/g
+/**
+ * Referencia catastral (v0.41.0): identifica el inmueble y, por el Catastro, a su propietario. Urbana:
+ * 7 dígitos, 2 letras, 4 dígitos y una letra (la parcela), con o sin el cargo (4 dígitos) y el control
+ * (2 letras). Rústica: provincia y municipio (5 dígitos), sector (letra), polígono y parcela (8 dígitos),
+ * siempre con cargo y control.
+ */
+const RE_CATASTRO =
+  /(?<![A-Z0-9])(?:[0-9]{7}[ -]?[A-Z]{2}[ -]?[0-9]{4}[ -]?[A-Z](?:[ -]?[0-9]{4}[ -]?[A-Z]{2})?|[0-9]{5}[A-Z][0-9]{8}[ -]?[0-9]{4}[ -]?[A-Z]{2})(?![A-Z0-9])/g
 
 export function luhnValido(digitos: string): boolean {
   let suma = 0
@@ -87,6 +95,8 @@ export function detectarIdentificativos(texto: string | null | undefined): Halla
     }
   }
 
+  for (const m of t.matchAll(RE_CATASTRO)) hallazgos.push({ tipo: 'catastro', muestra: enmascarar(original(m)), posicion: m.index, longitud: m[0].length })
+
   return hallazgos.sort((a, b) => a.posicion - b.posicion)
 }
 
@@ -113,6 +123,7 @@ export const NOMBRE_TIPO: Record<TipoIdentificativo, string> = {
   tarjeta: 'número de tarjeta',
   dni: 'DNI',
   nie: 'NIE',
+  catastro: 'referencia catastral',
 }
 
 /**

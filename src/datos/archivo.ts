@@ -100,6 +100,11 @@ export function migrar(d: Partial<BaseDatos>): BaseDatos {
   if (desde < 7) datos.categorias = actualizarCatalogo(datos.categorias)
   // Esquema 5 (v0.8.0): versión de la lógica aplicada a lo pendiente (null: se aplica al arrancar)
   if (desde < 5) datos.ajustes = { ...datos.ajustes, version_logica: datos.ajustes.version_logica ?? null }
+  // Esquema 16 (v0.41.0): bienes para el patrimonio y capital pendiente de la hipoteca (sin dato, ninguno)
+  if (desde < 16) {
+    datos.ajustes = { ...datos.ajustes, bienes: d.ajustes?.bienes ?? [] }
+    datos.cuentas = datos.cuentas.map((c) => ({ ...c, prestamo: c.prestamo ?? null }))
+  }
   // Esquema 15 (v0.39.0): nómina en bruto (sin dato, sigue en neto) e inflación del gasto, con la hipoteca
   // fuera. Decisión del usuario: el pago de la deuda pasa a agosto, ya cobrado el bonus, que también es de agosto
   if (desde < 15) {

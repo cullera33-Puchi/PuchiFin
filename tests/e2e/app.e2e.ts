@@ -385,6 +385,66 @@ test('nómina en bruto: neto calculado, subidas, bonus cobrado e inflación del 
   expect(e).toEqual([])
 })
 
+test('patrimonio: inmueble, hipoteca, compra simulada y situación completa para Claude', async ({ page }) => {
+  const e = errores(page)
+  await conDatosDePrueba(page)
+  await page.goto('/extracto/plan')
+  await page.getByRole('button', { name: 'Configurar' }).tap()
+  await page.getByPlaceholder('0,00 €').nth(0).fill('30000')
+  await page.getByPlaceholder('0,00 €').nth(1).fill('2000')
+  await page.getByRole('button', { name: 'Guardar', exact: true }).tap()
+  await expect(page.locator('#contenido').getByText('Deuda pendiente', { exact: true }).first()).toBeVisible()
+  // Desde Tu posición
+  await page.goto('/extracto/posicion')
+  await page.getByRole('link', { name: /Patrimonio completo/ }).tap()
+  await expect(page.getByText('Patrimonio neto', { exact: true })).toBeVisible()
+  // Un inmueble
+  await page.getByRole('button', { name: 'Añadir un inmueble' }).tap()
+  await page.getByLabel('Nombre del bien').fill('Vivienda habitual')
+  await page.getByRole('switch', { name: 'Vivienda habitual' }).tap()
+  await page.getByLabel('Valor estimado').fill('300000')
+  await page.getByRole('button', { name: 'Guardar', exact: true }).tap()
+  await expect(page.getByRole('button', { name: /Vivienda habitual.*300\.000\s€/ })).toBeVisible()
+  // La referencia catastral no se guarda
+  await page.getByRole('button', { name: 'Añadir un inmueble' }).tap()
+  await page.getByLabel('Nombre del bien').fill('Piso 9872023VH5797S0001WX')
+  await page.getByLabel('Valor estimado').fill('100000')
+  await page.getByRole('button', { name: 'Guardar', exact: true }).tap()
+  await expect(page.getByText(/referencia catastral/).first()).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toBeHidden()
+  // La hipoteca: capital, tipo fijo y años; la cuota sale calculada
+  await page.getByRole('button', { name: /Hipoteca.*Indica lo que queda por pagar/ }).tap()
+  await page.getByLabel('Capital pendiente', { exact: true }).fill('100000')
+  await page.getByLabel('Tipo fijo', { exact: true }).fill('3')
+  await page.getByLabel('Años que quedan').fill('20')
+  await expect(page.getByLabel('Cuota calculada').getByText(/Cuota: 555\s€ al mes/)).toBeVisible()
+  await page.getByRole('button', { name: 'Guardar', exact: true }).tap()
+  await expect(page.getByText(/555\s€ al mes al 3 %/)).toBeVisible()
+  // Comprar una vivienda
+  await page.getByRole('button', { name: 'Simular una compra' }).tap()
+  await page.getByLabel('Precio', { exact: true }).fill('250000')
+  await page.getByLabel('Alquiler que cobras').fill('900')
+  await expect(page.getByLabel('Cifras de la compra').getByText(/Necesitas 80\.000\s€/)).toBeVisible()
+  await page.getByRole('button', { name: 'Simular', exact: true }).tap()
+  await expect(page.getByText(/Cuota de la nueva hipoteca: /)).toBeVisible()
+  await expect(page.getByText(/Cuotas de hipoteca sobre tus nóminas/)).toBeVisible()
+  // Claude recibe la situación completa con la compra
+  await page.getByRole('button', { name: 'Analizar con Claude' }).tap()
+  await expect(page.getByText(/Inmueble 1, vivienda habitual: valor estimado 300\.000,00 €/)).toBeVisible()
+  await expect(page.getByText(/Operación que quiero valorar: comprar una vivienda para alquilar/)).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toBeHidden()
+  // La compra está también en la simulación del plan
+  await page.getByRole('link', { name: 'Ver en el plan de pagos' }).tap()
+  await expect(page.getByRole('button', { name: /250\.000\s€ en/ })).toBeVisible()
+  await expect(page.getByText(/Cuota de la nueva hipoteca: /)).toBeVisible()
+  // Y el patrimonio neto, en el Extracto
+  await page.goto('/')
+  await expect(page.getByRole('link', { name: /Patrimonio neto/ })).toBeVisible()
+  expect(e).toEqual([])
+})
+
 test('reporting: fuera de lo normal, comparar periodos y resumen del año', async ({ page }) => {
   const e = errores(page)
   await conDatosDePrueba(page)
@@ -432,7 +492,7 @@ test('Analizar con Claude: plantilla propia, envío sin comercios y detalle en C
   expect(e).toEqual([])
 })
 
-for (const esquema of [3, 5, 7, 8, 9, 10, 11, 12, 13, 14]) {
+for (const esquema of [3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15]) {
   test(`importa un archivo del esquema ${esquema} y lo enseña igual`, async ({ page }) => {
     const e = errores(page)
     await page.goto('/ajustes/herramientas/archivo')

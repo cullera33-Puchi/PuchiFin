@@ -1,5 +1,5 @@
 /**
- * Archivos exportados como los guardaban las versiones anteriores (esquemas 3, 5, 7, 8, 9, 10, 11, 12, 13 y 14), con datos
+ * Archivos exportados como los guardaban las versiones anteriores (esquemas 3, 5, 7, 8, 9, 10, 11, 12, 13, 14 y 15), con datos
  * inventados. Las pruebas de navegador (tests/e2e) los importan en la app para comprobar que se siguen
  * leyendo. npm run archivos:prueba los regenera; npm test solo comprueba que se leen.
  */
@@ -18,13 +18,17 @@ function archivo(esquema: number): string {
   const importaciones = p.importaciones.map((i) => ({ ...i, origen: i.cuenta_id === db.cuentas[2].id ? 'bbva_tarjeta' : 'bbva_cuenta' }))
   const a = JSON.parse(JSON.stringify(crearArchivo({ ...db, ...p, importaciones } as typeof db)))
   a.datos.esquema = esquema
-  a.version_app = { 3: '0.6.0', 5: '0.8.0', 7: '0.13.0', 8: '0.14.0', 9: '0.22.0', 10: '0.23.0', 11: '0.24.0', 12: '0.33.0', 13: '0.34.1', 14: '0.38.0' }[esquema]
+  a.version_app = { 3: '0.6.0', 5: '0.8.0', 7: '0.13.0', 8: '0.14.0', 9: '0.22.0', 10: '0.23.0', 11: '0.24.0', 12: '0.33.0', 13: '0.34.1', 14: '0.38.0', 15: '0.40.0' }[esquema]
   // Quita lo que llegó después de ese esquema
+  delete a.datos.ajustes.bienes
+  for (const c of a.datos.cuentas) delete c.prestamo
   if (esquema < 14) delete a.datos.ajustes.claude
-  delete a.datos.ajustes.prevision
-  for (const c of a.datos.compromisos) c.mes_referencia = 7
+  if (esquema < 15) {
+    delete a.datos.ajustes.prevision
+    for (const c of a.datos.compromisos) c.mes_referencia = 7
+  }
   if (esquema >= 12)
-    a.datos.ajustes.nominas = [{ id: 'n1', nombre: 'Mi nómina', neto_mensual: 2500, pagas: [{ mes: 6, importe: 2500 }], desde: null, hasta: null, incluida: true, bonus: { mes: 7, importe: 3000 } }]
+    a.datos.ajustes.nominas = [{ id: 'n1', nombre: 'Mi nómina', neto_mensual: 2500, pagas: [{ mes: 6, importe: 2500 }], desde: null, hasta: null, incluida: true, bonus: { mes: esquema >= 15 ? 8 : 7, importe: 3000 }, ...(esquema >= 15 ? { bruto: null } : {}) }]
   for (const m of a.datos.movimientos) delete m.tipo_manual
   if (esquema === 11) a.datos.ajustes.nominas = [{ id: 'n1', nombre: 'Mi nómina', neto_mensual: 2500, pagas: [{ mes: 6, importe: 2500 }], desde: null, hasta: null, incluida: true }]
   if (esquema < 11) delete a.datos.ajustes.nominas
@@ -41,7 +45,7 @@ function archivo(esquema: number): string {
 }
 
 describe('archivos de esquemas anteriores', () => {
-  it.each([3, 5, 7, 8, 9, 10, 11, 12, 13, 14])('el del esquema %i se lee y se adapta al actual', (esquema) => {
+  it.each([3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15])('el del esquema %i se lee y se adapta al actual', (esquema) => {
     const texto = archivo(esquema)
     const a = leerArchivo(texto)
     expect(a.datos.esquema).toBe(VERSION_ESQUEMA)
@@ -52,6 +56,9 @@ describe('archivos de esquemas anteriores', () => {
     else expect(a.datos.ajustes.nominas[0]).toMatchObject({ bonus: { mes: 8, importe: 3000 }, bruto: null })
     expect(a.datos.compromisos[0].mes_referencia).toBe(8)
     expect(a.datos.ajustes.prevision).toEqual({ inflacion: 3, sin_inflacion: [a.datos.categorias.find((c) => c.padre_id && c.nombre === 'Hipoteca')!.id] })
+    // Esquema 16: sin bienes ni capital pendiente de la hipoteca
+    expect(a.datos.ajustes.bienes).toEqual([])
+    expect(a.datos.cuentas.every((c) => c.prestamo === null)).toBe(true)
     // Esquema 10: el colchón de la deuda, sobre la Cuenta 2
     // Esquema 14: sin plantillas propias y con comercios
     expect(a.datos.ajustes.claude).toEqual({ plantillas: {}, sin_conceptos: false })

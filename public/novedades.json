@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.41.0",
+    "fecha": "2026-11-15",
+    "cambios": [
+      "Patrimonio: añade tus inmuebles y otros activos con su valor y la hipoteca con su tipo fijo y los años que quedan. La app calcula lo que queda por pagar cada mes.",
+      "Patrimonio neto con su evolución, en el Extracto y en su propia pantalla.",
+      "Simula la compra de una vivienda: si llega el dinero para la entrada y los gastos, la cuota, el esfuerzo sobre tus nóminas y el efecto en la deuda.",
+      "Analizar con Claude, desde Patrimonio: tu situación completa, con la compra si la estás simulando.",
+      "Por privacidad, la app no admite la referencia catastral."
+    ]
+  },
+  {
     "version": "0.40.0",
     "fecha": "2026-11-14",
     "cambios": [

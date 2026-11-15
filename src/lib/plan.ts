@@ -18,6 +18,7 @@ import { fechaDeLosDatos, gastoPorCategoria } from './extracto'
 import { MESES, sumarDias, sumarMeses } from './fechas'
 import { mesEfectivo } from './imputacion'
 import { mesDeNomina, type AjusteNomina } from './nomina'
+import { cuotaDe, cuotaPrestamo, cuotasHipotecaEn, finPrestamo } from './patrimonio'
 import { estadoEventos } from './previstos'
 import { primerMes } from './prevision'
 import { calcularTotales } from './resumen'
@@ -48,6 +49,43 @@ export interface Simulacion {
   inflacion?: number
   /** Sin subidas de sueldo ni inflación: todo plano, como antes de la v0.39.0 */
   sinCrecimiento?: boolean
+  /** Comprar una vivienda (v0.41.0) */
+  compra?: CompraVivienda | null
+}
+
+/** Compra de una vivienda para simular su efecto en el plan y en el patrimonio */
+export interface CompraVivienda {
+  precio: number
+  /** Mes de la compra (AAAA-MM), posterior al de los datos */
+  mes: string
+  /** Entrada y gastos de compra (impuesto, notaría, registro y gestoría), en porcentaje del precio */
+  entrada_pct: number
+  gastos_pct: number
+  /** Hipoteca nueva: tipo fijo y años */
+  interes: number
+  anios: number
+  /** Gastos de la vivienda al mes (IBI, comunidad, seguros y mantenimiento) */
+  gastos_mes: number
+  /** Alquiler que se cobra al mes, si es para alquilar */
+  alquiler_mes: number
+  uso: 'alquilar' | 'segunda' | 'vivir'
+}
+
+/** Cifras de la compra: entrada, gastos de compra, lo que sale de la cuenta, préstamo y cuota */
+export function cifrasCompra(c: CompraVivienda) {
+  const entrada = redondear((c.precio * c.entrada_pct) / 100)
+  const gastos = redondear((c.precio * c.gastos_pct) / 100)
+  const prestamo = redondear(Math.max(0, c.precio - entrada))
+  return { entrada, gastos, desembolso: redondear(entrada + gastos), prestamo, cuota: cuotaDe(prestamo, c.interes, Math.round(c.anios * 12)) }
+}
+
+/** Lo que la compra suma (en positivo) a los gastos y a los ingresos de un mes: desde el siguiente al de la compra */
+function compraEnMes(sim: Simulacion, mes: string): { gasto: number; ingreso: number } {
+  const c = sim.compra
+  if (!c || mes <= c.mes) return { gasto: 0, ingreso: 0 }
+  const { cuota } = cifrasCompra(c)
+  const finCuota = sumarMeses(`${c.mes}-01`, Math.round(c.anios * 12)).slice(0, 7)
+  return { gasto: (mes <= finCuota ? cuota : 0) + c.gastos_mes, ingreso: c.uso === 'alquilar' ? c.alquiler_mes : 0 }
 }
 
 /** Inflación anual del gasto que aplica: la guardada, la de la simulación o ninguna */
@@ -134,6 +172,7 @@ export const haySimulacion = (db: BaseDatos, sim: Simulacion) =>
   sim.consecucion !== undefined ||
   sim.inflacion !== undefined ||
   !!sim.sinCrecimiento ||
+  !!sim.compra ||
   simulaNominas(db, sim)
 
 /** Nóminas que cuentan: las incluidas, con lo que cambie la simulación */
@@ -174,6 +213,25 @@ export interface Plan {
   mesesBase: number
   /** Capital y saldo de la cuenta de ahorro previstos a final de cada mes (el actual y 24 más), ya descontados los pagos */
   serie: PuntoCapital[]
+  /** Con una compra en la simulación: lo que pide y si llega el dinero */
+  compra: ResultadoCompra | null
+}
+
+export interface ResultadoCompra {
+  mes: string
+  entrada: number
+  gastos: number
+  desembolso: number
+  prestamo: number
+  cuota: number
+  /** Saldo previsto de la cuenta de ahorro ese mes, antes de la compra */
+  saldoAntes: number
+  /** Lo que falta en la cuenta de ahorro para pagar entrada y gastos (0 si llega) */
+  falta: number
+  /** Lo que queda por encima del colchón después de la compra (negativo: se come el colchón) */
+  sobreColchon: number
+  /** Cuotas de hipoteca (la actual y la nueva) sobre las nóminas netas del año siguiente a la compra, en tanto por uno */
+  esfuerzo: number | null
 }
 
 export interface PuntoCapital {
@@ -268,6 +326,7 @@ function modelo(db: BaseDatos, stats: Map<string, Estadistica>, base: string, si
     const pasados = (Number(mes.slice(0, 4)) - anioBase) * 12 + Number(mes.slice(5, 7)) - mesBase
     return inflacion && pasados > 0 ? (1 + inflacion / 100) ** (pasados / 12) : 1
   }
+  const prestamos = db.cuentas.filter((c) => c.tipo === 'hipoteca' && c.activa && c.prestamo).map((c) => c.prestamo!)
   const presupuestos = new Map(db.presupuestos.map((p) => [p.categoria_id, p]))
   for (const p of db.presupuestos) if (!mediaGasto.has(p.categoria_id)) mediaGasto.set(p.categoria_id, 0)
 
@@ -290,7 +349,8 @@ function modelo(db: BaseDatos, stats: Map<string, Estadistica>, base: string, si
         return { id: x.id, nombre: x.nombre, importe: importeNomina(x, mes, false, ajuste) + bonus, bonus }
       })
       .filter((x) => x.importe > 0)
-    return { nominas, otros: historico(mes) }
+    // El alquiler de la vivienda que se simula comprar, con los otros ingresos
+    return { nominas, otros: historico(mes) + compraEnMes(sim, mes).ingreso, historicos: historico(mes) }
   }
   const ingresos = (mes: string) => {
     const d = desglose(mes)
@@ -308,7 +368,10 @@ function modelo(db: BaseDatos, stats: Map<string, Estadistica>, base: string, si
       const fijo = Math.min(g, Math.max(0, mediaFija.get(k) ?? 0))
       total += fijo + (g - fijo) * sube
     }
-    return total
+    // La hipoteca que ya se paga deja de pagarse tras su última cuota; la de la compra simulada, se suma
+    let terminadas = 0
+    for (const p of prestamos) if (mes > finPrestamo(p)) terminadas += cuotaPrestamo(p)
+    return Math.max(0, total - terminadas) + compraEnMes(sim, mes).gasto
   }
   const gastos = (mes: string) => gastoDe(mes, true)
   return {
@@ -381,6 +444,7 @@ export function calcularPlan(db: BaseDatos, hoy: string, sim: Simulacion = SIN_S
   const proximos = Array.from({ length: 12 }, (_, i) => sumarMeses(`${mesDatos}-01`, i + 1).slice(0, 7))
   let saldo = cuadre.saldoBanco
   let deuda = deudaPendiente
+  let resultadoCompra: ResultadoCompra | null = null
   const pagos: PagoPrevisto[] = []
   const capitalHoy = capitalDeHoy(db) ?? cuadre.saldoBanco
   const serie: PuntoCapital[] = []
@@ -391,6 +455,25 @@ export function calcularPlan(db: BaseDatos, hoy: string, sim: Simulacion = SIN_S
     const parte = i === 0 ? (diasDelMes(mes) - Number(datos.slice(8, 10))) / diasDelMes(mes) : 1
     const ahorro = mod.ahorro(mes) * Math.max(0, parte) + (puntuales.get(mes) ?? 0)
     saldo += ahorro
+    // La compra de la simulación: entrada y gastos salen de la cuenta de ahorro ese mes, antes del pago
+    if (sim.compra && mes === sim.compra.mes) {
+      const c = cifrasCompra(sim.compra)
+      const saldoAntes = redondear(saldo)
+      saldo -= c.desembolso
+      const siguientes = Array.from({ length: 12 }, (_, j) => sumarMeses(`${mes}-01`, j + 1).slice(0, 7))
+      // Las nóminas previstas del año siguiente; sin ninguna dada de alta, la nómina media del historial
+      const previstas = siguientes.reduce((s, m) => s + mod.desglose(m).nominas.reduce((t, x) => t + x.importe, 0), 0) / 12
+      const neto = previstas > 0 ? previstas : mod.real.nomina
+      const cuotas = cuotasHipotecaEn(db, siguientes[0]) + c.cuota
+      resultadoCompra = {
+        mes,
+        ...c,
+        saldoAntes,
+        falta: redondear(Math.max(0, c.desembolso - saldoAntes)),
+        sobreColchon: redondear(saldoAntes - c.desembolso - colchon),
+        esfuerzo: neto > 0 ? cuotas / neto : null,
+      }
+    }
     if (deuda > 0 && esMesDePago(mes)) {
       const pago = redondear(Math.min(deuda, Math.max(0, saldo - colchon)))
       deuda = redondear(deuda - pago)
@@ -414,6 +497,7 @@ export function calcularPlan(db: BaseDatos, hoy: string, sim: Simulacion = SIN_S
       ahorroMensual: redondear(proximos.reduce((s, m) => s + mod.ahorro(m) + (puntuales.get(m) ?? 0), 0) / 12),
       mesesBase: mod.meses,
       serie,
+      compra: resultadoCompra,
     },
   }
 }
@@ -455,7 +539,17 @@ export function preverIngresos(db: BaseDatos, hoy: string, sim: Simulacion = SIN
     meses,
     ahorroMensual: redondear(suma12 / 12),
     capitalHoy,
-    capital12: capitalHoy === null ? null : redondear(capitalHoy + mod.ahorro(mesDatos) * Math.max(0, resto) + (puntuales.get(mesDatos) ?? 0) + suma12),
+    // La compra simulada saca la entrada y los gastos de las cuentas si cae en estos 12 meses
+    capital12:
+      capitalHoy === null
+        ? null
+        : redondear(
+            capitalHoy +
+              mod.ahorro(mesDatos) * Math.max(0, resto) +
+              (puntuales.get(mesDatos) ?? 0) +
+              suma12 -
+              (sim.compra && meses.some((m) => m.mes === sim.compra!.mes) ? cifrasCompra(sim.compra).desembolso : 0),
+          ),
     mediaNomina: conNomina.length ? redondear(conNomina.reduce((s, m) => s + stats.get(m)!.nomina, 0) / conNomina.length) : null,
   }
 }
@@ -543,9 +637,10 @@ export function comprobarPrevision(db: BaseDatos, hoy: string, sim: Simulacion =
     avisos.push(
       `Tus nóminas previstas dan ${eur(previsto.nominas)} al mes de media, con pagas y bonus, y en tu historial entran ${eur(real.nominas)}. Es normal si el historial no incluye todavía el bonus o alguna paga, o si la nómina ha subido; si no, revisa el bruto y el porcentaje del bonus.`,
     )
-  if (mod.reemplaza && previsto.otros > 100 && previsto.otros > previsto.nominas * 0.1)
+  const otrosHistoricos = media((m) => mod.desglose(m).historicos)
+  if (mod.reemplaza && otrosHistoricos > 100 && otrosHistoricos > previsto.nominas * 0.1)
     avisos.push(
-      `La previsión cuenta con ${eur(previsto.otros)} al mes de otros ingresos, según tu historial. Si ahí hay nóminas, pagas o un bonus sin la categoría Ingresos, Nómina, se están contando dos veces.`,
+      `La previsión cuenta con ${eur(otrosHistoricos)} al mes de otros ingresos, según tu historial. Si ahí hay nóminas, pagas o un bonus sin la categoría Ingresos, Nómina, se están contando dos veces.`,
     )
   if (presupuestos > Math.max(50, real.gastos * 0.05)) avisos.push(`Tus presupuestos suman ${eur(presupuestos)} al mes menos de lo que gastas de media. La previsión cuenta con que los cumples.`)
   if (banco && banco.extracto - banco.capital > Math.max(300, Math.abs(banco.extracto) * 0.25))

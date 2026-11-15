@@ -137,6 +137,7 @@ Ordenada por esfuerzo, de menos a más, con prioridad para la usabilidad y el re
   - Tests: detección de datos identificativos, formato de importes y validación de alias.
   - Supabase, el acceso con Google y el correo autorizado quedaron sin activar y se descartaron en la v0.4.0.
 - v0.2.0 (13/11/2026): herramientas de PuchiTask (versiones y novedades, registro, copias de seguridad y datos de prueba) y resúmenes semanal y mensual en PDF. Detalle en `CHANGELOG.md`. Pendiente de validar por el usuario, igual que la fase 1.
+- v0.41.0 (15/11/2026): patrimonio completo, pedido por el usuario. Bienes con valor manual e historial de valoraciones (`ajustes.bienes`), hipoteca con capital pendiente, tipo fijo y plazo (`Cuenta.prestamo`, cuadro de amortización en `src/lib/patrimonio.ts`), patrimonio neto con su evolución (`/extracto/patrimonio` y fila en el Extracto), referencia catastral bloqueada como dato identificativo, simulador de compra de una vivienda (`Simulacion.compra`, en Patrimonio y en el plan de pagos) y «Analizar con Claude» de la situación completa con importes exactos (`textoPatrimonio`, plantilla `patrimonio`). Esquema 16. Pendiente: que el usuario dé de alta sus bienes y su hipoteca.
 - v0.40.0 (14/11/2026): comprobación de la previsión, pedida por el usuario al ver mucho ahorro previsto. El cálculo se revisó con un caso completo y es coherente; el ahorro alto sale de los supuestos (pagas y bonus que un historial corto no recoge, y un sueldo que sube más que el gasto). En Ingresos previstos: «De dónde sale el ahorro» (`comprobarPrevision`: lo real de los meses cerrados frente a lo previsto, contraste con el banco y avisos de lo que puede inflarlo) y vista «Por años» (`evolucionAnual`: bruto, bonus, IRPF y neto, con el gasto y el ahorro previstos). Sin cambio de esquema.
 - v0.39.0 (14/11/2026): simulación realista del plan, pedida por el usuario. Nómina en bruto con el neto calculado (`src/lib/nomina.ts`: Seguridad Social y retención del IRPF con los parámetros de 2026, que hay que revisar cada año), subida anual del fijo y del bonus, porcentaje del bonus que se cobra, inflación del gasto con categorías que no suben (`ajustes.prevision`, por defecto 3 % y la hipoteca fuera) y pago de la deuda en agosto, después del bonus. Esquema 15 (`Nomina.bruto`, `ajustes.prevision`; el bonus y el mes de referencia de julio pasan a agosto). El plan cuenta con subidas e inflación y enseña debajo el año sin ellas; la simulación permite otra subida, otro porcentaje de bonus, otra inflación o todo plano. El gasto no crece con el sueldo (decisión del usuario). Pendiente de validar con la nómina real: si el neto calculado no coincide, se escribe la retención de la nómina. Posible segundo paso: estimar la declaración de la renta con la escala autonómica. Después, pausa de uso.
 - v0.38.0 (14/11/2026): tres mejoras rápidas aprobadas por el usuario: la tarjeta del mes compara todo el gasto con el presupuesto más lo habitual de las categorías sin presupuesto (`referenciaConPresupuesto`), la pantalla de Presupuesto permite ver meses anteriores (tira de meses) e Importar resume la tanda de varios ficheros al terminar. **Pausa de uso (decisión del usuario):** la app se deja así unas semanas para usarla con datos reales; lo siguiente saldrá de ese uso. Sigue pendiente lo anotado en la v0.35.0.
@@ -281,6 +282,7 @@ El fichero se limpia en el dispositivo antes de guardar nada, y la importación 
 - **Limpieza de conceptos:** los IBAN y números de tarjeta que aparecen dentro del concepto (transferencias, recibos, compras) se sustituyen por asteriscos, aunque sean parciales.
 - **Nombres de terceros:** en transferencias y Bizum, el nombre del ordenante o beneficiario se sustituye por un alias de una lista editable (Empresa para los reembolsos, Familia, Otros). Si no hay alias, se elimina.
 - **Verificación final:** antes de confirmar, la app revisa lo que va a guardar con patrones de IBAN, tarjeta y DNI. Si encuentra alguno, no importa y muestra la línea afectada.
+- **Referencia catastral (v0.41.0):** se trata como dato identificativo, porque permite llegar al propietario por el Catastro. No se admite en ningún texto que se guarde.
 - **Exportación a Claude:** parte siempre de los datos ya anonimizados.
 
 ## 3. Importación de ficheros
@@ -334,9 +336,11 @@ Nueve colecciones, más los ajustes, en el documento de datos del dispositivo (`
 | compromisos | Deuda pendiente, colchón, ventana de pago, mes de referencia, intereses |
 | eventos_previstos | Fecha, concepto, importe, categoría |
 
-Los ajustes generales (lista de alias de terceros, umbrales, días de fin de mes, zona de casa, nóminas previstas, en neto o en bruto, e inflación del gasto) van en `ajustes`, dentro del mismo documento.
+Los ajustes generales (lista de alias de terceros, umbrales, días de fin de mes, zona de casa, nóminas previstas, en neto o en bruto, inflación del gasto y bienes del patrimonio) van en `ajustes`, dentro del mismo documento.
 
-Cuentas previstas: dos cuentas bancarias, una tarjeta de crédito y una hipoteca. La hipoteca no tiene movimientos propios: su cuota se carga en una de las cuentas y computa en Vivienda, subcategoría Hipoteca.
+Patrimonio (v0.41.0): cada bien (inmueble, inversión, plan de pensiones, vehículo u otro) se guarda con un alias, sin dirección ni referencia catastral, y con sus valoraciones fechadas, que pone el usuario. La cuenta de tipo hipoteca guarda el capital pendiente a una fecha, el tipo fijo y los meses que quedan; la app calcula la cuota y lo que queda cada mes con el sistema francés.
+
+Cuentas previstas: dos cuentas bancarias, una tarjeta de crédito y una hipoteca. La hipoteca no tiene movimientos propios: su cuota se carga en una de las cuentas y computa en Vivienda, subcategoría Hipoteca. Desde la v0.41.0, su capital pendiente se calcula con el tipo fijo y los años que quedan.
 
 **Tipo de movimiento**
 
@@ -507,6 +511,7 @@ Supuesto (14/11/2026): el ahorro de cada mes acaba en la Cuenta 2 con los traspa
 - **Simulación:** efecto en el pago, en el año de liquidación y en el capital previsto de otra deuda pendiente u otro colchón, ahorrar una cantidad distinta cada mes, recortar una categoría concreta o sumar o quitar una nómina o el bonus. Desde la v0.39.0, también otra subida anual del sueldo, otro porcentaje de bonus cobrado, otra inflación o todo plano, sin subidas ni inflación.
 - **De dónde sale el ahorro (v0.40.0):** en Ingresos previstos, la media al mes de los meses cerrados frente a la de los 12 próximos (nóminas, otros ingresos, gastos, gastos previstos y ahorro), el contraste con lo que ha variado el capital según el banco y avisos de lo que puede inflar la previsión (pocos meses de datos, nómina contada dos veces, presupuestos por debajo del gasto real).
 - **Evolución por años (v0.40.0):** bruto, bonus, IRPF y neto de las nóminas en seis años naturales y, desde el siguiente al actual, el gasto y el ahorro previstos.
+- **Comprar una vivienda (v0.41.0):** precio, mes, uso, entrada, gastos de compra, hipoteca nueva a tipo fijo, gastos de la vivienda y alquiler. La entrada y los gastos salen de la cuenta de ahorro ese mes; después, la cuota, los gastos y el alquiler cada mes. La app dice si llega el dinero, la cuota, el esfuerzo sobre las nóminas y el efecto en el año en que queda saldada la deuda.
 - **Con y sin crecimiento (v0.39.0):** el plan cuenta por defecto con las subidas de sueldo y la inflación, y debajo enseña el año en que quedaría saldada sin ellas.
 - **Seguimiento anual:** después de cada pago, la app compara lo previsto con lo transferido y recalcula el calendario.
 
@@ -519,7 +524,8 @@ Sin coste: la app no usa la API de Anthropic. Abre Claude con los datos ya prepa
 - **Botón Analizar con Claude** en el extracto mensual, en cada categoría, en presupuestos, en el plan de pagos y en la vista anual.
 - **Resumen por enlace:** abre claude.ai con el prompt ya escrito y el resumen del periodo (totales por categoría, presupuesto y comparativa con la media). Comprobar que el prellenado por enlace sigue disponible. La longitud del enlace limita el volumen, así que no lleva el detalle de movimientos.
 - **Detalle completo:** genera un CSV con los movimientos del periodo y lo envía a la app de Claude con la hoja de compartir de iOS (Web Share API). En escritorio, descarga el CSV y copia el prompt al portapapeles.
-- **Plantillas de prompt** editables en ajustes: análisis del mes, desviaciones de presupuesto, gastos recurrentes y suscripciones, comparativa con el periodo anterior (interanual en la escala de año), plan de pagos (v0.35.0).
+- **Plantillas de prompt** editables en ajustes: análisis del mes, desviaciones de presupuesto, gastos recurrentes y suscripciones, comparativa con el periodo anterior (interanual en la escala de año), plan de pagos (v0.35.0) y situación completa e inversiones (v0.41.0).
+- **Situación completa (v0.41.0):** desde Patrimonio, el patrimonio con importes exactos y sin nombres de bienes, ingresos y ahorro por años, gasto medio por categoría, gastos previstos, plan de la deuda, supuestos y la compra simulada, con el CSV del último año.
 - **Datos que salen:** solo los del periodo elegido, ya anonimizados. Opción en ajustes para quitar los conceptos y enviar solo categorías e importes (v0.35.0). El CSV del detalle (v0.35.0) no lleva notas ni saldos.
 
 ## 12. Experiencia en el móvil (escritorio en pausa)

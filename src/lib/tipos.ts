@@ -21,6 +21,34 @@ export interface Cuenta {
   created_at: string
   /** Último saldo confirmado a mano con el que muestra el banco (esquema 4) */
   saldo_confirmado: { importe: number; fecha: string; cuadra: boolean } | null
+  /** Solo en la hipoteca (esquema 16): capital pendiente a una fecha, tipo fijo y plazo; la app calcula el resto */
+  prestamo?: Prestamo | null
+}
+
+/** Préstamo a tipo fijo con cuota constante (sistema francés) */
+export interface Prestamo {
+  /** Capital pendiente en «fecha» */
+  capital: number
+  /** AAAA-MM-DD */
+  fecha: string
+  /** Tipo de interés anual fijo, en porcentaje */
+  interes: number
+  /** Meses que quedan desde «fecha» */
+  plazo_meses: number
+}
+
+/** Bienes y otros activos con valor manual (esquema 16) */
+export type TipoBien = 'inmueble' | 'inversion' | 'pension' | 'vehiculo' | 'otro'
+
+export interface Bien {
+  id: string
+  /** Nombre corto que elige el usuario («Vivienda habitual»). Sin dirección ni referencia catastral */
+  alias: string
+  tipo: TipoBien
+  /** Solo inmuebles: la vivienda en la que se vive */
+  habitual: boolean
+  /** Valor estimado en cada fecha (AAAA-MM-DD), de la más antigua a la más reciente; al menos una */
+  valoraciones: { fecha: string; valor: number }[]
 }
 
 export interface Categoria {
@@ -166,10 +194,12 @@ export interface Ajustes {
   claude: AjustesClaude
   /** Inflación del gasto para el plan de pagos y la previsión de capital (esquema 15) */
   prevision: AjustesPrevision
+  /** Inmuebles y otros activos para el patrimonio (esquema 16) */
+  bienes: Bien[]
 }
 
 /** Vistas con «Analizar con Claude» y su plantilla de instrucciones */
-export type ClavePlantilla = 'mes' | 'informe' | 'presupuesto' | 'recurrentes' | 'plan'
+export type ClavePlantilla = 'mes' | 'informe' | 'presupuesto' | 'recurrentes' | 'plan' | 'patrimonio'
 
 export interface AjustesClaude {
   /** Solo las que el usuario ha cambiado; las demás usan la de la app */
@@ -236,7 +266,7 @@ export interface AjustesPrevision {
   sin_inflacion: string[]
 }
 
-export const VERSION_ESQUEMA = 15
+export const VERSION_ESQUEMA = 16
 
 export interface BaseDatos {
   esquema: number

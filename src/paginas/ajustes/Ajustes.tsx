@@ -1,4 +1,4 @@
-import { Briefcase, CalendarClock, ChevronRight, HandCoins, Landmark, SlidersHorizontal, Sparkles, Tags, Target, Wand2, Wrench } from 'lucide-react'
+import { Briefcase, CalendarClock, ChevronRight, HandCoins, Landmark, SlidersHorizontal, Sparkles, Tags, Target, Wand2, Wrench, Scale } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { BarraNavegacion, Encabezado } from '../../componentes/Encabezado'
@@ -42,6 +42,7 @@ export function Ajustes() {
         { a: '/extracto/presupuesto', texto: 'Presupuesto', glifo: Target, color: '#30B0C7', detalle: presupuesto ? `${formatearRedondo(presupuesto)} al mes` : undefined },
         { a: '/extracto/previstos', texto: 'Gastos previstos', glifo: CalendarClock, color: '#FF2D55', detalle: db.eventos_previstos.length ? String(db.eventos_previstos.length) : undefined },
         ...(deuda ? [{ a: '/extracto/plan', texto: 'Plan de pagos', glifo: HandCoins, color: '#AF52DE', detalle: deuda.deuda_inicial ? undefined : 'Sin configurar' }] : []),
+        { a: '/extracto/patrimonio', texto: 'Patrimonio', glifo: Scale, color: '#34C759', detalle: (db.ajustes.bienes ?? []).length ? String(db.ajustes.bienes.length) : undefined },
       ],
     },
     {

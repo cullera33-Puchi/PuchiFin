@@ -12,12 +12,15 @@ import {
   type Ajustes,
   type AjustesPrevision,
   type BaseDatos,
+  type Bien,
   type Categoria,
   type ClavePlantilla,
   type Cuenta,
   type Naturaleza,
   type NominaBruta,
   type PagaExtra,
+  type Prestamo,
+  type TipoBien,
   type TipoCuenta,
 } from '../lib/tipos'
 
@@ -89,6 +92,7 @@ export const AJUSTES_POR_DEFECTO: Ajustes = {
   nominas: [],
   claude: { plantillas: {}, sin_conceptos: false },
   prevision: { inflacion: 3, sin_inflacion: [] },
+  bienes: [],
 }
 
 /** La hipoteca a tipo fijo no sube con la inflación: su subcategoría, si existe */
@@ -98,7 +102,7 @@ export const categoriaHipoteca = (categorias: Categoria[]) => categorias.find((c
 export function datosIniciales(): BaseDatos {
   const creada = ahora()
   const cuenta = (alias: string, entidad: string | null, tipo: TipoCuenta, orden: number): Cuenta => ({
-    id: nuevoId(), alias, entidad, tipo, activa: true, orden, created_at: creada, saldo_confirmado: null,
+    id: nuevoId(), alias, entidad, tipo, activa: true, orden, created_at: creada, saldo_confirmado: null, prestamo: null,
   })
   const categorias: Categoria[] = []
   CATALOGO.forEach(([nombre, icono, color, naturaleza, subs], i) => {
@@ -477,6 +481,71 @@ export function guardarNomina(db: BaseDatos, datos: DatosNomina, id?: string): B
   return { ...db, ajustes: { ...db.ajustes, nominas: [...lista, { id: nuevoId(), ...valores }] } }
 }
 
+// ---------------------------------------------------------------------------
+// Patrimonio (esquema 16): bienes con valor manual y la hipoteca
+// ---------------------------------------------------------------------------
+
+const FECHA_ISO = /^\d{4}-\d{2}-\d{2}$/
+const TIPOS_BIEN: TipoBien[] = ['inmueble', 'inversion', 'pension', 'vehiculo', 'otro']
+
+export interface DatosBien {
+  alias: string
+  tipo: TipoBien
+  habitual: boolean
+  valor: number
+  /** Fecha de la valoración (AAAA-MM-DD) */
+  fecha: string
+}
+
+/**
+ * Alta o cambio de un bien. Un valor nuevo se añade a sus valoraciones (con la misma fecha, sustituye a
+ * la de esa fecha), para que el patrimonio de los meses anteriores no cambie.
+ */
+export function guardarBien(db: BaseDatos, datos: DatosBien, id?: string): BaseDatos {
+  const alias = datos.alias.trim()
+  if (!alias) throw new ErrorDatos('Ponle un nombre (por ejemplo, Vivienda habitual)')
+  if (alias.length > 40) throw new ErrorDatos('El nombre admite un máximo de 40 caracteres')
+  exigirSinIdentificativos('Nombre del bien', alias)
+  if (!TIPOS_BIEN.includes(datos.tipo)) throw new ErrorDatos('Tipo de bien no válido')
+  if (!Number.isFinite(datos.valor) || datos.valor < 0 || datos.valor > 100_000_000) throw new ErrorDatos('Escribe el valor estimado')
+  if (!FECHA_ISO.test(datos.fecha) || Number.isNaN(Date.parse(datos.fecha))) throw new ErrorDatos('Fecha no válida')
+  const lista = db.ajustes.bienes ?? []
+  if (lista.some((b) => b.id !== id && b.alias.toLowerCase() === alias.toLowerCase())) throw new ErrorDatos('Ya hay un bien con ese nombre')
+  const valoracion = { fecha: datos.fecha, valor: Math.round(datos.valor * 100) / 100 }
+  const habitual = datos.tipo === 'inmueble' && datos.habitual
+  // Solo puede haber una vivienda habitual
+  const resto = (b: Bien) => (habitual && b.id !== id ? { ...b, habitual: false } : b)
+  if (id) {
+    const actual = lista.find((b) => b.id === id)
+    if (!actual) throw new ErrorDatos('Bien no encontrado')
+    const valoraciones = [...actual.valoraciones.filter((v) => v.fecha !== valoracion.fecha), valoracion].sort((a, b) => a.fecha.localeCompare(b.fecha))
+    return { ...db, ajustes: { ...db.ajustes, bienes: lista.map((b) => (b.id === id ? { ...b, alias, tipo: datos.tipo, habitual, valoraciones } : resto(b))) } }
+  }
+  return { ...db, ajustes: { ...db.ajustes, bienes: [...lista.map(resto), { id: nuevoId(), alias, tipo: datos.tipo, habitual, valoraciones: [valoracion] }] } }
+}
+
+export function borrarBien(db: BaseDatos, id: string): BaseDatos {
+  const lista = db.ajustes.bienes ?? []
+  if (!lista.some((b) => b.id === id)) throw new ErrorDatos('Bien no encontrado')
+  return { ...db, ajustes: { ...db.ajustes, bienes: lista.filter((b) => b.id !== id) } }
+}
+
+/** Capital pendiente, tipo fijo y plazo de la hipoteca; null lo quita */
+export function guardarPrestamo(db: BaseDatos, cuentaId: string, datos: Prestamo | null): BaseDatos {
+  const cuenta = db.cuentas.find((c) => c.id === cuentaId)
+  if (!cuenta) throw new ErrorDatos('Cuenta no encontrada')
+  if (cuenta.tipo !== 'hipoteca') throw new ErrorDatos('Solo las hipotecas llevan capital pendiente')
+  let prestamo: Prestamo | null = null
+  if (datos) {
+    if (!Number.isFinite(datos.capital) || datos.capital <= 0 || datos.capital > 100_000_000) throw new ErrorDatos('Escribe el capital pendiente')
+    if (!FECHA_ISO.test(datos.fecha) || Number.isNaN(Date.parse(datos.fecha))) throw new ErrorDatos('Fecha no válida')
+    if (!Number.isFinite(datos.interes) || datos.interes < 0 || datos.interes > 20) throw new ErrorDatos('El tipo de interés va de 0 a 20 %')
+    if (!Number.isInteger(datos.plazo_meses) || datos.plazo_meses < 1 || datos.plazo_meses > 600) throw new ErrorDatos('Los años que quedan van de 1 mes a 50 años')
+    prestamo = { capital: Math.round(datos.capital * 100) / 100, fecha: datos.fecha, interes: Math.round(datos.interes * 1000) / 1000, plazo_meses: datos.plazo_meses }
+  }
+  return { ...db, cuentas: db.cuentas.map((c) => (c.id === cuentaId ? { ...c, prestamo } : c)) }
+}
+
 /** Inflación anual del gasto para el plan de pagos y categorías que no suben (la hipoteca a tipo fijo) */
 export function guardarPrevision(db: BaseDatos, datos: AjustesPrevision): BaseDatos {
   if (!Number.isFinite(datos.inflacion) || datos.inflacion < 0 || datos.inflacion > 20) throw new ErrorDatos('La inflación va de 0 a 20 %')
@@ -720,6 +789,7 @@ export function comprobarBaseDatos(db: BaseDatos): string[] {
     a.patrones.forEach((p) => texto('Alias de terceros', p))
   })
   db.ajustes.zona_casa.forEach((z) => texto('Zona de casa', z))
+  for (const b of db.ajustes.bienes ?? []) texto('Bien', b.alias)
 
   const cuentas = new Set(db.cuentas.map((c) => c.id))
   const claves = new Set<string>()

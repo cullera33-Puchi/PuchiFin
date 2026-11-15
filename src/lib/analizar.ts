@@ -4,13 +4,28 @@
  * sin cuentas, saldos de cuentas concretas, fechas exactas ni nombres de personas.
  */
 import { rankingComercios } from './comercios'
-import { calcularExtracto } from './extracto'
+import { calcularExtracto, fechaDeLosDatos, gastoPorCategoria } from './extracto'
 import { mesLargo } from './fechas'
+import { mesEfectivo } from './imputacion'
 import { enmascararIdentificativos } from './identificativos'
 import { calcularInforme, type PeriodoInforme } from './informes'
 import { instrucciones, sinConceptos } from './plantillas'
 import { fijoEn, objetivoEn } from './nomina'
-import { haySimulacion, supuestosCrecimiento, tieneBonus, type Plan, type Simulacion } from './plan'
+import { calcularPatrimonio, interesesRestantes, NOMBRE_TIPO_BIEN } from './patrimonio'
+import {
+  calcularPlan,
+  cifrasCompra,
+  comprobarPrevision,
+  evolucionAnual,
+  haySimulacion,
+  supuestosCrecimiento,
+  tieneBonus,
+  type CompraVivienda,
+  type Plan,
+  type Simulacion,
+} from './plan'
+import { estadoEventos } from './previstos'
+import { primerMes } from './prevision'
 import { consumoPresupuestos, presupuestoAnual } from './presupuesto'
 import type { BaseDatos } from './tipos'
 import { nombreCategoria } from './vista'
@@ -133,8 +148,119 @@ export function textoPlan(db: BaseDatos, plan: Plan, sim: Simulacion | null, sim
       sim.colchon !== undefined ? `con un colchón de ${eur(sim.colchon)}` : '',
       sim.ahorroExtra ? `ahorrar ${eur(sim.ahorroExtra)} más al mes` : '',
       sim.recorte ? `recortar ${nombreCategoria(db, sim.recorte.categoria_id)} un ${sim.recorte.porcentaje} %` : '',
+      sim.compra ? textoCompra(sim.compra) : '',
     ].filter(Boolean)
     lineas.push('', `Simulación (${partes.join(' y ')}): primer pago ${eur(simulado.pagos[0]?.pago ?? 0)}, saldada en ${simulado.saldadaEn ?? 'más de 30 años'}, capital dentro de un año ${eur(simulado.serie[12]?.capital ?? 0)} frente a ${eur(plan.serie[12]?.capital ?? 0)}.`)
   }
+  return cierre(lineas)
+}
+
+const mesTexto = (mes: string) => mesLargo(`${mes}-01`).toLowerCase()
+const USO: Record<CompraVivienda['uso'], string> = { alquilar: 'para alquilar', segunda: 'como segunda residencia', vivir: 'para vivir en ella' }
+
+/** La compra de la simulación en una frase */
+function textoCompra(c: CompraVivienda): string {
+  const x = cifrasCompra(c)
+  return `comprar una vivienda ${USO[c.uso]} de ${eur(c.precio)} en ${mesTexto(c.mes)} (entrada de ${eur(x.entrada)}, gastos de compra de ${eur(x.gastos)}, hipoteca de ${eur(x.prestamo)} a ${c.anios} años al ${String(c.interes).replace('.', ',')} % con una cuota de ${eur(x.cuota)} al mes)`
+}
+
+/**
+ * Situación completa para Claude (v0.41.0): patrimonio, ingresos por años, gasto medio por categoría,
+ * ahorro real, gastos previstos, plan de la deuda, supuestos y, si se simula, la compra de una vivienda.
+ * Importes exactos (decisión del usuario); sin nombres de bienes, cuentas ni comercios.
+ */
+export function textoPatrimonio(db: BaseDatos, hoy: string, sim: Simulacion): string {
+  const p = calcularPatrimonio(db, hoy)
+  const lineas = [
+    INTRO,
+    'Quiero revisar mi situación financiera completa y saber qué margen tengo para invertir, por ejemplo en la compra de una vivienda.',
+    instrucciones(db, 'patrimonio'),
+    '',
+    'Patrimonio hoy:',
+  ]
+  if (p.liquidez !== null) lineas.push(`- Liquidez (cuentas menos lo pendiente de la tarjeta): ${eur(p.liquidez)}`)
+  p.inmuebles.forEach((l, i) => lineas.push(`- Inmueble ${i + 1}${l.bien.habitual ? ', vivienda habitual' : ''}: valor estimado ${eur(l.valor)}, valorado en ${mesTexto(l.fecha.slice(0, 7))}`))
+  const porTipo = new Map<string, number>()
+  for (const l of p.otros) {
+    const n = (porTipo.get(l.bien.tipo) ?? 0) + 1
+    porTipo.set(l.bien.tipo, n)
+    lineas.push(`- ${NOMBRE_TIPO_BIEN[l.bien.tipo]} ${n}: ${eur(l.valor)}`)
+  }
+  for (const h of p.hipotecas)
+    lineas.push(
+      `- Hipoteca a tipo fijo del ${String(h.prestamo.interes).replace('.', ',')} %: quedan ${eur(h.pendiente)}, cuota de ${eur(h.cuota)} al mes, última cuota en ${mesTexto(h.fin)}, intereses que quedan ${eur(interesesRestantes(h.prestamo, hoy))}`,
+    )
+  if (p.hipotecasSinDatos.length) lineas.push('- Tengo una hipoteca cuyo capital pendiente no he indicado: su cuota está dentro del gasto de vivienda.')
+  if (p.deudaFamiliar > 0) lineas.push(`- Deuda familiar sin intereses: ${eur(p.deudaFamiliar)} pendientes`)
+  lineas.push(`Patrimonio neto: ${eur(p.neto)} (activos ${eur(p.activos)}, deudas ${eur(p.deudas)}).`)
+  if (p.evolucion.length >= 2) lineas.push(`Patrimonio neto en ${mesTexto(p.evolucion[0].mes)}: ${eur(p.evolucion[0].neto)}.`)
+
+  // Ingresos y ahorro por años, con el mismo modelo que el plan
+  const anios = evolucionAnual(db, hoy, sim)
+  if (anios && (db.ajustes.nominas ?? []).some((n) => n.incluida)) {
+    lineas.push('', 'Ingresos y ahorro previstos por años naturales:')
+    for (const a of anios)
+      lineas.push(
+        `- ${a.anio}: ${a.bruto !== null ? `${eur(a.bruto)} brutos${a.bonusBruto ? ` (bonus ${eur(a.bonusBruto)})` : ''}, IRPF ${String(a.retencion).replace('.', ',')} %, ` : ''}${eur(a.neto)} netos de nómina${a.gastos !== null ? `; otros ingresos ${eur(a.otros ?? 0)}, gastos ${eur(a.gastos)}, ahorro ${eur(a.ahorro ?? 0)}` : ''}`,
+      )
+  }
+  const c = comprobarPrevision(db, hoy, sim)
+  if (c) {
+    lineas.push(
+      '',
+      `Lo real, media al mes de los últimos ${c.meses} ${c.meses === 1 ? 'mes cerrado' : 'meses cerrados'}: nóminas ${eur(c.real.nominas)}, otros ingresos ${eur(c.real.otros)}, gastos ${eur(c.real.gastos)}, ahorro ${eur(c.real.ahorro)}.`,
+    )
+    if (c.banco) lineas.push(`Según el banco, mi capital ha variado ${eur(c.banco.capital)} al mes de media en ${c.banco.meses} meses, sin contar los pagos de la deuda.`)
+    lineas.push(`Previsto para los próximos 12 meses, media al mes: ingresos ${eur(c.previsto.nominas + c.previsto.otros)}, gastos ${eur(c.previsto.gastos)}, ahorro ${eur(c.previsto.ahorro)}.`)
+  }
+
+  // Gasto medio por categoría de los últimos meses cerrados (hasta 12, sin el primero importado)
+  const mesDatos = fechaDeLosDatos(db, hoy).slice(0, 7)
+  const primero = primerMes(db)
+  const meses = [...new Set(db.movimientos.map(mesEfectivo))].filter((m) => m > primero && m < mesDatos).sort().slice(-12)
+  if (meses.length) {
+    const enMeses = new Set(meses)
+    const gasto = gastoPorCategoria(
+      db.movimientos.filter((m) => enMeses.has(mesEfectivo(m))),
+      db.categorias,
+    )
+    const lista = [...gasto].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1])
+    if (lista.length) {
+      lineas.push('', `Gasto medio al mes por categoría (${meses.length} ${meses.length === 1 ? 'mes' : 'meses'}):`)
+      for (const [id, v] of lista) lineas.push(`- ${nombreCategoria(db, id)}: ${eur(v / meses.length)}`)
+    }
+  }
+
+  const previstos = estadoEventos(db, hoy).filter((e) => e.estado === 'pendiente')
+  if (previstos.length) {
+    lineas.push('', 'Gastos e ingresos puntuales previstos:')
+    for (const e of previstos) lineas.push(`- ${mesTexto(e.evento.fecha.slice(0, 7))}: ${e.evento.concepto}, ${eur(e.evento.importe)}`)
+  }
+
+  const plan = calcularPlan(db, hoy).plan
+  if (plan && plan.deudaPendiente > 0) {
+    const proximo = plan.pagos[0]
+    lineas.push(
+      '',
+      `Plan de pagos de la deuda familiar: cada ${mesTexto(`2000-${String(plan.compromiso.mes_referencia).padStart(2, '0')}`).replace(/ de 2000$/, '')} pago todo lo que supere un colchón de ${eur(plan.compromiso.colchon)} en mi cuenta de ahorro${proximo ? `; próximo pago previsto de ${eur(proximo.pago)} en ${mesTexto(proximo.mes)}` : ''}; ${plan.saldadaEn ? `saldada en ${plan.saldadaEn}` : 'no se salda en 30 años'}.`,
+    )
+  }
+  lineas.push('', `Supuestos de la previsión: ${supuestosCrecimiento(db)}`)
+
+  if (sim.compra) {
+    const conCompra = calcularPlan(db, hoy, sim).plan
+    const r = conCompra?.compra
+    lineas.push('', `Operación que quiero valorar: ${textoCompra(sim.compra)}.`)
+    if (sim.compra.gastos_mes) lineas.push(`Gastos de la vivienda: ${eur(sim.compra.gastos_mes)} al mes (IBI, comunidad, seguros y mantenimiento).`)
+    if (sim.compra.uso === 'alquilar' && sim.compra.alquiler_mes) lineas.push(`Alquiler previsto: ${eur(sim.compra.alquiler_mes)} al mes.`)
+    if (r) {
+      lineas.push(
+        `En ${mesTexto(r.mes)} tendría unos ${eur(r.saldoAntes)} en la cuenta de ahorro: ${r.falta > 0 ? `me faltarían ${eur(r.falta)} para la entrada y los gastos` : `después de pagar entrada y gastos me quedarían ${eur(r.sobreColchon)} por encima del colchón`}.`,
+      )
+      if (r.esfuerzo !== null) lineas.push(`Las cuotas de hipoteca, la actual y la nueva, serían el ${pct(r.esfuerzo)} de mis nóminas netas.`)
+    }
+    if (plan && conCompra && plan.deudaPendiente > 0)
+      lineas.push(`Con la compra, la deuda familiar quedaría saldada en ${conCompra.saldadaEn ?? 'más de 30 años'}, frente a ${plan.saldadaEn ?? 'más de 30 años'} sin ella.`)
+  } else lineas.push('', 'No tengo todavía una operación concreta.')
   return cierre(lineas)
 }

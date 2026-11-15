@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { datosIniciales, ErrorDatos, guardarCompromiso, guardarEvento, guardarNomina, guardarPresupuesto, guardarPrevision } from '../datos/operaciones'
-import { calcularPlan, comprobarPrevision, efectoMesCerrado, evolucionAnual, hayCrecimiento, haySimulacion, importeNomina, preverIngresos, SIN_SIMULACION } from './plan'
+import { datosIniciales, ErrorDatos, guardarCompromiso, guardarEvento, guardarNomina, guardarPrestamo, guardarPresupuesto, guardarPrevision } from '../datos/operaciones'
+import { calcularPlan, cifrasCompra, comprobarPrevision, efectoMesCerrado, evolucionAnual, hayCrecimiento, haySimulacion, importeNomina, preverIngresos, SIN_SIMULACION } from './plan'
 import type { BaseDatos, Movimiento, NominaBruta } from './tipos'
 
 const db0 = datosIniciales()
@@ -316,5 +316,53 @@ describe('de dónde sale el ahorro previsto y evolución por años (v0.40.0)', (
     // Con una nómina en neto no hay bruto ni retención
     const neta = guardarNomina(crear(20000), { nombre: 'Mi nómina', neto_mensual: 3000, pagas: [], desde: null, hasta: null, incluida: true, bonus: null })
     expect(evolucionAnual(neta, HOY)![1]).toMatchObject({ bruto: null, retencion: null, neto: 36000 })
+  })
+})
+
+describe('comprar una vivienda y fin de la hipoteca (v0.41.0)', () => {
+  const compra = { precio: 100000, mes: '2027-03', entrada_pct: 20, gastos_pct: 10, interes: 0, anios: 10, gastos_mes: 100, alquiler_mes: 500, uso: 'alquilar' as const }
+  const conNomina = (db: BaseDatos) => guardarNomina(db, { nombre: 'Mi nómina', neto_mensual: 3000, pagas: [], desde: null, hasta: null, incluida: true, bonus: null })
+  const saldo = (p: ReturnType<typeof calcularPlan>['plan'], mes: string) => p!.serie.find((x) => x.mes === mes)!.saldo
+
+  it('cifras de la compra: entrada, gastos, préstamo y cuota', () => {
+    expect(cifrasCompra(compra)).toEqual({ entrada: 20000, gastos: 10000, desembolso: 30000, prestamo: 80000, cuota: 666.67 })
+  })
+
+  it('la entrada y los gastos salen de la cuenta de ahorro ese mes, y después la cuota, los gastos y el alquiler cada mes', () => {
+    const db = conNomina(crear(20000))
+    const sin = calcularPlan(db, HOY).plan!
+    const con = calcularPlan(db, HOY, { ...SIN_SIMULACION, compra }).plan!
+    expect(saldo(con, '2027-02')).toBe(saldo(sin, '2027-02'))
+    expect(saldo(sin, '2027-03') - saldo(con, '2027-03')).toBeCloseTo(30000, 0)
+    // Cada mes siguiente, 666,67 de cuota más 100 de gastos menos 500 de alquiler: 266,67 menos de ahorro
+    expect(saldo(sin, '2027-04') - saldo(con, '2027-04')).toBeCloseTo(30266.67, 0)
+    expect(saldo(sin, '2027-05') - saldo(con, '2027-05')).toBeCloseTo(30533.33, 0)
+    const r = con.compra!
+    expect(r).toMatchObject({ mes: '2027-03', desembolso: 30000, cuota: 666.67 })
+    expect(r.saldoAntes).toBe(saldo(sin, '2027-03'))
+    expect(r.falta).toBeCloseTo(30000 - r.saldoAntes, 2)
+    expect(r.sobreColchon).toBeCloseTo(r.saldoAntes - 30000 - 3000, 2)
+    // Cuota nueva sobre 3.000 de nómina neta
+    expect(r.esfuerzo).toBeCloseTo(666.67 / 3000, 3)
+    expect(sin.compra).toBeNull()
+    expect(haySimulacion(db, { ...SIN_SIMULACION, compra })).toBe(true)
+    // Sin alquilar, el alquiler no cuenta
+    const vivir = calcularPlan(db, HOY, { ...SIN_SIMULACION, compra: { ...compra, uso: 'vivir' } }).plan!
+    expect(saldo(con, '2027-04') - saldo(vivir, '2027-04')).toBeCloseTo(500, 0)
+    // El capital dentro de un año baja con lo que sale de las cuentas
+    const capital = (sim = SIN_SIMULACION) => preverIngresos(db, HOY, sim)!.capital12!
+    expect(capital() - capital({ ...SIN_SIMULACION, compra })).toBeCloseTo(30000 + 266.67 * 8, 0)
+  })
+
+  it('tras la última cuota, la hipoteca deja de restar', () => {
+    const hipoteca = db0.cuentas.find((c) => c.tipo === 'hipoteca')!
+    const db = crear(20000)
+    // 2.000 € pendientes en dos cuotas de 1.000: la última, en enero
+    const con = guardarPrestamo(db, hipoteca.id, { capital: 2000, fecha: '2026-11-01', interes: 0, plazo_meses: 2 })
+    const a = calcularPlan(db, HOY).plan!
+    const b = calcularPlan(con, HOY).plan!
+    expect(saldo(b, '2027-01')).toBe(saldo(a, '2027-01'))
+    expect(saldo(b, '2027-02') - saldo(a, '2027-02')).toBeCloseTo(1000, 0)
+    expect(saldo(b, '2027-03') - saldo(a, '2027-03')).toBeCloseTo(2000, 0)
   })
 })

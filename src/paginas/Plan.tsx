@@ -5,6 +5,7 @@ import { useHacer } from '../componentes/acciones'
 import { BarraNavegacion } from '../componentes/Encabezado'
 import { GraficoCapital } from '../componentes/GraficoCapital'
 import { SimularCrecimiento, SimularNominas } from './Ingresos'
+import { HojaCompra, ResumenCompra } from '../componentes/Compra'
 import { BotonClaude, HojaClaude } from '../componentes/HojaClaude'
 import { Baldosa } from '../componentes/Icono'
 import { Hoja } from '../componentes/Interfaz'
@@ -123,6 +124,7 @@ function ContenidoPlan({
   const c = plan.compromiso
   const proximo = plan.pagos[0]
   const [eligiendo, setEligiendo] = useState(false)
+  const [comprando, setComprando] = useState(false)
   // Al restablecer, los campos de deuda y colchón vuelven a los importes del plan
   const [reinicio, setReinicio] = useState(0)
   const recorte = sim.recorte
@@ -227,6 +229,19 @@ function ContenidoPlan({
           </div>
           <SimularCrecimiento db={db} sim={sim} setSim={setSim} />
           <div>
+            <p className="text-[13px] text-zinc-500">Comprar una vivienda</p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <button className="boton-secundario min-h-9 px-3 py-1 text-[13px]" onClick={() => setComprando(true)}>
+                {sim.compra ? `${formatearRedondo(sim.compra.precio)} en ${mesNombre(Number(sim.compra.mes.slice(5, 7)))} de ${sim.compra.mes.slice(0, 4)}` : 'Simular una compra'}
+              </button>
+              {sim.compra && (
+                <button className="boton-texto px-1" onClick={() => setSim({ ...sim, compra: null })}>
+                  Quitar
+                </button>
+              )}
+            </div>
+          </div>
+          <div>
             <p className="text-[13px] text-zinc-500">Ahorro de más cada mes</p>
             <div className="mt-1.5 flex gap-2 overflow-x-auto [scrollbar-width:none]">
               {EXTRAS.map((x) => (
@@ -280,6 +295,11 @@ function ContenidoPlan({
                 {textoSaldada(simulado)}
                 {anios > 0 ? `, ${anios === 1 ? 'un año' : `${anios} años`} antes` : anios < 0 ? `, ${-anios === 1 ? 'un año' : `${-anios} años`} después` : ''}
               </p>
+              {simulado.compra && (
+                <div className="mt-2 border-t border-zinc-200/70 pt-2 dark:border-zinc-700">
+                  <ResumenCompra r={simulado.compra} base={plan} con={simulado} />
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -306,6 +326,7 @@ function ContenidoPlan({
       </Link>
       <p className="-mt-2 px-4 text-[12px] text-zinc-500">El resumen en PDF incluye el plan actual y el escenario con las nóminas que no cuentan.</p>
 
+      <HojaCompra abierta={comprando} onCerrar={() => setComprando(false)} />
       <SelectorCategoria
         abierta={eligiendo}
         actual={recorte?.categoria_id ?? null}
