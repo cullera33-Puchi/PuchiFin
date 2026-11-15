@@ -102,3 +102,32 @@ describe('detalle en CSV', () => {
     expect(ano.some((m) => m.fecha_operacion >= '2026-11-01' && !m.mes_imputacion)).toBe(false)
   })
 })
+
+describe('enviar todo a Claude (v0.43.0)', async () => {
+  const { textoCompleto } = await import('./analizar')
+  const { guardarBien, guardarCompromiso } = await import('../datos/operaciones')
+  const { SIN_SIMULACION } = await import('./plan')
+  let todo = guardarBien(db, { alias: 'Casa de la playa', tipo: 'inmueble', habitual: true, valor: 250000, fecha: '2026-10-01' })
+  todo = guardarCompromiso(todo, todo.compromisos[0].id, {
+    deuda_inicial: 30000, fecha_referencia: '2026-10-01', colchon: 2000, cuenta_colchon_id: todo.cuentas[1].id, ventana_mes_inicio: 6, ventana_mes_fin: 8, mes_referencia: 8,
+  })
+
+  it('lleva todos los apartados, una sola cabecera y sin nombres de bienes', () => {
+    const t = textoCompleto(todo, HOY, SIN_SIMULACION)
+    for (const apartado of ['## Último mes cerrado: octubre de 2026', '## Mes en curso: noviembre de 2026', '## El año 2026 frente al anterior', '## Gastos fijos y recurrentes', '## Plan de pagos de la deuda familiar', '## Patrimonio, ingresos futuros e inversiones'])
+      expect(t).toContain(apartado)
+    expect(t).toContain(PLANTILLAS.completo.porDefecto)
+    // Cada apartado va sin su cabecera: las instrucciones de las otras vistas no se repiten
+    expect(t).not.toContain(PLANTILLAS.mes.porDefecto)
+    expect(t).not.toContain(PLANTILLAS.plan.porDefecto)
+    expect(t.match(/Datos de mi app de finanzas personales/g)).toHaveLength(1)
+    expect(t).toContain('Inmueble 1, vivienda habitual: valor estimado 250.000,00 €')
+    expect(t).not.toContain('playa')
+    expect(contieneIdentificativo(t)).toBe(false)
+  })
+
+  it('sin comercios, tampoco los lleva', () => {
+    const t = textoCompleto(fijarSinConceptos(todo, true), HOY, SIN_SIMULACION)
+    expect(t).not.toContain('Comercios con más gasto')
+  })
+})

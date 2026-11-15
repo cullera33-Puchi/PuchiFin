@@ -13,7 +13,7 @@ import { nombreCategoria } from './vista'
 
 const eur = (n: number) => `${n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: 'always' } as Intl.NumberFormatOptions)} €`
 
-export function textoOptimizar(db: BaseDatos, recurrentes: Recurrente[], hoy: string): string {
+export function textoOptimizar(db: BaseDatos, recurrentes: Recurrente[], hoy: string, soloDatos = false): string {
   const activos = recurrentes.filter((r) => r.activo).sort((a, b) => b.alAno - a.alAno)
   const total = activos.reduce((s, r) => s + r.alAno, 0)
   const desde = sumarMeses(`${hoy.slice(0, 7)}-01`, -3)
@@ -36,7 +36,8 @@ export function textoOptimizar(db: BaseDatos, recurrentes: Recurrente[], hoy: st
     lineas.push('', `Gastos hormiga de los últimos 3 meses (compras de hasta 10 € que se repiten): ${eur(hormiga.total)}, unos ${eur(hormiga.alAno)} al año${sin ? '.' : ':'}`)
     if (!sin) lineas.push(...hormiga.comercios.slice(0, 10).map((c) => `- ${c.nombre}: ${c.veces} veces, ${eur(c.importe)}`))
   }
-  return enmascararIdentificativos(lineas.join('\n'))
+  // Sin las cuatro líneas de cabecera, para el envío de todo a Claude
+  return enmascararIdentificativos((soloDatos ? lineas.slice(4) : lineas).join('\n'))
 }
 
 /** Enlace a claude.ai con el texto ya escrito (si es demasiado largo, solo se abre el chat) */

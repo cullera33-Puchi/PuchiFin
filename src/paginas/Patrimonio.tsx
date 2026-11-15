@@ -1,5 +1,6 @@
 import { Building2, Car, ChevronRight, HandCoins, Home, Landmark, Package, PiggyBank, Plus, Settings2, TrendingUp, type LucideIcon } from 'lucide-react'
 import { CuantoPuedoComprar, HojaSupuestos, VenderOAlquilar } from '../componentes/Capacidad'
+import { HojaTodo } from '../componentes/EnviarTodo'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useHacer } from '../componentes/acciones'
@@ -46,6 +47,7 @@ export function Patrimonio() {
   const base = useMemo(() => (sim.compra ? calcularPlan(db, hoy, { ...sim, compra: null, pausarPago: undefined }).plan : null), [db, hoy, sim])
   const conCompra = useMemo(() => (sim.compra ? calcularPlan(db, hoy, sim).plan : null), [db, hoy, sim])
   const [supuestos, setSupuestos] = useState(false)
+  const [todo, setTodo] = useState(false)
   const [bien, setBien] = useState<Bien | TipoBien | null>(null)
   const [hipoteca, setHipoteca] = useState<Cuenta | null>(null)
   const [compra, setCompra] = useState(false)
@@ -208,8 +210,13 @@ export function Patrimonio() {
         <BotonClaude onPulsar={() => setClaude(true)} />
       </div>
       <p className="mt-1 px-4 text-[12px] text-zinc-500">
-        Envía a Claude tu situación completa con las cifras exactas, sin nombres de bienes, cuentas ni comercios, y la compra si la estás simulando.
+        Envía a Claude tu situación completa con las cifras exactas, sin nombres de bienes, cuentas ni comercios, y la compra si la estás simulando.{' '}
+        <button className="text-marca-700 dark:text-marca-500" onClick={() => setTodo(true)}>
+          O envía todo
+        </button>
+        , con el resto de la app.
       </p>
+      <HojaTodo abierta={todo} onCerrar={() => setTodo(false)} />
 
       <HojaBien bien={bien} onCerrar={() => setBien(null)} />
       <HojaSupuestos abierta={supuestos} onCerrar={() => setSupuestos(false)} />

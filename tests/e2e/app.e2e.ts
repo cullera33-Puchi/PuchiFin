@@ -505,6 +505,21 @@ test('vivienda actual: supuestos, vender o alquilar, cuánto puedo comprar y Cla
   expect(e).toEqual([])
 })
 
+test('enviar todo a Claude desde Ajustes y desde el Extracto', async ({ page }) => {
+  const e = errores(page)
+  await conDatosDePrueba(page)
+  await page.goto('/ajustes/claude')
+  await page.locator('#contenido').getByRole('button', { name: 'Enviar todo a Claude' }).first().tap()
+  await expect(page.getByText(/## Mes en curso: /)).toBeVisible()
+  await expect(page.getByText(/## Patrimonio, ingresos futuros e inversiones/)).toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Más opciones del extracto' }).tap()
+  await page.getByRole('button', { name: 'Enviar todo a Claude' }).tap()
+  await expect(page.getByText(/## Gastos fijos y recurrentes/)).toBeVisible()
+  expect(e).toEqual([])
+})
+
 test('reporting: fuera de lo normal, comparar periodos y resumen del año', async ({ page }) => {
   const e = errores(page)
   await conDatosDePrueba(page)

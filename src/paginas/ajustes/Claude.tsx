@@ -1,4 +1,5 @@
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Send } from 'lucide-react'
+import { HojaTodo } from '../../componentes/EnviarTodo'
 import { useState } from 'react'
 import { useHacer } from '../../componentes/acciones'
 import { Hoja, Interruptor } from '../../componentes/Interfaz'
@@ -16,8 +17,19 @@ export function AjustesClaude() {
   const hacer = useHacer()
   const sin = sinConceptos(db)
   const [editando, setEditando] = useState<ClavePlantilla | null>(null)
+  const [todo, setTodo] = useState(false)
   return (
     <div className="space-y-6">
+      <section>
+        <button className="boton-primario w-full" onClick={() => setTodo(true)}>
+          <Send className="size-4" strokeWidth={2} /> Enviar todo a Claude
+        </button>
+        <p className="mt-1.5 px-4 text-[12px] text-zinc-500">
+          Toda la app en un texto (el mes, el año, el presupuesto, los gastos fijos, el plan de pagos, el patrimonio y tus ingresos futuros) y el CSV de todos tus movimientos. Si
+          tienes una simulación abierta, como la compra de una vivienda, también va.
+        </p>
+        <HojaTodo abierta={todo} onCerrar={() => setTodo(false)} />
+      </section>
       <section>
         <h3 className="cabecera-grupo">Privacidad</h3>
         <div className="lista fila min-h-12">

@@ -28,6 +28,8 @@ import {
 } from './plan'
 import { estadoEventos } from './previstos'
 import { primerMes } from './prevision'
+import { textoOptimizar } from './optimizar'
+import { detectarRecurrentes } from './recurrentes'
 import { inversionDe } from './vivienda'
 import { consumoPresupuestos, presupuestoAnual } from './presupuesto'
 import type { BaseDatos } from './tipos'
@@ -36,10 +38,12 @@ import { nombreCategoria } from './vista'
 const eur = (n: number) => `${n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: 'always' } as Intl.NumberFormatOptions)} €`
 const pct = (n: number) => `${Math.round(n * 100)} %`
 const cierre = (lineas: string[]) => enmascararIdentificativos(lineas.join('\n'))
+/** Líneas de cabecera de cada texto (presentación, petición, instrucciones y línea en blanco): sin ellas, solo los datos */
+const CABECERA = 4
 const INTRO = 'Datos de mi app de finanzas personales (anonimizados, sin cuentas ni datos personales). Importes en euros; los gastos de trabajo y los traspasos entre mis cuentas no cuentan.'
 
 /** Extracto del mes: totales, comparativa con la media y gasto por categoría */
-export function textoExtracto(db: BaseDatos, mes: string, hoy: string): string {
+export function textoExtracto(db: BaseDatos, mes: string, hoy: string, soloDatos = false): string {
   const e = calcularExtracto(db, mes, hoy)
   const t = e.totales
   const lineas = [
@@ -56,11 +60,11 @@ export function textoExtracto(db: BaseDatos, mes: string, hoy: string): string {
   if (e.haceUnAno) lineas.push(`El mismo mes del año anterior: ingresos ${eur(e.haceUnAno.ingresos)}, gastos ${eur(e.haceUnAno.gastos)}.`)
   lineas.push('', 'Gasto por categoría (importe, peso y media):')
   for (const c of e.categorias) lineas.push(`- ${c.nombre}: ${eur(c.importe)}, ${pct(c.peso)}${c.media !== null ? `, media ${eur(c.media)}` : ''}`)
-  return cierre(lineas)
+  return cierre(soloDatos ? lineas.slice(CABECERA) : lineas)
 }
 
 /** Informe de un mes o un año: gasto o ingreso por categoría frente al periodo anterior y los comercios que más pesan */
-export function textoInforme(db: BaseDatos, periodo: PeriodoInforme, hoy: string): string {
+export function textoInforme(db: BaseDatos, periodo: PeriodoInforme, hoy: string, soloDatos = false): string {
   // undefined: todas las categorías (null sería solo lo que no tiene categoría)
   const inf = calcularInforme(db, periodo, 'gasto', undefined, hoy)
   const nombre = periodo.escala === 'mes' ? mesLargo(`${periodo.clave}-01`).toLowerCase() : `el año ${periodo.clave}`
@@ -81,11 +85,11 @@ export function textoInforme(db: BaseDatos, periodo: PeriodoInforme, hoy: string
     lineas.push('', 'Comercios con más gasto:')
     lineas.push(...comercios.map((c) => `- ${c.nombre}: ${eur(c.importe)} en ${c.veces} ${c.veces === 1 ? 'compra' : 'compras'}`))
   }
-  return cierre(lineas)
+  return cierre(soloDatos ? lineas.slice(CABECERA) : lineas)
 }
 
 /** Presupuesto: consumo del mes y acumulado del año */
-export function textoPresupuesto(db: BaseDatos, mes: string, hoy: string): string {
+export function textoPresupuesto(db: BaseDatos, mes: string, hoy: string, soloDatos = false): string {
   const lineas = consumoPresupuestos(db, mes, hoy)
   const anual = presupuestoAnual(db, mes.slice(0, 4), hoy)
   const res = [
@@ -100,11 +104,11 @@ export function textoPresupuesto(db: BaseDatos, mes: string, hoy: string): strin
     res.push('', `En lo que va de año (${anual.meses} ${anual.meses === 1 ? 'mes' : 'meses'} con datos), presupuesto y gastado:`)
     res.push(...anual.lineas.map((l) => `- ${l.categoria.nombre}: ${eur(l.presupuesto)} y ${eur(l.gastado)}`))
   }
-  return cierre(res)
+  return cierre(soloDatos ? res.slice(CABECERA) : res)
 }
 
 /** Plan de pagos: deuda, regla de pago, ahorro previsto, calendario y simulación */
-export function textoPlan(db: BaseDatos, plan: Plan, sim: Simulacion | null, simulado: Plan | null): string {
+export function textoPlan(db: BaseDatos, plan: Plan, sim: Simulacion | null, simulado: Plan | null, soloDatos = false): string {
   const c = plan.compromiso
   const MES = (n: number) => mesLargo(`2000-${String(n).padStart(2, '0')}-01`).replace(/ de 2000$/, '').toLowerCase()
   const lineas = [
@@ -155,7 +159,7 @@ export function textoPlan(db: BaseDatos, plan: Plan, sim: Simulacion | null, sim
     ].filter(Boolean)
     lineas.push('', `Simulación (${partes.join(' y ')}): primer pago ${eur(simulado.pagos[0]?.pago ?? 0)}, saldada en ${simulado.saldadaEn ?? 'más de 30 años'}, capital dentro de un año ${eur(simulado.serie[12]?.capital ?? 0)} frente a ${eur(plan.serie[12]?.capital ?? 0)}.`)
   }
-  return cierre(lineas)
+  return cierre(soloDatos ? lineas.slice(CABECERA) : lineas)
 }
 
 const mesTexto = (mes: string) => mesLargo(`${mes}-01`).toLowerCase()
@@ -173,7 +177,7 @@ function textoCompra(c: CompraVivienda): string {
  * ahorro real, gastos previstos, plan de la deuda, supuestos y, si se simula, la compra de una vivienda.
  * Importes exactos (decisión del usuario); sin nombres de bienes, cuentas ni comercios.
  */
-export function textoPatrimonio(db: BaseDatos, hoy: string, sim: Simulacion): string {
+export function textoPatrimonio(db: BaseDatos, hoy: string, sim: Simulacion, soloDatos = false): string {
   const p = calcularPatrimonio(db, hoy)
   const lineas = [
     INTRO,
@@ -297,5 +301,39 @@ export function textoPatrimonio(db: BaseDatos, hoy: string, sim: Simulacion): st
     for (const f of capacidad.filas)
       lineas.push(`- ${mesTexto(f.mes)}: ${eur(f.pagando.precio)} pagando la deuda ese año, ${eur(f.pausando.precio)} pausando ese pago (cuota máxima ${eur(f.cuotaMax)})`)
   }
+  return cierre(soloDatos ? lineas.slice(CABECERA) : lineas)
+}
+
+/**
+ * Todo para Claude (v0.43.0): la app entera en un texto, por apartados (el mes, el año, el presupuesto, los
+ * gastos fijos, el plan de pagos y la situación completa con la compra que se simule), para un análisis
+ * global. Va con el CSV de todos los movimientos. Sin nombres de bienes ni cuentas; sin comercios si así
+ * está en Ajustes.
+ */
+export function textoCompleto(db: BaseDatos, hoy: string, sim: Simulacion): string {
+  const mesDatos = fechaDeLosDatos(db, hoy).slice(0, 7)
+  const anterior = sumarMesesTexto(mesDatos, -1)
+  const apartado = (titulo: string, cuerpo: string) => (cuerpo.trim() ? ['', `## ${titulo}`, cuerpo.trim()] : [])
+  const lineas = [
+    INTRO,
+    'Te paso una visión completa de mis finanzas personales, por apartados. Revísala entera:',
+    instrucciones(db, 'completo'),
+  ]
+  lineas.push(...apartado(`Último mes cerrado: ${mesLargo(`${anterior}-01`).toLowerCase()}`, textoExtracto(db, anterior, hoy, true)))
+  lineas.push(...apartado(`Mes en curso: ${mesLargo(`${mesDatos}-01`).toLowerCase()}`, textoExtracto(db, mesDatos, hoy, true)))
+  lineas.push(...apartado(`El año ${mesDatos.slice(0, 4)} frente al anterior`, textoInforme(db, { escala: 'anio', clave: mesDatos.slice(0, 4) }, hoy, true)))
+  if (db.presupuestos.length) lineas.push(...apartado('Presupuesto', textoPresupuesto(db, mesDatos, hoy, true)))
+  lineas.push(...apartado('Gastos fijos y recurrentes', textoOptimizar(db, detectarRecurrentes(db), hoy, true)))
+  const plan = calcularPlan(db, hoy).plan
+  if (plan && plan.deudaPendiente > 0) {
+    const simulado = haySimulacion(db, sim) ? calcularPlan(db, hoy, sim).plan : null
+    lineas.push(...apartado('Plan de pagos de la deuda familiar', textoPlan(db, plan, sim, simulado, true)))
+  }
+  lineas.push(...apartado('Patrimonio, ingresos futuros e inversiones', textoPatrimonio(db, hoy, sim, true)))
   return cierre(lineas)
+}
+
+const sumarMesesTexto = (mes: string, n: number) => {
+  const total = Number(mes.slice(0, 4)) * 12 + Number(mes.slice(5, 7)) - 1 + n
+  return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}`
 }

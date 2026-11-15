@@ -64,6 +64,17 @@ export const PLANTILLAS: Record<ClavePlantilla, { titulo: string; donde: string;
       '4. Riesgos que ves (tipos de interés, ingresos variables, gastos imprevistos) y qué harías tú.',
     ].join('\n'),
   },
+  completo: {
+    titulo: 'Revisión completa',
+    donde: 'Enviar todo a Claude',
+    porDefecto: [
+      '1. Diagnóstico general: ingresos, gasto, ahorro, patrimonio y deudas, con lo que va bien y lo que no.',
+      '2. Dónde gasto de más y qué recortar, con el ahorro anual estimado de cada medida.',
+      '3. Si el plan de pagos de la deuda es realista y cómo adelantarlo sin quedarme sin colchón.',
+      '4. Qué margen tengo para invertir o comprar una vivienda, y si me conviene vender o alquilar la actual.',
+      '5. Un plan de acción de tres a cinco pasos, por orden de impacto.',
+    ].join('\n'),
+  },
 }
 
 export const CLAVES_PLANTILLA = Object.keys(PLANTILLAS) as ClavePlantilla[]

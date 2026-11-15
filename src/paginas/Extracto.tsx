@@ -16,13 +16,13 @@ import {
   Tag,
   Target,
   TriangleAlert,
-  Upload,
-} from 'lucide-react'
+  Upload, Send } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useDiscreto } from '../componentes/discreto'
 import { Encabezado } from '../componentes/Encabezado'
 import { HojaClaude } from '../componentes/HojaClaude'
+import { HojaTodo } from '../componentes/EnviarTodo'
 import { Baldosa } from '../componentes/Icono'
 import { Hoja, useInterfaz } from '../componentes/Interfaz'
 import { HojaAtipicos, resumenAtipicos } from '../componentes/Atipicos'
@@ -91,6 +91,7 @@ export function Extracto() {
   const [menu, setMenu] = useState(false)
   const [discreto, fijarDiscreto] = useDiscreto()
   const [claude, setClaude] = useState(false)
+  const [todo, setTodo] = useState(false)
   const irA = (m: string) => setParams({ mes: m }, { replace: true })
   // Meses de la tira: del primero con datos al último (el en curso o uno posterior imputado, como la nómina)
   const meses = useMemo(() => {
@@ -167,6 +168,7 @@ export function Extracto() {
             { texto: 'Resúmenes en PDF', icono: FileText, a: '/resumenes' },
             { texto: 'Evolución y cierre anual', icono: ChartColumn, a: '/analisis' },
             { texto: 'Analizar con Claude', icono: Sparkles, fn: () => setClaude(true) },
+            { texto: 'Enviar todo a Claude', icono: Send, fn: () => setTodo(true) },
             { texto: 'Exportar el mes a Excel', icono: Sheet, fn: exportar },
           ].map((o) => (
             <li key={o.texto}>
@@ -192,6 +194,7 @@ export function Extracto() {
         </ul>
       </Hoja>
       <HojaAtipicos mes={mes} lista={atipicos} abierta={verAtipicos} onCerrar={() => setVerAtipicos(false)} />
+      <HojaTodo abierta={todo} onCerrar={() => setTodo(false)} />
       <HojaClaude
         abierta={claude}
         titulo="Analizar con Claude"

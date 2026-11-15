@@ -222,7 +222,7 @@ export interface AjustesInversion {
 }
 
 /** Vistas con «Analizar con Claude» y su plantilla de instrucciones */
-export type ClavePlantilla = 'mes' | 'informe' | 'presupuesto' | 'recurrentes' | 'plan' | 'patrimonio'
+export type ClavePlantilla = 'mes' | 'informe' | 'presupuesto' | 'recurrentes' | 'plan' | 'patrimonio' | 'completo'
 
 export interface AjustesClaude {
   /** Solo las que el usuario ha cambiado; las demás usan la de la app */
