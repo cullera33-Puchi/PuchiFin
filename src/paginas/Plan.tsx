@@ -239,7 +239,7 @@ function ContenidoPlan({
                 {sim.compra ? `${formatearRedondo(sim.compra.precio)} en ${mesNombre(Number(sim.compra.mes.slice(5, 7)))} de ${sim.compra.mes.slice(0, 4)}` : 'Simular una compra'}
               </button>
               {sim.compra && (
-                <button className="boton-texto px-1" onClick={() => setSim({ ...sim, compra: null })}>
+                <button className="boton-texto px-1" onClick={() => setSim({ ...sim, compra: null, pausarPago: undefined, pareja: undefined })}>
                   Quitar
                 </button>
               )}

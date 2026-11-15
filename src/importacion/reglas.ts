@@ -207,7 +207,7 @@ const GENERICAS = new Set(['bizum', 'transferencia', 'transf', 'trf', 'traspaso'
 /** Lo aprendido de las correcciones a mano, en cualquier cuenta */
 export function categoriasAprendidas(db: BaseDatos): Aprendidas {
   const m = new Map<string, { categoria: string; fecha: string }>()
-  const signoDe = new Map<string, '-' | '+'>()
+  const signosDe = new Map<string, Set<'-' | '+'>>()
   const mesSiguiente = new Set<string>()
   for (const mov of db.movimientos) {
     const base = claveComercio(mov.concepto_limpio)
@@ -217,10 +217,9 @@ export function categoriasAprendidas(db: BaseDatos): Aprendidas {
     // En PayPal se aprende por importe: cada cargo puede ser de una cosa distinta
     const clave = claveConImporte(base, mov.importe)
     const prev = m.get(clave)
-    if (!prev || mov.fecha_operacion >= prev.fecha) {
-      m.set(clave, { categoria: mov.categoria_id, fecha: mov.fecha_operacion })
-      signoDe.set(clave, mov.importe < 0 ? '-' : '+')
-    }
+    if (!prev || mov.fecha_operacion >= prev.fecha) m.set(clave, { categoria: mov.categoria_id, fecha: mov.fecha_operacion })
+    // Los signos vistos en el comercio: una compra y su devolución enseñan a los dos
+    signosDe.set(clave, (signosDe.get(clave) ?? new Set()).add(mov.importe < 0 ? '-' : '+'))
   }
   const porClave = new Map([...m].map(([k, v]) => [k, v.categoria]))
   // Por la primera palabra y el signo: un gasto no enseña a un ingreso. Sin palabras genéricas (bizum,
@@ -229,7 +228,7 @@ export function categoriasAprendidas(db: BaseDatos): Aprendidas {
   for (const [k, c] of porClave) {
     if (esPasarela(k)) continue
     const p = primeraPalabra(k)
-    if (p && !GENERICAS.has(p)) palabras.set(`${p}|${signoDe.get(k) ?? ''}`, (palabras.get(`${p}|${signoDe.get(k) ?? ''}`) ?? new Set()).add(c))
+    if (p && !GENERICAS.has(p)) for (const s of signosDe.get(k) ?? []) palabras.set(`${p}|${s}`, (palabras.get(`${p}|${s}`) ?? new Set()).add(c))
   }
   const porPalabra = new Map([...palabras].filter(([, cs]) => cs.size === 1).map(([p, cs]) => [p, [...cs][0]]))
   return { porClave, porPalabra, mesSiguiente }

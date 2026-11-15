@@ -54,7 +54,8 @@ export function resumenAnual(db: BaseDatos, anio: string, hoy: string): ResumenA
     mejorMes: orden.length ? { mes: orden[0].mes, ahorro: orden[0].ahorro } : null,
     peorMes: orden.length > 1 ? { mes: orden.at(-1)!.mes, ahorro: orden.at(-1)!.ahorro } : null,
     // Media de los meses completos (sin el primero importado ni el que está en curso)
-    gastoMedioMes: orden.length ? redondear(orden.reduce((s, m) => s + m.gastos, 0) / orden.length) : 0,
+    // Sin ningún mes completo todavía, la media de los que hay
+    gastoMedioMes: orden.length ? redondear(orden.reduce((s, m) => s + m.gastos, 0) / orden.length) : delAnio.length ? redondear(inf.totales.gastos / delAnio.length) : 0,
     categorias: inf.porciones.slice(0, 6),
     comercios: rankingComercios(inf.movimientos, -1, 'importe', 5),
     fijo: fijoYVariable(movs, detectarRecurrentes(db)).fijo,

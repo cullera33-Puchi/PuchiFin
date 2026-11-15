@@ -488,7 +488,7 @@ test('vivienda actual: supuestos, vender o alquilar, cuánto puedo comprar y Cla
   await page.getByRole('radio', { name: 'Vivir' }).tap()
   await page.getByRole('radio', { name: 'Alquilarla' }).last().tap()
   await page.getByLabel('Alquiler al mes').fill('1200')
-  await page.getByLabel('Gastos al año').fill('1500')
+  await page.getByLabel('Sus gastos al año').fill('1500')
   await page.getByRole('switch', { name: 'Pausar el pago de la deuda' }).tap()
   await page.getByRole('button', { name: 'Simular', exact: true }).tap()
   await expect(page.getByText(/Alquilar tu vivienda deja [\d.]+\s€ al mes/)).toBeVisible()

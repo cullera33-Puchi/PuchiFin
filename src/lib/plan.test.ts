@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { datosIniciales, ErrorDatos, guardarBien, guardarCompromiso, guardarEvento, guardarInversion, guardarNomina, guardarPrestamo, guardarPresupuesto, guardarPrevision } from '../datos/operaciones'
 import { alquilerAnual, calcularVenta, INVERSION_POR_DEFECTO } from './vivienda'
-import { calcularPlan, capacidadCompra, cifrasCompra, compararDestinos, comprobarPrevision, efectoMesCerrado, evolucionAnual, hayCrecimiento, haySimulacion, importeNomina, preverIngresos, SIN_SIMULACION } from './plan'
+import { aMiles, calcularPlan, capacidadCompra, cifrasCompra, compararDestinos, comprobarPrevision, efectoMesCerrado, evolucionAnual, hayCrecimiento, haySimulacion, importeNomina, preverIngresos, SIN_SIMULACION } from './plan'
 import type { BaseDatos, Movimiento, NominaBruta } from './tipos'
 
 const db0 = datosIniciales()
@@ -418,8 +418,8 @@ describe('vender o alquilar la vivienda actual y cuánto puedo comprar (v0.42.0)
     const alquilar = calcularPlan(db, HOY, { ...SIN_SIMULACION, compra: { ...compra, actual: { destino: 'alquilar', ...actual } } }).plan!
     const venta = vender.compra!.venta!
     expect(saldo(vender, '2027-03') - saldo(mantener, '2027-03')).toBeCloseTo(venta.neto, 0)
-    // Sin la hipoteca actual, 1.000 más de ahorro al mes
-    expect(saldo(vender, '2027-05') - saldo(vender, '2027-04') - (saldo(mantener, '2027-05') - saldo(mantener, '2027-04'))).toBeCloseTo(1000, 0)
+    // Sin la hipoteca actual (1.000) ni los gastos de esa vivienda (1.200 al año), 1.100 más de ahorro al mes
+    expect(saldo(vender, '2027-05') - saldo(vender, '2027-04') - (saldo(mantener, '2027-05') - saldo(mantener, '2027-04'))).toBeCloseTo(1100, 0)
     expect(vender.compra!.falta).toBe(0)
     expect(vender.compra!.cuotas).toBe(vender.compra!.cuota)
     // Alquilando: cada mes, el alquiler menos su IRPF (los gastos del piso ya están en el gasto habitual), y las dos cuotas
@@ -526,12 +526,43 @@ describe('revisión de cálculos del plan (v0.43.0)', () => {
     const sim = { ...SIN_SIMULACION, compra: { ...compra, mes: '2027-09', entrada_pct: 20, gastos_pct: 10 } }
     const c = capacidadCompra(db, HOY, sim, { pareja: false, destino: 'vender' })!
     for (const f of c.filas) if (f.pagando.limite === 'entrada') expect(f.pagando.precio).toBe(Math.floor(Math.round((f.pagando.efectivo / 0.3) * 100) / 100 / 1000) * 1000)
-    expect(Math.floor((7500 / (0.2 + 0.1) + 0.005) / 1000) * 1000).toBe(25000)
+    expect(aMiles(7500 / (0.2 + 0.1))).toBe(25000)
+    expect(aMiles(24999.4)).toBe(24000)
   })
 
   it('vender o alquilar, sin datos de la vivienda actual, vende al precio previsto de la habitual', () => {
     const db = guardarBien(crear(20000), { alias: 'Casa', tipo: 'inmueble', habitual: true, valor: 300000, fecha: '2026-11-01' })
     const [vender] = compararDestinos(db, HOY, { ...SIN_SIMULACION, compra })!
     expect(vender.ahorros).toBeLessThan(cifrasCompra(compra).desembolso - 250000)
+  })
+})
+
+describe('segunda revisión del plan (v0.43.0)', () => {
+  const compra = { precio: 100000, mes: '2028-03', entrada_pct: 20, gastos_pct: 10, interes: 0, anios: 25, gastos_mes: 0, alquiler_mes: 0, uso: 'vivir' as const }
+  // Con el pago en agosto (el de «crear» es julio)
+  const enAgosto = (db: BaseDatos) => guardarCompromiso(db, db.compromisos[0].id, { ...db.compromisos[0], mes_referencia: 8 })
+
+  it('pausar el pago antes de una compra de enero a julio deja sin hacer el del agosto anterior', () => {
+    const db = enAgosto(crear(20000))
+    const pagando = calcularPlan(db, HOY, { ...SIN_SIMULACION, compra }).plan!
+    const pausando = calcularPlan(db, HOY, { ...SIN_SIMULACION, compra, pausarPago: true }).plan!
+    expect(pagando.pagos.some((x) => x.anio === 2027)).toBe(true)
+    expect(pausando.pagos.some((x) => x.anio === 2027)).toBe(false)
+    expect(pausando.compra!.saldoAntes).toBeCloseTo(pagando.compra!.saldoAntes + pagando.pagos.find((x) => x.anio === 2027)!.pago, 0)
+  })
+
+  it('una compra en el mes del pago: sin pausa, primero se paga la deuda; el precio máximo dice lo mismo', () => {
+    const db = enAgosto(crear(20000))
+    const agosto = { ...compra, mes: '2027-08' }
+    const pagando = calcularPlan(db, HOY, { ...SIN_SIMULACION, compra: agosto }).plan!
+    const base = calcularPlan(db, HOY).plan!
+    expect(pagando.pagos[0].pago).toBe(base.pagos[0].pago)
+    // Tras el pago queda el colchón: eso es lo que hay para la compra
+    expect(pagando.compra!.saldoAntes).toBe(3000)
+    const pausando = calcularPlan(db, HOY, { ...SIN_SIMULACION, compra: agosto, pausarPago: true }).plan!
+    expect(pausando.compra!.saldoAntes).toBe(3000 + base.pagos[0].pago)
+    const f = capacidadCompra(db, HOY, { ...SIN_SIMULACION, compra: agosto }, { pareja: false, destino: 'mantener' })!.filas[0]
+    expect(f.pagando.efectivo).toBe(0)
+    expect(f.pausando.efectivo).toBe(base.pagos[0].pago)
   })
 })

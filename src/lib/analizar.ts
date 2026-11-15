@@ -156,6 +156,8 @@ export function textoPlan(db: BaseDatos, plan: Plan, sim: Simulacion | null, sim
       sim.ahorroExtra ? `ahorrar ${eur(sim.ahorroExtra)} más al mes` : '',
       sim.recorte ? `recortar ${nombreCategoria(db, sim.recorte.categoria_id)} un ${sim.recorte.porcentaje} %` : '',
       sim.compra ? textoCompra(sim.compra) : '',
+      sim.pareja ? 'contar la nómina de mi pareja' : '',
+      sim.pausarPago ? 'no pagar la deuda antes de la compra' : '',
     ].filter(Boolean)
     lineas.push('', `Simulación (${partes.join(' y ')}): primer pago ${eur(simulado.pagos[0]?.pago ?? 0)}, saldada en ${simulado.saldadaEn ?? 'más de 30 años'}, capital dentro de un año ${eur(simulado.serie[12]?.capital ?? 0)} frente a ${eur(plan.serie[12]?.capital ?? 0)}.`)
   }
@@ -206,7 +208,7 @@ export function textoPatrimonio(db: BaseDatos, hoy: string, sim: Simulacion, sol
   // Ingresos y ahorro por años, con el mismo modelo que el plan
   const anios = evolucionAnual(db, hoy, sim)
   if (anios && (db.ajustes.nominas ?? []).some((n) => n.incluida)) {
-    lineas.push('', 'Ingresos y ahorro previstos por años naturales:')
+    lineas.push('', `Ingresos y ahorro previstos por años naturales${haySimulacion(db, sim) ? ', ya con lo que estoy simulando' : ''}:`)
     for (const a of anios)
       lineas.push(
         `- ${a.anio}: ${a.bruto !== null ? `${eur(a.bruto)} brutos${a.bonusBruto ? ` (bonus ${eur(a.bonusBruto)})` : ''}, IRPF ${String(a.retencion).replace('.', ',')} %, ` : ''}${eur(a.neto)} netos de nómina${a.gastos !== null ? `; otros ingresos ${eur(a.otros ?? 0)}, gastos ${eur(a.gastos)}, ahorro ${eur(a.ahorro ?? 0)}` : ''}`,
@@ -219,7 +221,7 @@ export function textoPatrimonio(db: BaseDatos, hoy: string, sim: Simulacion, sol
       `Lo real, media al mes de los últimos ${c.meses} ${c.meses === 1 ? 'mes cerrado' : 'meses cerrados'}: nóminas ${eur(c.real.nominas)}, otros ingresos ${eur(c.real.otros)}, gastos ${eur(c.real.gastos)}, ahorro ${eur(c.real.ahorro)}.`,
     )
     if (c.banco) lineas.push(`Según el banco, mi capital ha variado ${eur(c.banco.capital)} al mes de media en ${c.banco.meses} meses, sin contar los pagos de la deuda.`)
-    lineas.push(`Previsto para los próximos 12 meses, media al mes: ingresos ${eur(c.previsto.nominas + c.previsto.otros)}, gastos ${eur(c.previsto.gastos)}, ahorro ${eur(c.previsto.ahorro)}.`)
+    lineas.push(`Previsto para los próximos 12 meses${haySimulacion(db, sim) ? ', con lo que estoy simulando' : ''}, media al mes: ingresos ${eur(c.previsto.nominas + c.previsto.otros)}, gastos ${eur(c.previsto.gastos)}, ahorro ${eur(c.previsto.ahorro)}.`)
   }
 
   // Gasto medio por categoría de los últimos meses cerrados (hasta 12, sin el primero importado)
@@ -282,8 +284,10 @@ export function textoPatrimonio(db: BaseDatos, hoy: string, sim: Simulacion, sol
       if (r.esfuerzo !== null)
         lineas.push(`Las cuotas de hipoteca que pagaría (${eur(r.cuotas)} al mes) serían el ${pct(r.esfuerzo)} de lo que cuenta el banco: mis nóminas netas y el ${inversionDe(db).alquiler_banco} % del alquiler, si lo hay.`)
     }
-    if (plan && conCompra && plan.deudaPendiente > 0)
-      lineas.push(`Con la compra, la deuda familiar quedaría saldada en ${conCompra.saldadaEn ?? 'más de 30 años'}, frente a ${plan.saldadaEn ?? 'más de 30 años'} sin ella.`)
+    // «Sin ella»: la misma simulación (la nómina de mi pareja, si la cuento), solo sin la compra
+    const sinCompra = calcularPlan(db, hoy, { ...sim, compra: null, pausarPago: undefined }).plan
+    if (sinCompra && conCompra && sinCompra.deudaPendiente > 0)
+      lineas.push(`Con la compra, la deuda familiar quedaría saldada en ${conCompra.saldadaEn ?? 'más de 30 años'}, frente a ${sinCompra.saldadaEn ?? 'más de 30 años'} sin ella.`)
     const comparacion = compararDestinos(db, hoy, sim)
     if (comparacion) {
       lineas.push('', 'Vender o alquilar mi vivienda actual con esta compra:')

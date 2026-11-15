@@ -4,7 +4,7 @@ import { guardarInversion } from '../datos/operaciones'
 import { hoyIso, mesLargo } from '../lib/fechas'
 import { formatearRedondo, leerImporteUsuario } from '../lib/formato'
 import { capacidadCompra, compararDestinos, type PrecioMaximo, type Simulacion } from '../lib/plan'
-import { inversionDe, type ViviendaActual } from '../lib/vivienda'
+import { inversionDe, viviendaHabitual, type ViviendaActual } from '../lib/vivienda'
 import type { AjustesInversion } from '../lib/tipos'
 import { useHacer } from './acciones'
 import { Hoja, Interruptor, Segmentado } from './Interfaz'
@@ -94,6 +94,11 @@ export function VenderOAlquilar({ sim }: { sim: Simulacion }) {
   const hoy = hoyIso()
   const r = useMemo(() => compararDestinos(db, hoy, sim), [db, hoy, sim])
   if (!r) return null
+  // Sin el alquiler o sin un precio de venta, la comparación saldría con ceros: se pide el dato
+  const a = sim.compra?.actual
+  const falta = [!a?.alquiler_mes ? 'el alquiler que cobrarías' : '', !a?.precio_venta && !viviendaHabitual(db) ? 'el precio de venta' : ''].filter(Boolean)
+  if (falta.length)
+    return <p className="text-[13px] text-zinc-500">Para comparar las dos opciones, escribe {falta.join(' y ')} de tu vivienda actual en la compra («Cambiar»).</p>
   const [vender, alquilar] = r
   const filas: [string, (x: typeof vender) => string, ((x: typeof vender) => number) | null][] = [
     ['Ahorros que necesitas', (x) => (x.ahorros < 0 ? `Te sobran ${formatearRedondo(-x.ahorros)}` : formatearRedondo(x.ahorros)), (x) => -x.ahorros],

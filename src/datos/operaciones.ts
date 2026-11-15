@@ -5,7 +5,7 @@
  * Si una operación no es válida, lanza ErrorDatos con un mensaje para el usuario.
  */
 import { reglasPredeterminadas } from '../importacion/reglas'
-import { NOMBRE_TIPO, detectarIdentificativos, validarAlias } from '../lib/identificativos'
+import { conArticulo, detectarIdentificativos, validarAlias } from '../lib/identificativos'
 import { MAX_PLANTILLA, PLANTILLAS } from '../lib/plantillas'
 import {
   VERSION_ESQUEMA,
@@ -35,7 +35,7 @@ const ahora = () => new Date().toISOString()
 /** Lanza un error si el texto contiene IBAN, cuenta, tarjeta, DNI o NIE */
 export function exigirSinIdentificativos(campo: string, valor: string | null | undefined): void {
   const h = detectarIdentificativos(valor)
-  if (h.length) throw new ErrorDatos(`${campo}: contiene un ${NOMBRE_TIPO[h[0].tipo]} (${h[0].muestra}). No se guarda`)
+  if (h.length) throw new ErrorDatos(`${campo}: contiene ${conArticulo(h[0].tipo)} (${h[0].muestra}). No se guarda`)
 }
 
 // ---------------------------------------------------------------------------
@@ -797,7 +797,7 @@ export function comprobarBaseDatos(db: BaseDatos): string[] {
   const problemas: string[] = []
   const texto = (lugar: string, valor: string | null | undefined) => {
     const h = detectarIdentificativos(valor)
-    if (h.length) problemas.push(`${lugar}: contiene un ${NOMBRE_TIPO[h[0].tipo]} (${h[0].muestra})`)
+    if (h.length) problemas.push(`${lugar}: contiene ${conArticulo(h[0].tipo)} (${h[0].muestra})`)
   }
 
   db.cuentas.forEach((c) => {

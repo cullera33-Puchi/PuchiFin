@@ -94,7 +94,8 @@ export function HojaCompra({ abierta, onCerrar }: { abierta: boolean; onCerrar: 
     if (gastosMes === null || alquiler === null) return 'Revisa los gastos y el alquiler'
     if (!meses.includes(f.mes)) return 'Elige el mes de la compra'
     let vivienda: ViviendaActual | null = null
-    if (f.uso === 'vivir' && actual.destino !== 'mantener') {
+    // Los cuatro datos se guardan siempre: los de la opción no elegida sirven para comparar vender con alquilar
+    if (f.uso === 'vivir') {
       const venta = actual.venta.trim() ? leerImporteUsuario(actual.venta) : precioPrevisto(db, f.mes)
       const renta = actual.alquiler.trim() ? leerImporteUsuario(actual.alquiler) : 0
       const vacia = leerPorcentaje(actual.vacia) ?? 0
@@ -171,24 +172,20 @@ export function HojaCompra({ abierta, onCerrar }: { abierta: boolean; onCerrar: 
                 onCambio={(v) => setActual({ ...actual, destino: v })}
               />
             </div>
-            {actual.destino === 'vender' && (
-              <div className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
-                {fila('Precio de venta', actual.venta, (v) => setActual({ ...actual, venta: v }), viviendaHabitual(db) ? formatearRedondo(precioPrevisto(db, f.mes || meses[0])) : '0 €')}
-              </div>
-            )}
-            {actual.destino === 'alquilar' && (
-              <div className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
-                {fila('Alquiler al mes', actual.alquiler, (v) => setActual({ ...actual, alquiler: v }), '0 €')}
-                {fila('Meses vacía al año', actual.vacia, (v) => setActual({ ...actual, vacia: v }), '1')}
-                {fila('Gastos al año', actual.gastos, (v) => setActual({ ...actual, gastos: v }), '0 €')}
-              </div>
-            )}
+            <div className="lista divide-y divide-zinc-200/70 dark:divide-zinc-800">
+              {fila('Precio de venta', actual.venta, (v) => setActual({ ...actual, venta: v }), viviendaHabitual(db) ? formatearRedondo(precioPrevisto(db, f.mes || meses[0])) : '0 €')}
+              {fila('Alquiler al mes', actual.alquiler, (v) => setActual({ ...actual, alquiler: v }), '0 €')}
+              {fila('Meses vacía al año', actual.vacia, (v) => setActual({ ...actual, vacia: v }), '1')}
+              {fila('Sus gastos al año', actual.gastos, (v) => setActual({ ...actual, gastos: v }), '0 €')}
+            </div>
             <p className="mt-1 px-4 text-[12px] text-zinc-500">
               {actual.destino === 'vender'
-                ? `Se vende el mismo mes. Se descuentan la hipoteca que queda, un ${texto(inversionDe(db).gastos_venta)} % de gastos de venta y el IRPF de la ganancia, que no tributa si lo reinviertes en la nueva. El precio por defecto es el valor de tu vivienda habitual en Patrimonio, con la revalorización.`
+                ? `Se vende el mismo mes. Se descuentan la hipoteca que queda, un ${texto(inversionDe(db).gastos_venta)} % de gastos de venta y el IRPF de la ganancia, que no tributa si lo reinviertes en la nueva. Dejas de pagar su hipoteca y sus gastos.`
                 : actual.destino === 'alquilar'
-                  ? 'Gastos al año: IBI, comunidad, seguro y reparaciones. El IRPF del alquiler se calcula para cada titular con los supuestos de Patrimonio (tu parte, la reducción y el bruto de tu pareja) y se aparta cada mes.'
-                  : 'Sigues con ella y con su hipoteca.'}
+                  ? 'El IRPF del alquiler se calcula para cada titular con los supuestos de Patrimonio (tu parte, la reducción y el bruto de tu pareja) y se aparta cada mes. Sigues pagando su hipoteca.'
+                  : 'Sigues con ella y con su hipoteca.'}{' '}
+              Sus gastos: IBI, comunidad, seguro y reparaciones. Rellena el precio de venta y el alquiler para comparar las dos opciones en Patrimonio; sin precio, se usa el valor
+              de tu vivienda habitual.
             </p>
           </section>
         )}

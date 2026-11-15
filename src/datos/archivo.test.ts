@@ -29,10 +29,15 @@ describe('exportar e importar', () => {
     expect(() => validarArchivo({ app: 'puchifin', datos: { esquema: 99 } })).toThrow(/más reciente/)
   })
 
-  it('no importa un archivo con datos identificativos y dice dónde están', () => {
+  it('un dato identificativo en el texto de un movimiento se enmascara al leer el archivo; en el resto, no se importa y dice dónde está', () => {
     const db = datosCompletos()
     db.movimientos[0].concepto_original = 'TRANSFERENCIA ES91 2100 0418 4502 0005 1332'
-    expect(() => leerArchivo(serializar(db))).toThrow(/IBAN/)
+    // Nunca se guarda: queda con asteriscos y la copia se puede restaurar (v0.43.0)
+    const leido = leerArchivo(serializar(db)).datos.movimientos[0].concepto_original
+    expect(leido).toMatch(/^TRANSFERENCIA \*+1332$/)
+    const otra = datosCompletos()
+    otra.cuentas[0].alias = 'ES91 2100 0418 4502 0005 1332'
+    expect(() => leerArchivo(serializar(otra))).toThrow(/IBAN/)
   })
 
   it('completa las listas que falten', () => {

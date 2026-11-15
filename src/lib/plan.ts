@@ -92,6 +92,12 @@ function ventaDe(db: BaseDatos, c: CompraVivienda): number {
   return a?.destino === 'vender' ? calcularVenta(db, a.precio_venta, c.mes, c.precio).neto : 0
 }
 
+/** Año del último pago de la deuda en o antes de un mes: el de ese año o, si aún no ha llegado el mes de pago, el anterior */
+function anioDelPagoAnterior(mes: string, mesReferencia: number): number {
+  const anio = Number(mes.slice(0, 4))
+  return numMes(mes) >= mesReferencia ? anio : anio - 1
+}
+
 /** Meses que la vivienda actual está alquilada en un año: desde el siguiente al de la compra */
 const mesesAlquiladaEn = (mesCompra: string, anio: number) => (anio < Number(mesCompra.slice(0, 4)) ? 0 : anio === Number(mesCompra.slice(0, 4)) ? 12 - numMes(mesCompra) : 12)
 
@@ -118,6 +124,8 @@ function compraEnMes(db: BaseDatos, sim: Simulacion, mes: string, ajuste: Ajuste
   if (a?.destino === 'vender') {
     const p = hipotecaActual(db)
     if (p && mes <= finPrestamo(p)) gasto -= cuotaPrestamo(p)
+    // Al venderla dejan de pagarse también sus gastos (IBI, comunidad, seguro), que están en el gasto habitual
+    gasto -= a.gastos_anio / 12
   }
   if (a?.destino === 'alquilar') ingreso += alquilerNetoMes(db, a, c.mes, mes, ajuste)
   return { gasto, ingreso }
@@ -552,8 +560,9 @@ export function calcularPlan(datosOriginales: BaseDatos, hoy: string, simulacion
     if (mes === mesDatos) return n >= compromiso.mes_referencia && n <= compromiso.ventana_mes_fin && !pagadoEnVentana(Number(mes.slice(0, 4)))
     // El verano de este año, si ya se pagó dentro de la ventana, no lleva otro pago previsto
     if (mes.slice(0, 4) === mesDatos.slice(0, 4) && pagadoEnVentana(Number(mes.slice(0, 4)))) return false
-    // El año de la compra, si se pausa el pago para tener la entrada
-    if (sim.compra && sim.pausarPago && mes.slice(0, 4) === sim.compra.mes.slice(0, 4)) return false
+    // Si se pausa el pago para tener la entrada: no se hace el último antes de la compra (el de ese año o, si
+    // se compra antes del mes de pago, el del año anterior)
+    if (sim.compra && sim.pausarPago && mes.slice(0, 4) === String(anioDelPagoAnterior(sim.compra.mes, compromiso.mes_referencia))) return false
     return n === compromiso.mes_referencia
   }
 
@@ -573,7 +582,15 @@ export function calcularPlan(datosOriginales: BaseDatos, hoy: string, simulacion
     const parte = i === 0 ? (diasDelMes(mes) - Number(datos.slice(8, 10))) / diasDelMes(mes) : 1
     const ahorro = mod.ahorro(mes) * Math.max(0, parte) + (puntuales.get(mes) ?? 0)
     saldo += ahorro
-    // La compra de la simulación: entrada y gastos salen de la cuenta de ahorro ese mes, antes del pago
+    // Primero el pago de la deuda, si toca y no se pausa; después, la compra
+    const antes = saldo
+    if (deuda > 0 && esMesDePago(mes)) {
+      const pago = redondear(Math.min(deuda, Math.max(0, saldo - colchon)))
+      deuda = redondear(deuda - pago)
+      saldo -= pago
+      pagos.push({ anio: Number(mes.slice(0, 4)), mes, saldo: redondear(saldo + pago), pago, deudaTras: deuda })
+    }
+    // La compra de la simulación: entrada y gastos salen de la cuenta de ahorro ese mes
     if (sim.compra && mes === sim.compra.mes) {
       const c = cifrasCompra(sim.compra)
       const a = actualDe(sim.compra)
@@ -603,13 +620,6 @@ export function calcularPlan(datosOriginales: BaseDatos, hoy: string, simulacion
         esfuerzo: ingresosBanco > 0 ? cuotas / ingresosBanco : null,
         esfuerzoMax: inv.esfuerzo_max / 100,
       }
-    }
-    const antes = saldo
-    if (deuda > 0 && esMesDePago(mes)) {
-      const pago = redondear(Math.min(deuda, Math.max(0, saldo - colchon)))
-      deuda = redondear(deuda - pago)
-      saldo -= pago
-      pagos.push({ anio: Number(mes.slice(0, 4)), mes, saldo: redondear(saldo + pago), pago, deudaTras: deuda })
     }
     if (i <= 24) serie.push({ mes, saldo: redondear(saldo), capital: redondear(capitalHoy + saldo - cuadre.saldoBanco) })
     trayectoria.push({ mes, antes: redondear(antes), saldo: redondear(saldo), deuda })
@@ -893,6 +903,9 @@ export const efectoMesCerrado = porVersionYClave(calcularEfecto)
 // ¿Cuánto puedo comprar? y vender o alquilar la vivienda actual (v0.42.0)
 // ---------------------------------------------------------------------------
 
+/** Baja a miles, sin perder uno por los decimales cuando la cuenta da una cifra exacta (7.500 / 0,3) */
+export const aMiles = (n: number) => Math.floor((n + 0.005) / 1000) * 1000
+
 /** Lo que se puede pedir prestado con una cuota, un tipo fijo y un plazo */
 function prestamoCon(cuota: number, interes: number, meses: number): number {
   if (!(cuota > 0) || !(meses > 0)) return 0
@@ -972,10 +985,10 @@ export function capacidadCompra(datos: BaseDatos, hoy: string, sim: Simulacion, 
       const porEntrada = e + g > 0 ? disponible / (e + g) : Infinity
       // Con la entrada fija de la compra, el préstamo es el precio menos la entrada: igual que al simularla
       const porCuota = e < 1 ? prestamoCon(cuotaCon(esfuerzo), p.interes, Math.round(p.anios * 12)) / (1 - e) : Infinity
-      return { efectivo: redondear(efectivo), precio: Math.floor((Math.min(porEntrada, porCuota) + 0.005) / 1000) * 1000, limite: porEntrada <= porCuota ? 'entrada' : 'cuota' }
+      return { efectivo: redondear(efectivo), precio: aMiles(Math.min(porEntrada, porCuota)), limite: porEntrada <= porCuota ? 'entrada' : 'cuota' }
     }
     // Pausar: el pago de ese año, si ya se habría hecho, se queda en la cuenta
-    const pagoDelAnio = plan.pagos.find((x) => x.anio === anio && x.mes <= mes)?.pago ?? 0
+    const pagoDelAnio = plan.pagos.find((x) => x.anio === anioDelPagoAnterior(mes, plan.compromiso.mes_referencia))?.pago ?? 0
     const colchon = sim.colchon ?? plan.compromiso.colchon
     const pagando = t.saldo - colchon + venta
     const pausando = pagando + pagoDelAnio

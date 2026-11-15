@@ -189,7 +189,7 @@ export function extraer(filas: unknown[][], hoja = 'Hoja 1', plantillas = PLANTI
     if (!concepto && (brutoImporte === undefined || brutoImporte === '')) continue // fila vacía
     const fecha = leerFecha(brutoFecha)
     // Filas de totales y saldos: sin fecha. Un comercio que empieza por «Total» o «Suma» (TotalEnergies) sí es un movimiento
-    if (!fecha && (/^(total|saldo|suma)\b/i.test(normalizarCabecera(concepto)) || /^(total|saldo)/i.test(normalizarCabecera(brutoFecha)))) continue
+    if (!fecha && (/^(total(es)?|saldos?|sumas?)\b/i.test(normalizarCabecera(concepto)) || /^(total|saldo)/i.test(normalizarCabecera(brutoFecha)))) continue
     const importe = leerImporte(brutoImporte)
     if (!fecha || importe === null) {
       ilegibles.push(i + 1)

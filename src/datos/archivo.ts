@@ -4,6 +4,7 @@
  * movimientos, conciliaciones y ajustes. Es también el formato de las copias de seguridad.
  */
 import { APP_VERSION } from '../lib/version'
+import { contieneIdentificativo, enmascararIdentificativos } from '../lib/identificativos'
 import { VERSION_ESQUEMA, type BaseDatos } from '../lib/tipos'
 import { reglasPredeterminadas } from '../importacion/reglas'
 import { AJUSTES_POR_DEFECTO, ErrorDatos, actualizarCatalogo, categoriaHipoteca, comprobarBaseDatos } from './operaciones'
@@ -53,6 +54,15 @@ export function validarArchivo(json: unknown): ArchivoPuchiFin {
     if (d[l] !== undefined && !Array.isArray(d[l])) throw new ErrorDatos(`Archivo dañado: ${l} no es una lista`)
   }
   const datos = migrar(d)
+  // Un texto de movimiento que hoy se reconocería como dato identificativo (la app detecta más que antes) se
+  // enmascara al leerlo: una copia de seguridad no puede quedar sin poder restaurarse por eso
+  const limpiar = <T extends string | null | undefined>(t: T): T => (t && contieneIdentificativo(t) ? (enmascararIdentificativos(t) as T) : t)
+  datos.movimientos = datos.movimientos.map((m) => {
+    const limpio = { concepto_original: limpiar(m.concepto_original), concepto_limpio: limpiar(m.concepto_limpio), concepto_normalizado: limpiar(m.concepto_normalizado), nota: limpiar(m.nota), poblacion: limpiar(m.poblacion) }
+    return limpio.concepto_original === m.concepto_original && limpio.concepto_limpio === m.concepto_limpio && limpio.concepto_normalizado === m.concepto_normalizado && limpio.nota === m.nota && limpio.poblacion === m.poblacion
+      ? m
+      : { ...m, ...limpio }
+  })
   const problemas = comprobarBaseDatos(datos)
   if (problemas.length) {
     throw new ErrorDatos(`El archivo no se puede importar: ${problemas.slice(0, 3).join('; ')}${problemas.length > 3 ? ` y ${problemas.length - 3} más` : ''}`)

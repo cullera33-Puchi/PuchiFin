@@ -127,6 +127,9 @@ export const NOMBRE_TIPO: Record<TipoIdentificativo, string> = {
   catastro: 'referencia catastral',
 }
 
+/** «un IBAN», «una referencia catastral» */
+export const conArticulo = (t: TipoIdentificativo) => `${t === 'catastro' ? 'una' : 'un'} ${NOMBRE_TIPO[t]}`
+
 /**
  * Valida el alias de una cuenta. Devuelve el motivo del rechazo o null si es válido.
  * Un alias no puede llevar datos identificativos ni series de 6 o más dígitos.
@@ -137,7 +140,7 @@ export function validarAlias(alias: string): string | null {
   if (a.length > 40) return 'El alias admite un máximo de 40 caracteres'
   const hallazgos = detectarIdentificativos(a)
   if (hallazgos.length > 0) {
-    return `El alias contiene un ${NOMBRE_TIPO[hallazgos[0].tipo]}. Usa un nombre, sin números de cuenta ni de tarjeta`
+    return `El alias contiene ${conArticulo(hallazgos[0].tipo)}. Usa un nombre, sin números de cuenta ni de tarjeta`
   }
   if (/[0-9]{6,}/.test(a)) {
     return 'El alias no puede contener series largas de dígitos. Usa un nombre, como "Cuenta principal"'

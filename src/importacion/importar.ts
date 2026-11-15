@@ -8,7 +8,7 @@ import { claveComercio, normalizarConcepto } from '../lib/conceptos'
 import { formatearFecha, formatearImporte } from '../lib/formato'
 import { sumarDias } from '../lib/fechas'
 import { finDeMes, mesSiguiente } from '../lib/imputacion'
-import { detectarIdentificativos, NOMBRE_TIPO } from '../lib/identificativos'
+import { conArticulo, detectarIdentificativos, enmascararIdentificativos } from '../lib/identificativos'
 import type { BaseDatos, Cuenta, Importacion, Movimiento, TipoMovimiento } from '../lib/tipos'
 import { anonimizarConcepto, aplicarAlias, conservarDesde, enmascararNumeros } from './anonimizar'
 import { cuadrarLiquidaciones } from '../lib/tarjeta'
@@ -81,7 +81,8 @@ export function conceptosDeFila(f: FilaBruta, alias: BaseDatos['ajustes']['alias
   const original = anonimizarConcepto(completo, alias)
   const base = f.generico && f.detalle ? f.detalle : [f.concepto, f.detalle].filter(Boolean).join(' ')
   const limpio = conceptoLimpio(anonimizarConcepto([base, tercero].filter(Boolean).join(' '), alias), nombresAlias) || original
-  return { original, limpio, normalizado: normalizarConcepto(limpio) }
+  // Al normalizar se quitan separadores y puede formarse una serie que parezca un dato identificativo: se enmascara
+  return { original, limpio, normalizado: enmascararIdentificativos(normalizarConcepto(limpio)) }
 }
 
 const ES_TRASPASO = /\b(traspaso|transferencia|transf|trf|bizum)\b/
@@ -260,7 +261,8 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
       if ((m.tipo !== 'normal' && m.tipo !== 'traspaso_interno') || !ES_TRASPASO.test(m.concepto_normalizado)) continue
       // Un traspaso de BBVA admite 3 días; una transferencia, 1 (una a un tercero puede coincidir en importe). Bizum entre cuentas propias no hay
       if (/\bbizum\b/.test(m.concepto_normalizado) && !/\btraspaso\b/.test(m.concepto_normalizado)) continue
-      const margen = /\btraspaso\b/.test(m.concepto_normalizado) ? 3 : 1
+      // 3 días si cualquiera de los dos es un «traspaso»; entre dos transferencias, 1
+      const margenCon = (x: Movimiento) => (/\btraspaso\b/.test(m.concepto_normalizado) || /\btraspaso\b/.test(x.concepto_normalizado) ? 3 : 1)
       const par = db.movimientos
         .filter(
           (x) =>
@@ -273,8 +275,8 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
             ((x.tipo === 'normal' && x.origen_categoria !== 'manual') || (x.tipo === 'traspaso_interno' && !conPareja(x))) &&
             ES_TRASPASO.test(x.concepto_normalizado) &&
             !/^bizum\b/.test(x.concepto_normalizado) &&
-            x.fecha_operacion >= sumarDias(m.fecha_operacion, -margen) &&
-            x.fecha_operacion <= sumarDias(m.fecha_operacion, margen),
+            x.fecha_operacion >= sumarDias(m.fecha_operacion, -margenCon(x)) &&
+            x.fecha_operacion <= sumarDias(m.fecha_operacion, margenCon(x)),
         )
         .sort((a, b) => distancia(a.fecha_operacion, m.fecha_operacion) - distancia(b.fecha_operacion, m.fecha_operacion))[0]
       if (par) {
@@ -319,7 +321,7 @@ export function proponer(db: BaseDatos, lectura: Lectura, cuenta_id: string): Pr
     for (const t of [m.concepto_original, m.concepto_limpio, m.poblacion]) {
       const h = detectarIdentificativos(t)
       if (h.length) {
-        problemas.push({ fila: m.fila, texto: `Fila ${m.fila}: contiene un ${NOMBRE_TIPO[h[0].tipo]} (${h[0].muestra})` })
+        problemas.push({ fila: m.fila, texto: `Fila ${m.fila}: contiene ${conArticulo(h[0].tipo)} (${h[0].muestra})` })
         break
       }
     }

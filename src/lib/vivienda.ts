@@ -47,8 +47,6 @@ export const hipotecaActual = (db: BaseDatos): Prestamo | null => db.cuentas.fin
 
 export const viviendaHabitual = (db: BaseDatos): Bien | undefined => (db.ajustes.bienes ?? []).find((b) => b.tipo === 'inmueble' && b.habitual)
 
-const fechaDe = (mes: string) => `${mes}-01`
-
 /** Valor previsto de la vivienda habitual en un mes, con la revalorización anual desde su última valoración */
 export function precioPrevisto(db: BaseDatos, mes: string): number {
   const b = viviendaHabitual(db)
@@ -77,7 +75,8 @@ export function calcularVenta(db: BaseDatos, precio: number, mes: string, reinve
   const inv = inversionDe(db)
   const gastos = r2((precio * inv.gastos_venta) / 100)
   const p = hipotecaActual(db)
-  const hipoteca = p ? pendientePrestamo(p, fechaDe(mes)) : 0
+  // A final de mes, como el patrimonio previsto
+  const hipoteca = p ? pendientePrestamo(p, `${mes}-28`) : 0
   const ganancia = inv.coste_vivienda === null ? 0 : r2(Math.max(0, precio - gastos - inv.coste_vivienda))
   const obtenido = Math.max(0, precio - gastos - hipoteca)
   const exenta = ganancia > 0 && obtenido > 0 ? Math.min(1, reinvertido / obtenido) : 1
