@@ -136,7 +136,10 @@ function vigilarTeclado() {
     const encogida = window.innerHeight < window.screen.height * 0.75
     const kb = encogida ? 0 : Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
     document.documentElement.style.setProperty('--kb', `${Math.round(kb)}px`)
-    document.documentElement.classList.toggle('con-teclado', kb >= 60 || encogida)
+    // Con el teclado abierto, iOS puede desplazar la vista hacia abajo (offsetTop): el pie de la página,
+    // donde está la hoja, queda a la vista y no hay que subirla, pero el teclado está (v0.44.1)
+    const tapa = window.innerHeight - vv.height
+    document.documentElement.classList.toggle('con-teclado', kb >= 60 || tapa >= 60 || encogida)
   }
   vv.addEventListener('resize', medir)
   vv.addEventListener('scroll', medir)

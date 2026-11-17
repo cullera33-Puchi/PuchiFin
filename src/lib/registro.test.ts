@@ -63,6 +63,21 @@ describe('registro sin datos personales y sin ruido', () => {
     expect(sanearDescripcion('Jardinería. Regla creada para las próximas')).toBe('Categoría elegida. Regla creada para las próximas')
     expect(sanearDescripcion('Tipo: Pago de deuda')).toBe('Tipo cambiado')
     expect(sanearDescripcion('Copia diaria guardada en el dispositivo')).toBe('Copia diaria guardada en el dispositivo')
+    // Nombres puestos por el usuario (v0.44.1)
+    expect(sanearDescripcion('Casa Zeta: añadido')).toBe('Bien añadido')
+    expect(sanearDescripcion('Casa Zeta: guardado')).toBe('Bien guardado')
+    expect(sanearDescripcion('Ana: añadida')).toBe('Nómina añadida')
+    expect(sanearDescripcion('Ana: cuenta en la previsión')).toBe('Nómina: cuenta en la previsión')
+    expect(sanearDescripcion('Ana: fuera de la previsión')).toBe('Nómina: fuera de la previsión')
+    expect(sanearDescripcion('Colegio de Ana: previsto')).toBe('Gasto previsto añadido')
+    expect(sanearDescripcion('Colegio de Ana: previsto para 01/09/2027')).toBe('Gasto previsto repetido el año siguiente')
+    expect(sanearDescripcion('Hijos: 300 € al mes')).toBe('Presupuesto: (importe) al mes')
+    expect(sanearDescripcion('Hijos: (importe) al mes')).toBe('Presupuesto: (importe) al mes')
+    expect(sanearDescripcion('Hijos: presupuesto quitado')).toBe('Presupuesto: presupuesto quitado')
+    expect(sanearDescripcion('Hipoteca: guardada')).toBe('Préstamo o plantilla: guardada')
+    // Lo de la app con dos puntos se queda igual
+    for (const m of ['Informes: comercio abierto', 'Teclado no detectado: hoja arriba', 'Analizar patrimonio: abierto en Claude', 'Exportación: compartido', 'Gastos fuera de lo normal: abiertos'])
+      expect(sanearDescripcion(m)).toBe(m)
   })
 
   it('agrupa lo mismo repetido seguido en una entrada con recuento', () => {

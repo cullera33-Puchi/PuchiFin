@@ -37,6 +37,14 @@ export function sanearDescripcion(m: string): string {
     .replace(/^.*\. Regla creada para las próximas$/, 'Categoría elegida. Regla creada para las próximas')
     .replace(/^(\d+ [^:]+):.*$/, '$1: categoría cambiada')
     .replace(/^Tipo: .*$/, 'Tipo cambiado')
+    // Nombres que pone el usuario (bienes, nóminas, gastos previstos, categorías y cuentas): fuera (v0.44.1)
+    .replace(/^[^:]+: (añadido|guardado)$/, 'Bien $1')
+    .replace(/^[^:]+: añadida$/, 'Nómina añadida')
+    .replace(/^[^:]+: (cuenta en la previsión|fuera de la previsión)$/, 'Nómina: $1')
+    .replace(/^[^:]+: previsto$/, 'Gasto previsto añadido')
+    .replace(/^[^:]+: previsto para .*$/, 'Gasto previsto repetido el año siguiente')
+    .replace(/^[^:]+: (\(importe\) al mes|sin presupuesto mensual|presupuesto quitado)$/, 'Presupuesto: $1')
+    .replace(/^[^:]+: (guardada|sin capital pendiente|la de la app)$/, 'Préstamo o plantilla: $1')
 }
 
 export const CLAVE_REGISTRO = 'puchifin-registro'

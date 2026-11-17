@@ -408,7 +408,13 @@ export function Importar() {
                   {propuesta.fecha_desde ? `Del ${formatearFecha(propuesta.fecha_desde)} al ${formatearFecha(propuesta.fecha_hasta!)}` : 'Sin movimientos nuevos'}
                 </p>
               </div>
-              <button className="boton-texto" onClick={() => (quedan ? siguiente() : (setLectura(null), setPegando(false)))}>
+              <button
+                className="boton-texto"
+                onClick={() => {
+                  if (quedan) registrar('info', 'Fichero saltado sin importar', { origen: lectura?.plantilla.origen })
+                  return quedan ? siguiente() : (setLectura(null), setPegando(false))
+                }}
+              >
                 {quedan ? 'Saltar' : 'Cambiar'}
               </button>
             </div>
@@ -602,7 +608,13 @@ export function Importar() {
           <Flotante>
             {!propuesta.nuevos.length && quedan > 0 ? (
               // Todo estaba ya importado y quedan ficheros: el botón lleva al siguiente
-              <button className="boton-primario w-full py-3 text-[17px] shadow-lg" onClick={siguiente}>
+              <button
+                className="boton-primario w-full py-3 text-[17px] shadow-lg"
+                onClick={() => {
+                  registrar('info', 'Nada nuevo que importar', { origen: lectura?.plantilla.origen, duplicados: propuesta.duplicados })
+                  return siguiente()
+                }}
+              >
                 Nada nuevo: seguir con el siguiente
               </button>
             ) : (

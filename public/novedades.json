@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.44.1",
+    "fecha": "2026-11-17",
+    "cambios": [
+      "El registro ya no guarda los nombres que escribes (bienes, nóminas, gastos previstos ni categorías). Lo anotado antes se limpia solo.",
+      "Al importar varios ficheros, el registro anota también los que no traen nada nuevo o se saltan.",
+      "Las hojas con campos ya no saltan arriba cuando el iPhone desplaza la pantalla al abrir el teclado."
+    ]
+  },
+  {
     "version": "0.44.0",
     "fecha": "2026-11-15",
     "cambios": [

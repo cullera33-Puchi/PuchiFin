@@ -2,6 +2,14 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.44.1. Depuración con el registro del usuario (17 de noviembre de 2026)
+
+Revisión del registro del iPhone enviado por el usuario (del 14 al 17 de noviembre, v0.34.1 a v0.44.0). Las importaciones cuadran, las copias se quedan en 3 y no hay errores. Tres ajustes:
+
+- Privacidad del registro: los avisos de los cambios hechos a mano guardaban el nombre de un bien, de una nómina, de un gasto previsto o de una categoría («Nombre: añadido», «Nombre: cuenta en la previsión»). `sanearDescripcion` los cambia por el tipo («Bien añadido», «Nómina: cuenta en la previsión», «Presupuesto: (importe) al mes»). Lo ya anotado se limpia al abrir la app, porque el registro se vuelve a sanear al leerlo.
+- Importar varios ficheros: un fichero sin nada nuevo o saltado no dejaba rastro. Ahora se anota «Nada nuevo que importar» (con los duplicados) o «Fichero saltado sin importar».
+- Teclado en las hojas: con el teclado abierto, iOS a veces desplaza la vista hacia abajo y la app no lo contaba como teclado, así que subía la hoja arriba («Teclado no detectado: hoja arriba», cuatro veces). Ahora cuenta lo que tapa el teclado aunque la vista esté desplazada, y la hoja se queda donde está, que ya se ve.
+
 ## v0.44.0. Cuánto puedo comprar, más claro; todo el dinero como entrada y 3 copias (15 de noviembre de 2026)
 
 Pedido por el usuario: la tabla del precio máximo no se entendía, y se hacían demasiadas copias de seguridad.
