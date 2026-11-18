@@ -7,10 +7,12 @@ import autoTable, { type CellDef, type RowInput } from 'jspdf-autotable'
 import type { ResumenAnual } from './anual'
 import { diaSemana, hoyIso, MESES, mesLargo } from './fechas'
 import { sinDiscreto } from './discreto'
-import { formatearFecha, formatearImporte } from './formato'
+import { formatearFecha, formatearImporte, formatearRedondo } from './formato'
 import { indicadores, lineasFueraDelExtracto, porcentaje as pct, textoEnCurso, type Resumen, type Tono } from './resumen'
 import { NOMBRE_TIPO_MOVIMIENTO, type Categoria } from './tipos'
 import type { Plan } from './plan'
+import { resumenEjecutivo } from './ejecutivo'
+import type { BaseDatos } from './tipos'
 import { APP_VERSION } from './version'
 
 export interface OpcionesPdf {
@@ -36,6 +38,7 @@ const MARGEN = 14
 const ANCHO = 210
 
 const eur = formatearImporte
+const eurRedondo = formatearRedondo
 const conSigno = (n: number) => (n > 0 ? `+${eur(n)}` : eur(n))
 const COLOR_TONO: Record<Tono, [number, number, number]> = { bueno: VERDE, malo: ROJO, neutro: GRIS }
 
@@ -440,7 +443,134 @@ function seccionPlan(
 
 export function nombreArchivoResumen(r: Resumen, reducida = false): string {
   const base = r.periodo.tipo === 'mes' ? `PuchiFin resumen ${r.periodo.inicio.slice(0, 7)}` : `PuchiFin semana ${r.periodo.inicio}`
-  return `${base}${reducida ? ' (reducido)' : ''}.pdf`
+  return `${base}${reducida ? ' (para compartir)' : ''}.pdf`
+}
+
+/**
+ * Resumen ejecutivo en una página (v0.45.0), la versión «Para compartir»: tres cifras, lo importante en
+ * frases, las cinco categorías que más pesan y la deuda familiar. Sin conceptos ni movimientos.
+ */
+export function generarPdfEjecutivo(
+  db: BaseDatos,
+  r: Resumen,
+  opciones: { hayDatosPrueba: boolean; plan: Plan | null; hoy?: string; generado?: string },
+): jsPDF {
+  return sinDiscreto(() => {
+    const e = resumenEjecutivo(db, r, opciones.hoy ?? hoyIso(), opciones.plan)
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+    const anchoUtil = ANCHO - 2 * MARGEN
+
+    // Cabecera
+    doc.setFillColor(...MARCA)
+    doc.rect(0, 0, ANCHO, 30, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica', 'normal').setFontSize(9)
+    doc.text('PuchiFin', MARGEN, 10)
+    doc.text(`Generado el ${formatearFecha(opciones.generado ?? hoyIso())}`, ANCHO - MARGEN, 10, { align: 'right' })
+    doc.setFont('helvetica', 'bold').setFontSize(19)
+    doc.text(e.titulo, MARGEN, 22)
+
+    let y = 38
+    const franja = (texto: string, fondo: [number, number, number], tinta: [number, number, number]) => {
+      doc.setFillColor(...fondo)
+      doc.roundedRect(MARGEN, y - 4.5, anchoUtil, 7, 1.5, 1.5, 'F')
+      doc.setTextColor(...tinta).setFont('helvetica', 'normal').setFontSize(8.5)
+      doc.text(texto, MARGEN + 3, y)
+      y += 8
+    }
+    if (opciones.hayDatosPrueba) franja('Incluye datos de prueba generados por la app. No son movimientos reales.', [254, 243, 199], [146, 64, 14])
+    if (e.aviso) franja(e.aviso, [240, 249, 255], [7, 89, 133])
+
+    // Tres cifras
+    const hueco = 4
+    const anchoCaja = (anchoUtil - hueco * 2) / 3
+    e.cifras.forEach((c, i) => {
+      const x = MARGEN + i * (anchoCaja + hueco)
+      doc.setDrawColor(228, 228, 231).setFillColor(250, 250, 250)
+      doc.roundedRect(x, y, anchoCaja, 27, 2.5, 2.5, 'FD')
+      doc.setTextColor(...GRIS).setFont('helvetica', 'normal').setFontSize(9)
+      doc.text(c.etiqueta, x + 4, y + 7)
+      doc.setTextColor(...(c.tono === 'neutro' ? TINTA : COLOR_TONO[c.tono])).setFont('helvetica', 'bold').setFontSize(19)
+      doc.text(c.valor, x + 4, y + 16.5)
+      if (c.nota) {
+        doc.setTextColor(...GRIS).setFont('helvetica', 'normal').setFontSize(8)
+        doc.text(doc.splitTextToSize(c.nota, anchoCaja - 8)[0], x + 4, y + 23)
+      }
+    })
+    y += 38
+
+    const titulo = (texto: string) => {
+      doc.setTextColor(...TINTA).setFont('helvetica', 'bold').setFontSize(13)
+      doc.text(texto, MARGEN, y)
+      y += 7
+    }
+
+    // Lo importante
+    titulo('Lo importante')
+    doc.setFont('helvetica', 'normal').setFontSize(11)
+    for (const f of e.frases) {
+      const lineas = doc.splitTextToSize(f, anchoUtil - 7)
+      doc.setFillColor(...MARCA)
+      doc.circle(MARGEN + 1.5, y - 1.3, 0.9, 'F')
+      doc.setTextColor(...TINTA)
+      doc.text(lineas, MARGEN + 6, y)
+      y += lineas.length * 5.2 + 2.2
+    }
+    y += 6
+
+    // En qué se va el dinero
+    titulo('En qué se va el dinero')
+    if (!e.categorias.length) {
+      doc.setTextColor(...GRIS).setFont('helvetica', 'normal').setFontSize(10)
+      doc.text('Sin gastos en el periodo.', MARGEN, y)
+      y += 8
+    } else {
+      const maxPeso = Math.max(...e.categorias.map((c) => c.peso), 0.0001)
+      const xBarra = MARGEN + 58
+      const anchoBarra = anchoUtil - 58 - 42
+      for (const c of e.categorias) {
+        doc.setTextColor(...TINTA).setFont('helvetica', 'normal').setFontSize(10.5)
+        doc.text(doc.splitTextToSize(c.nombre, 55)[0], MARGEN, y)
+        doc.setFillColor(240, 240, 240)
+        doc.roundedRect(xBarra, y - 3, anchoBarra, 3.6, 1, 1, 'F')
+        doc.setFillColor(...hexARgb(c.color))
+        doc.roundedRect(xBarra, y - 3, Math.max(1, (anchoBarra * c.peso) / maxPeso), 3.6, 1, 1, 'F')
+        doc.setFont('helvetica', 'bold')
+        doc.text(eurRedondo(c.importe), ANCHO - MARGEN - 14, y, { align: 'right' })
+        doc.setTextColor(...GRIS).setFont('helvetica', 'normal').setFontSize(8.5)
+        doc.text(pct(c.peso), ANCHO - MARGEN, y, { align: 'right' })
+        y += 8.5
+      }
+      doc.setDrawColor(228, 228, 231).setLineWidth(0.2).line(MARGEN, y - 4, ANCHO - MARGEN, y - 4)
+      doc.setTextColor(...TINTA).setFont('helvetica', 'bold').setFontSize(10.5)
+      doc.text('Total', MARGEN, y + 1)
+      doc.text(eurRedondo(e.totalGastos), ANCHO - MARGEN - 14, y + 1, { align: 'right' })
+      y += 12
+    }
+
+    // Deuda familiar
+    if (e.deuda) {
+      doc.setFont('helvetica', 'normal').setFontSize(11)
+      const lineas = e.deuda.frases.map((f) => doc.splitTextToSize(f, anchoUtil - 10) as string[])
+      const alto = 13 + lineas.reduce((s, l) => s + l.length * 5.2 + 1.5, 0)
+      doc.setFillColor(240, 253, 250).setDrawColor(204, 235, 230)
+      doc.roundedRect(MARGEN, y - 2, anchoUtil, alto, 2.5, 2.5, 'FD')
+      doc.setTextColor(...MARCA).setFont('helvetica', 'bold').setFontSize(12)
+      doc.text(e.deuda.titulo, MARGEN + 5, y + 5)
+      let yd = y + 12
+      doc.setTextColor(...TINTA).setFont('helvetica', 'normal').setFontSize(11)
+      for (const l of lineas) {
+        doc.text(l, MARGEN + 5, yd)
+        yd += l.length * 5.2 + 1.5
+      }
+    }
+
+    // Pie
+    doc.setDrawColor(228, 228, 231).line(MARGEN, 286, ANCHO - MARGEN, 286)
+    doc.setTextColor(...GRIS).setFont('helvetica', 'normal').setFontSize(7)
+    doc.text('Cuentan los gastos e ingresos del día a día: sin traspasos entre cuentas, gastos de trabajo ni lo devuelto de la deuda.', MARGEN, 290)
+    return doc
+  })
 }
 
 /**

@@ -9,7 +9,8 @@ import { contarDatosPrueba } from '../datos/operaciones'
 import { useDatos } from '../datos/ProveedorDatos'
 import { diaSemana, hoyIso } from '../lib/fechas'
 import { calcularPlan, escenarioNominas, supuestosCrecimiento } from '../lib/plan'
-import { formatearImporte } from '../lib/formato'
+import { formatearImporte, formatearRedondo } from '../lib/formato'
+import { resumenEjecutivo, type ResumenEjecutivo } from '../lib/ejecutivo'
 import { registrar } from '../lib/registro'
 import {
   calcularResumen,
@@ -60,7 +61,8 @@ export function Resumenes() {
   const hayPrueba = contarDatosPrueba(db) > 0
   const [conceptos, setConceptos] = useState(() => leerPreferencia(CLAVE_CONCEPTOS, 'si') !== 'no')
   const [conPlan, setConPlan] = useState(() => leerPreferencia(CLAVE_PLAN, 'si') !== 'no')
-  const hayPlan = useMemo(() => !!calcularPlan(db, hoyIso()).plan, [db])
+  const planGuardado = useMemo(() => calcularPlan(db, hoyIso()).plan, [db])
+  const hayPlan = !!planGuardado
   const escenario = useMemo(() => escenarioNominas(db), [db])
   const cambiarPlan = (v: boolean) => {
     setConPlan(v)
@@ -88,12 +90,15 @@ export function Resumenes() {
   const generarPdf = async (descargar: boolean) => {
     setGenerando(true)
     try {
-      const { generarPdfResumen, nombreArchivoResumen } = await import('../lib/pdf')
+      const { generarPdfEjecutivo, generarPdfResumen, nombreArchivoResumen } = await import('../lib/pdf')
       // Plan de pagos: el actual y con las nóminas que no cuentan (la segunda), calculados al generar
       const actual = hayPlan && conPlan ? calcularPlan(db, hoyIso()).plan : null
-      const otro = actual && escenario ? calcularPlan(db, hoyIso(), escenario.sim).plan : null
+      const otro = actual && escenario && !reducida ? calcularPlan(db, hoyIso(), escenario.sim).plan : null
       const plan = actual ? { actual, conNominas: otro && escenario ? { nombres: escenario.nombres, plan: otro } : null, supuestos: supuestosCrecimiento(db) } : null
-      const doc = generarPdfResumen(resumen, { incluirConceptos: conceptos, hayDatosPrueba: hayPrueba, categorias, reducida, plan })
+      // Para compartir: el resumen ejecutivo de una página, con la deuda del plan guardado (v0.45.0)
+      const doc = reducida
+        ? generarPdfEjecutivo(db, resumen, { hayDatosPrueba: hayPrueba, plan: actual })
+        : generarPdfResumen(resumen, { incluirConceptos: conceptos, hayDatosPrueba: hayPrueba, categorias, plan })
       const nombre = nombreArchivoResumen(resumen, reducida)
       registrar('info', `Resumen ${resumen.periodo.tipo === 'mes' ? 'mensual' : 'semanal'} en PDF`, { periodo: resumen.periodo.inicio, paginas: doc.getNumberOfPages(), conceptos, reducida, plan: !!plan })
       const r = await compartirArchivo(doc.output('blob'), nombre, resumen.periodo.etiqueta, descargar)
@@ -147,14 +152,20 @@ export function Resumenes() {
             </div>
           </div>
           {reducida ? (
-            <p className="text-xs text-zinc-500">Solo ingresos, gastos, ahorro y gasto por categoría, sin movimientos ni lo que queda fuera del extracto. El plan de pagos va si lo incluyes.</p>
+            <p className="text-xs text-zinc-500">Una página para quien no usa la app: lo gastado, lo que ha entrado y lo ahorrado, lo importante en frases y las cinco categorías que más pesan. Sin conceptos ni movimientos.</p>
           ) : (
             <FilaInterruptor texto="Incluir los conceptos" nota="Sin ellos, solo fechas, categorías e importes" activo={conceptos} onCambio={cambiarConceptos} />
           )}
           {hayPlan && (
             <FilaInterruptor
-              texto="Incluir el plan de pagos"
-              nota={escenario ? `El actual y con ${escenario.nombres.join(' y ')}, con el capital previsto` : 'Pago de cada verano, deuda y capital previsto'}
+              texto={reducida ? 'Incluir la deuda familiar' : 'Incluir el plan de pagos'}
+              nota={
+                reducida
+                  ? 'Lo que queda, el próximo pago y cuándo queda saldada'
+                  : escenario
+                    ? `El actual y con ${escenario.nombres.join(' y ')}, con el capital previsto`
+                    : 'Pago de cada verano, deuda y capital previsto'
+              }
               activo={conPlan}
               onCambio={cambiarPlan}
             />
@@ -185,9 +196,75 @@ export function Resumenes() {
       )}
 
       <Deslizable onAnterior={() => setDesplazamiento((d) => d - 1)} onSiguiente={() => setDesplazamiento((d) => d + 1)} haySiguiente={!futuro}>
-        <VistaPrevia r={resumen} conceptos={conceptos} reducida={reducida} categorias={categorias} />
+        {reducida ? (
+          <VistaEjecutiva e={resumenEjecutivo(db, resumen, hoyIso(), conPlan ? planGuardado : null)} />
+        ) : (
+          <VistaPrevia r={resumen} conceptos={conceptos} reducida={reducida} categorias={categorias} />
+        )}
       </Deslizable>
     </>
+  )
+}
+
+/** Vista previa del resumen ejecutivo (v0.45.0): lo mismo que el PDF de una página */
+function VistaEjecutiva({ e }: { e: ResumenEjecutivo }) {
+  const maxPeso = Math.max(...e.categorias.map((c) => c.peso), 0.0001)
+  return (
+    <div className="space-y-4" aria-label="Resumen para compartir">
+      {e.aviso && <Aviso tipo="info">{e.aviso}</Aviso>}
+      <h2 className="text-lg font-semibold">{e.titulo}</h2>
+      <div className="grid grid-cols-3 gap-2">
+        {e.cifras.map((c) => (
+          <div key={c.etiqueta} className="tarjeta p-3">
+            <p className="text-[11px] leading-tight text-zinc-500">{c.etiqueta}</p>
+            <p className={`mt-1 text-[17px] font-semibold tabular-nums ${c.tono === 'neutro' ? '' : TONO[c.tono]}`}>{c.valor}</p>
+            {c.nota && <p className="mt-0.5 text-[11px] leading-tight text-zinc-500">{c.nota}</p>}
+          </div>
+        ))}
+      </div>
+      <section className="tarjeta">
+        <h3 className="mb-2 text-sm font-semibold">Lo importante</h3>
+        <ul className="space-y-1.5 text-[15px]">
+          {e.frases.map((f) => (
+            <li key={f} className="flex gap-2">
+              <span className="mt-2 size-1.5 shrink-0 rounded-full bg-teal-700" aria-hidden />
+              <span>{f}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <section className="tarjeta">
+        <h3 className="mb-3 text-sm font-semibold">En qué se va el dinero</h3>
+        {e.categorias.length === 0 ? (
+          <p className="text-sm text-zinc-500">Sin gastos en el periodo.</p>
+        ) : (
+          <ul className="space-y-2.5">
+            {e.categorias.map((c) => (
+              <li key={c.nombre} className="text-sm">
+                <div className="flex items-baseline gap-2">
+                  <span className="flex-1 truncate">{c.nombre}</span>
+                  <span className="font-medium tabular-nums">{formatearRedondo(c.importe)}</span>
+                  <span className="w-12 text-right text-xs whitespace-nowrap text-zinc-500 tabular-nums">{porcentaje(c.peso)}</span>
+                </div>
+                <div className="mt-1 h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800">
+                  <div className="h-1.5 rounded-full" style={{ width: `${Math.max(1, (c.peso / maxPeso) * 100)}%`, background: c.color }} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      {e.deuda && (
+        <section className="tarjeta">
+          <h3 className="mb-2 text-sm font-semibold">{e.deuda.titulo}</h3>
+          <ul className="space-y-1 text-[15px]">
+            {e.deuda.frases.map((f) => (
+              <li key={f}>{f}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
   )
 }
 

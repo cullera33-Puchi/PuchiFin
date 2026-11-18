@@ -65,6 +65,6 @@ describe('generarPdfResumen', () => {
   it('nombra el archivo según el periodo', () => {
     expect(nombreArchivoResumen(calcularResumen(periodoMes('2026-11-05'), [], categorias))).toBe('PuchiFin resumen 2026-11.pdf')
     expect(nombreArchivoResumen(calcularResumen(periodoSemana('2026-11-13'), [], categorias))).toBe('PuchiFin semana 2026-11-09.pdf')
-    expect(nombreArchivoResumen(calcularResumen(periodoMes('2026-11-05'), [], categorias), true)).toBe('PuchiFin resumen 2026-11 (reducido).pdf')
+    expect(nombreArchivoResumen(calcularResumen(periodoMes('2026-11-05'), [], categorias), true)).toBe('PuchiFin resumen 2026-11 (para compartir).pdf')
   })
 })

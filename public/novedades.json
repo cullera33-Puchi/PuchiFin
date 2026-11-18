@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.45.0",
+    "fecha": "2026-11-18",
+    "cambios": [
+      "Resúmenes, «Para compartir»: ahora es un resumen de una página para quien no usa la app.",
+      "Lo gastado, lo que ha entrado y lo ahorrado frente a lo normal, y lo importante en cuatro frases.",
+      "Las cinco categorías que más pesan y la deuda familiar: lo que queda, el próximo pago y cuándo queda saldada.",
+      "Es también el PDF que se comparte al terminar el cierre de mes."
+    ]
+  },
+  {
     "version": "0.44.1",
     "fecha": "2026-11-17",
     "cambios": [

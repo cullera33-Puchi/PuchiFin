@@ -2,6 +2,16 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.45.0. Resumen ejecutivo de una página para compartir (18 de noviembre de 2026)
+
+Pedido por el usuario: un resumen de una página, con menos detalle y lo importante, para compartir con su pareja. Decisiones del usuario: el mes y las cinco categorías, la deuda familiar, frases y pocas cifras, sustituye a la versión «Para compartir» y resume el periodo elegido.
+
+- `src/lib/ejecutivo.ts` (`resumenEjecutivo`): tres cifras (gastado, lo que ha entrado y ahorrado) con lo normal debajo; «Lo importante» en hasta cuatro frases en primera persona del plural (gasto frente a lo habitual, la categoría que más sube, la que más baja y el ahorro); las cinco categorías que más pesan y «Resto»; y la deuda familiar del plan guardado, sin simulaciones (lo que queda, lo previsto para el próximo agosto y el año en que queda saldada).
+- Referencia: en un mes, la media de los meses anteriores, la misma del Extracto (a estas alturas del mes si está en curso); sin media, el mes anterior; en una semana, la anterior. Todas las frases dicen con qué comparan.
+- PDF de una página (`generarPdfEjecutivo`), sin conceptos ni movimientos, con las cifras reales aunque la app esté en modo discreto. Lo usan «Para compartir» en Resúmenes, con su vista previa, y el PDF al completar el cierre de mes (`compartirResumenMes`). El archivo se llama «… (para compartir).pdf». El PDF completo no cambia.
+- En «Para compartir», el interruptor del plan pasa a «Incluir la deuda familiar».
+- Pruebas: cifras y frases de un mes cerrado, en curso y de una semana, las cinco categorías y el resto, la deuda, y el PDF en una página sin conceptos; prueba de navegador de la vista previa.
+
 ## v0.44.1. Depuración con el registro del usuario (17 de noviembre de 2026)
 
 Revisión del registro del iPhone enviado por el usuario (del 14 al 17 de noviembre, v0.34.1 a v0.44.0). Las importaciones cuadran, las copias se quedan en 3 y no hay errores. Tres ajustes:

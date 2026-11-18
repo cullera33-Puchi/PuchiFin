@@ -173,6 +173,21 @@ test('Informes, gastos fijos y PayPal se abren sin errores', async ({ page }) =>
   expect(e).toEqual([])
 })
 
+test('resumen para compartir: una página con lo importante', async ({ page }) => {
+  const e = errores(page)
+  await conDatosDePrueba(page)
+  await page.goto('/resumenes')
+  await page.getByRole('radio', { name: 'Para compartir' }).tap()
+  const vista = page.getByLabel('Resumen para compartir')
+  await expect(vista.getByText('Lo importante')).toBeVisible()
+  await expect(vista.getByText('En qué se va el dinero')).toBeVisible()
+  await expect(vista.getByText(/Hemos gastado|Llevamos/).first()).toBeVisible()
+  // Mes anterior, cerrado
+  await page.getByRole('button', { name: 'Periodo anterior' }).tap()
+  await expect(vista.getByText(/^Resumen de [a-z]+ de \d{4}$/)).toBeVisible()
+  expect(e).toEqual([])
+})
+
 test('importar varios Excel a la vez: se revisan seguidos, se puede saltar uno y el aviso de atípicos va en pendientes', async ({ page }) => {
   const e = errores(page)
   await page.goto('/movimientos/importar')
