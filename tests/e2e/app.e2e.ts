@@ -181,6 +181,8 @@ test('resumen para compartir: una página con lo importante', async ({ page }) =
   const vista = page.getByLabel('Resumen para compartir')
   await expect(vista.getByText('Lo importante')).toBeVisible()
   await expect(vista.getByText('En qué se va el dinero')).toBeVisible()
+  await expect(vista.getByText('En las cuentas')).toBeVisible()
+  await expect(vista.getByText('Cuenta de ahorro')).toBeVisible()
   await expect(vista.getByText(/Hemos gastado|Llevamos/).first()).toBeVisible()
   // Mes anterior, cerrado
   await page.getByRole('button', { name: 'Periodo anterior' }).tap()

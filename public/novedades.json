@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.46.0",
+    "fecha": "2026-11-19",
+    "cambios": [
+      "El resumen para compartir enseña lo que hay en la cuenta del día a día, en la de ahorro y el total.",
+      "Es el saldo del banco al final del mes elegido o, si está en curso, con lo último importado.",
+      "Debajo del total, cuánto ha subido o bajado en el mes."
+    ]
+  },
+  {
     "version": "0.45.0",
     "fecha": "2026-11-18",
     "cambios": [

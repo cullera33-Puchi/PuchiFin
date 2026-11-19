@@ -2,6 +2,15 @@
 
 Lo entregado en cada versión, con detalle técnico. Las líneas para el usuario van en `public/novedades.json`.
 
+## v0.46.0. El dinero en las cuentas en el resumen para compartir (19 de noviembre de 2026)
+
+Pedido por el usuario: que el resumen de una página enseñe el saldo total de las cuentas, el de la cuenta de ahorro y el de la cuenta del día a día.
+
+- Apartado «En las cuentas» debajo de las tres cifras, en el PDF y en la vista previa: la cuenta del día a día, la de ahorro y el total, con el saldo del banco al último día del periodo o, si está en curso, con el último dato importado. Debajo del total, lo que ha variado en el mes o la semana, si todas las cuentas tenían datos al empezar.
+- La de ahorro es la del colchón del plan de pagos; con una sola cuenta más, esa es la del día a día. Sin cuenta de ahorro en el plan, cada cuenta sale con su alias. Sin saldos del banco, el apartado no sale.
+- `saldosA` en `posicion.ts`: saldo de cada cuenta bancaria según el banco a un día.
+- Pruebas: saldos a final de mes y del mes en curso, la variación, los nombres con y sin cuenta de ahorro, sin saldos, y el PDF en una página.
+
 ## v0.45.0. Resumen ejecutivo de una página para compartir (18 de noviembre de 2026)
 
 Pedido por el usuario: un resumen de una página, con menos detalle y lo importante, para compartir con su pareja. Decisiones del usuario: el mes y las cinco categorías, la deuda familiar, frases y pocas cifras, sustituye a la versión «Para compartir» y resume el periodo elegido.

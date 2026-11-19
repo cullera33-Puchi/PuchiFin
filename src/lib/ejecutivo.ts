@@ -6,7 +6,8 @@
  * Los textos se forman al llamar a la función: dentro de `sinDiscreto` salen con las cifras reales.
  */
 import { calcularExtracto, categoriaQueMasSube } from './extracto'
-import { diaLargo, MESES, nombreMes } from './fechas'
+import { diaLargo, MESES, nombreMes, sumarDias } from './fechas'
+import { saldosA } from './posicion'
 import { formatearRedondo } from './formato'
 import type { Plan } from './plan'
 import type { Resumen, Tono } from './resumen'
@@ -28,6 +29,17 @@ export interface CategoriaEjecutiva {
   peso: number
 }
 
+export interface CuentasEjecutivo {
+  /** Fecha de los saldos: el último día del periodo o, si está en curso, el último dato importado */
+  fecha: string
+  lineas: { nombre: string; saldo: number }[]
+  total: number
+  /** Lo que ha variado el total en el periodo (frente al día anterior a su inicio), si hay datos */
+  variacion: number | null
+  /** «en el mes» o «en la semana» */
+  cuando: string
+}
+
 export interface ResumenEjecutivo {
   titulo: string
   /** Si el periodo está en curso, hasta cuándo llegan los datos */
@@ -38,6 +50,8 @@ export interface ResumenEjecutivo {
   categorias: CategoriaEjecutiva[]
   totalGastos: number
   deuda: { titulo: string; frases: string[] } | null
+  /** Dinero en las cuentas: la del día a día, la de ahorro y el total (v0.46.0) */
+  cuentas: CuentasEjecutivo | null
 }
 
 interface Referencia {
@@ -153,7 +167,30 @@ export function resumenEjecutivo(db: BaseDatos, r: Resumen, hoy: string, plan: P
     cinco.push({ nombre: `Resto (${resto.length} categorías)`, color: '#A1A1AA', importe, peso: t.gastos > 0 ? importe / t.gastos : 0 })
   }
 
-  return { titulo, aviso, cifras, frases, categorias: cinco, totalGastos: t.gastos, deuda: plan ? fraseDeuda(plan) : null }
+  return { titulo, aviso, cifras, frases, categorias: cinco, totalGastos: t.gastos, deuda: plan ? fraseDeuda(plan) : null, cuentas: cuentasDe(db, r, hoy) }
+}
+
+const r2 = (n: number) => Math.round(n * 100) / 100
+
+/**
+ * Saldo de las cuentas según el banco al final del periodo (o con el último dato, si está en curso). La de
+ * ahorro es la del colchón del plan de pagos; con una sola cuenta más, esa es la del día a día. Sin plan, por su alias.
+ */
+function cuentasDe(db: BaseDatos, r: Resumen, hoy: string): CuentasEjecutivo | null {
+  const dia = r.periodo.fin < hoy ? r.periodo.fin : hoy
+  const saldos = saldosA(db, dia)
+  if (!saldos.length) return null
+  const ahorroId = db.compromisos.find((c) => c.activo)?.cuenta_colchon_id ?? null
+  const otras = saldos.filter((s) => s.cuenta.id !== ahorroId)
+  const nombre = (id: string, alias: string) => (id === ahorroId ? 'Cuenta de ahorro' : ahorroId && otras.length === 1 ? 'Cuenta del día a día' : alias)
+  // Primero la del día a día y después la de ahorro
+  const lineas = [...otras, ...saldos.filter((s) => s.cuenta.id === ahorroId)].map((s) => ({ nombre: nombre(s.cuenta.id, s.cuenta.alias), saldo: s.saldo }))
+  const total = r2(saldos.reduce((s, x) => s + x.saldo, 0))
+  const fecha = saldos.reduce((max, s) => (s.fecha > max ? s.fecha : max), '')
+  // Variación en el periodo, solo si todas las cuentas ya tenían datos antes de empezar
+  const antes = saldosA(db, sumarDias(r.periodo.inicio, -1))
+  const variacion = antes.length === saldos.length ? r2(total - antes.reduce((s, x) => s + x.saldo, 0)) : null
+  return { fecha, lineas, total, variacion, cuando: r.periodo.tipo === 'mes' ? 'en el mes' : 'en la semana' }
 }
 
 /** La deuda familiar: lo que queda, el próximo pago y cuándo queda saldada, con el plan guardado (sin simulaciones) */

@@ -103,8 +103,45 @@ describe('resumen ejecutivo para compartir (v0.45.0)', () => {
     if (plan.saldadaEn && p.deudaTras > 0) expect(e.deuda!.frases.at(-1)).toBe(`Al ritmo de ahora, quedará saldada en ${plan.saldadaEn}.`)
   })
 
+  it('en las cuentas: la del día a día, la de ahorro y el total al final del periodo (v0.46.0)', () => {
+    const db = crear(20000)
+    // Saldos del banco: la principal a 30/09 y 31/10; la de ahorro a 30/09, 31/10 y 15/11
+    db.movimientos.push(
+      mov('2026-09-30', -10, null, { saldo: 1500 }),
+      mov('2026-10-31', -10, null, { saldo: 1800 }),
+      mov('2026-09-30', 100, null, { cuenta_id: segunda.id, tipo: 'traspaso_interno', saldo: 4000 }),
+      mov('2026-10-31', 100, null, { cuenta_id: segunda.id, tipo: 'traspaso_interno', saldo: 4400 }),
+    )
+    const r = calcularResumen(periodoMes('2026-10-01'), db.movimientos, db.categorias, 10, HOY)
+    const c = resumenEjecutivo(db, r, HOY, null).cuentas!
+    expect(c.fecha).toBe('2026-10-31')
+    expect(c.lineas).toEqual([
+      { nombre: 'Cuenta del día a día', saldo: 1800 },
+      { nombre: 'Cuenta de ahorro', saldo: 4400 },
+    ])
+    expect(c.total).toBe(6200)
+    expect(c.variacion).toBe(700)
+    expect(c.cuando).toBe('en el mes')
+    // El mes en curso: con el último dato de cada cuenta
+    const rn = calcularResumen(periodoMes('2026-11-01'), db.movimientos, db.categorias, 10, HOY)
+    const cn = resumenEjecutivo(db, rn, HOY, null).cuentas!
+    expect(cn.fecha).toBe('2026-11-15')
+    expect(cn.lineas[1]).toEqual({ nombre: 'Cuenta de ahorro', saldo: 5000 })
+    // Sin cuenta de ahorro en el plan, cada cuenta con su alias
+    const base = crear()
+    const sinPlan = { ...base, compromisos: base.compromisos.map((c) => ({ ...c, cuenta_colchon_id: null })) }
+    sinPlan.movimientos.push(mov('2026-10-31', -10, null, { saldo: 1800 }))
+    const c2 = resumenEjecutivo(sinPlan, calcularResumen(periodoMes('2026-10-01'), sinPlan.movimientos, sinPlan.categorias, 10, HOY), HOY, null).cuentas!
+    expect(c2.lineas).toEqual([{ nombre: principal.alias, saldo: 1800 }])
+    expect(c2.variacion).toBeNull()
+    // Sin saldos del banco, no hay apartado
+    const vacio = { ...crear(), movimientos: [] }
+    expect(resumenEjecutivo(vacio, calcularResumen(periodoMes('2026-10-01'), [], vacio.categorias, 10, HOY), HOY, null).cuentas).toBeNull()
+  })
+
   it('el PDF ocupa una página, sin conceptos y con la deuda', () => {
     const db = crear(20000)
+    db.movimientos.push(mov('2026-10-31', -10, null, { saldo: 1800 }))
     const plan = calcularPlan(db, HOY).plan
     const r = calcularResumen(periodoMes('2026-10-01'), db.movimientos, db.categorias, 10, HOY)
     const doc = generarPdfEjecutivo(db, r, { hayDatosPrueba: true, plan, hoy: HOY, generado: HOY })
@@ -113,6 +150,7 @@ describe('resumen ejecutivo para compartir (v0.45.0)', () => {
     expect(texto).not.toContain('COMERCIO SECRETO')
     expect(texto).toContain('Deuda familiar')
     expect(texto).toContain('Lo importante')
+    expect(texto).toContain('En las cuentas')
     // Sin movimientos también sale, en una página
     const vacio = calcularResumen(periodoMes('2027-03-01'), [], db.categorias, 10, HOY)
     expect(generarPdfEjecutivo(db, vacio, { hayDatosPrueba: false, plan: null, hoy: HOY }).getNumberOfPages()).toBe(1)

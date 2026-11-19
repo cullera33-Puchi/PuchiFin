@@ -7,7 +7,7 @@ import { FilaInterruptor, Segmentado, useInterfaz } from '../componentes/Interfa
 import { compartirArchivo, puedeCompartirArchivos } from '../lib/compartir'
 import { contarDatosPrueba } from '../datos/operaciones'
 import { useDatos } from '../datos/ProveedorDatos'
-import { diaSemana, hoyIso } from '../lib/fechas'
+import { diaLargo, diaSemana, hoyIso } from '../lib/fechas'
 import { calcularPlan, escenarioNominas, supuestosCrecimiento } from '../lib/plan'
 import { formatearImporte, formatearRedondo } from '../lib/formato'
 import { resumenEjecutivo, type ResumenEjecutivo } from '../lib/ejecutivo'
@@ -222,6 +222,32 @@ function VistaEjecutiva({ e }: { e: ResumenEjecutivo }) {
           </div>
         ))}
       </div>
+      {e.cuentas && (
+        <section className="tarjeta">
+          <div className="mb-2 flex items-baseline justify-between gap-2">
+            <h3 className="text-sm font-semibold">En las cuentas</h3>
+            <span className="text-xs text-zinc-500">Saldo a {diaLargo(e.cuentas.fecha, true)}</span>
+          </div>
+          <ul className="space-y-1.5 text-[15px]">
+            {e.cuentas.lineas.map((l) => (
+              <li key={l.nombre} className="flex items-baseline gap-2">
+                <span className="flex-1 truncate">{l.nombre}</span>
+                <span className="tabular-nums">{formatearRedondo(l.saldo)}</span>
+              </li>
+            ))}
+            <li className="flex items-baseline gap-2 border-t border-zinc-200 pt-1.5 font-semibold dark:border-zinc-800">
+              <span className="flex-1">Total</span>
+              <span className="tabular-nums">{formatearRedondo(e.cuentas.total)}</span>
+            </li>
+          </ul>
+          {e.cuentas.variacion !== null && (
+            <p className={`mt-1 text-right text-xs ${e.cuentas.variacion >= 0 ? TONO.bueno : TONO.malo}`}>
+              {e.cuentas.variacion >= 0 ? '+' : ''}
+              {formatearRedondo(e.cuentas.variacion)} {e.cuentas.cuando}
+            </p>
+          )}
+        </section>
+      )}
       <section className="tarjeta">
         <h3 className="mb-2 text-sm font-semibold">Lo importante</h3>
         <ul className="space-y-1.5 text-[15px]">

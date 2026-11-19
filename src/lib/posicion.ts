@@ -41,6 +41,16 @@ function saldoA(movs: Movimiento[], dia: string): number | null {
   return cuadrarCuenta(movs.filter((m) => m.fecha_operacion <= dia)).saldoBanco
 }
 
+/** Saldo de cada cuenta bancaria según el banco al final de un día (las que ya tienen datos), para el resumen ejecutivo */
+export function saldosA(db: BaseDatos, dia: string): SaldoCuenta[] {
+  const res: SaldoCuenta[] = []
+  for (const c of db.cuentas.filter((x) => x.activa && x.tipo === 'cuenta')) {
+    const r = cuadrarCuenta(db.movimientos.filter((m) => m.cuenta_id === c.id && m.fecha_operacion <= dia))
+    if (r.saldoBanco !== null && r.fecha) res.push({ cuenta: c, saldo: r.saldoBanco, fecha: r.fecha })
+  }
+  return res
+}
+
 const finDeMes = (mes: string) => sumarDias(sumarMeses(`${mes}-01`, 1), -1)
 const mesAnterior = (mes: string) => sumarMeses(`${mes}-01`, -1).slice(0, 7)
 

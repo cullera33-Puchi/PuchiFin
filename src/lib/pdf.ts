@@ -5,7 +5,7 @@
 import { jsPDF } from 'jspdf'
 import autoTable, { type CellDef, type RowInput } from 'jspdf-autotable'
 import type { ResumenAnual } from './anual'
-import { diaSemana, hoyIso, MESES, mesLargo } from './fechas'
+import { diaLargo, diaSemana, hoyIso, MESES, mesLargo } from './fechas'
 import { sinDiscreto } from './discreto'
 import { formatearFecha, formatearImporte, formatearRedondo } from './formato'
 import { indicadores, lineasFueraDelExtracto, porcentaje as pct, textoEnCurso, type Resumen, type Tono } from './resumen'
@@ -503,6 +503,30 @@ export function generarPdfEjecutivo(
       doc.setTextColor(...TINTA).setFont('helvetica', 'bold').setFontSize(13)
       doc.text(texto, MARGEN, y)
       y += 7
+    }
+
+    // Dinero en las cuentas: la del día a día, la de ahorro y el total (v0.46.0)
+    if (e.cuentas) {
+      const c = e.cuentas
+      titulo('En las cuentas')
+      doc.setTextColor(...GRIS).setFont('helvetica', 'normal').setFontSize(8.5)
+      doc.text(`Saldo a ${diaLargo(c.fecha, true)}`, ANCHO - MARGEN, y - 7, { align: 'right' })
+      const columnas = [...c.lineas.map((l) => ({ nombre: l.nombre, valor: eurRedondo(l.saldo), total: false })), { nombre: 'Total', valor: eurRedondo(c.total), total: true }]
+      const ancho = anchoUtil / columnas.length
+      doc.setDrawColor(228, 228, 231).setFillColor(250, 250, 250)
+      doc.roundedRect(MARGEN, y - 2, anchoUtil, 20, 2.5, 2.5, 'FD')
+      columnas.forEach((col, i) => {
+        const x = MARGEN + i * ancho + 4
+        doc.setTextColor(...GRIS).setFont('helvetica', 'normal').setFontSize(9)
+        doc.text(doc.splitTextToSize(col.nombre, ancho - 6)[0], x, y + 4)
+        doc.setTextColor(...(col.total ? MARCA : TINTA)).setFont('helvetica', 'bold').setFontSize(15)
+        doc.text(col.valor, x, y + 11.5)
+        if (col.total && c.variacion !== null) {
+          doc.setTextColor(...(c.variacion >= 0 ? VERDE : ROJO)).setFont('helvetica', 'normal').setFontSize(8)
+          doc.text(`${c.variacion >= 0 ? '+' : ''}${eurRedondo(c.variacion)} ${c.cuando}`, x, y + 16)
+        }
+      })
+      y += 30
     }
 
     // Lo importante
